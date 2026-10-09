@@ -1,4 +1,4 @@
-import { addDays, beninInstant, formatDayLong, formatTime, toDayKey } from '../dates';
+import { addDays, beninInstant, formatDayLong, formatTime, nextBusinessDayAt, toDayKey } from '../dates';
 import { formatFcfa, normalizeBeninPhone, parseAmount, percentChange } from '../money';
 import {
   can,
@@ -268,4 +268,37 @@ describe('abonnement', () => {
     const after = extendedPaidUntil({ paidUntil: '2026-10-01T00:00:00.000Z' }, now);
     expect(after).toBe('2026-11-08T10:00:00.000Z');
   });
+});
+
+
+describe('régressions audit mission 04', () => {
+  it.each([1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1])('refuse un montant FCFA non entier ou non représentable : %s', (value) => {
+    expect(validateDraft(content(value)).errors.revenue).toBeDefined();
+    expect(validateDraft(content(0), { openingCashRequired: true, openingCash: value }).errors.openingCash).toBeDefined();
+    const c = content();
+    c.expenses.lines = [{ id: 'l', label: 'Achat', amount: value }];
+    expect(validateDraft(c).errors.expenses).toBeDefined();
+  });
+  it('refuse un total détaillé dépassant la précision entière', () => {
+    const c = content();
+    c.revenue.lines = [{ id: '1', label: 'A', amount: Number.MAX_SAFE_INTEGER }, { id: '2', label: 'B', amount: 1 }];
+    expect(validateDraft(c).ok).toBe(false);
+  });
+  it('refuse les doublons, articles étrangers et quantités négatives même sans module stock', () => {
+    const duplicate = content(0, 0, 0, [{ itemId: 'i', quantity: 2 }, { itemId: 'i', quantity: 2 }]);
+    expect(validateDraft(duplicate, { remainingStock: { i: 3 } }).errors.stock).toBeDefined();
+    expect(validateDraft(content(0, 0, 0, [{ itemId: 'foreign', quantity: 1 }]), { remainingStock: { i: 3 } }).ok).toBe(false);
+    expect(validateDraft(content(0, 0, 0, [{ itemId: 'i', quantity: -1 }])).ok).toBe(false);
+  });
+  it('ne réutilise pas les droits du business courant pour un autre bilan', () => {
+    const foreign = report('2026-10-09', content(1), { businessId: 'other', authorId: 'e' });
+    expect(canViewReport(owner, foreign, 'e')).toBe(false);
+    expect(canEditReport(entry, foreign, 'e', Date.parse(foreign.submittedAt) + 1000)).toBe(false);
+  });
+});
+
+
+it('programme le prochain jour métier à minuit Cotonou et non à minuit du téléphone', () => {
+  expect(nextBusinessDayAt(Date.parse('2026-10-09T22:59:59.000Z'))).toBe(Date.parse('2026-10-09T23:00:00.000Z'));
+  expect(nextBusinessDayAt(Date.parse('2026-10-09T23:00:00.000Z'))).toBe(Date.parse('2026-10-10T23:00:00.000Z'));
 });

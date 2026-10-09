@@ -230,3 +230,45 @@ describe('abonnement (lecture seule)', () => {
     expect((await s.subscriptions.get('b-eshop', 'u-aicha')).status).toBe('expired');
   });
 });
+
+
+describe('régressions audit mission 04', () => {
+  it('réserve les mouvements globaux aux niveaux de consultation, tout en montrant la caisse au manager', async () => {
+    const { s } = setup();
+    const home = await s.reports.managerHome('b-maman', 'u-rodrigue');
+    expect(home.cash).toEqual({ closing: (await s.reports.dashboard('b-maman', 'u-koffi', 1)).cash!.closing });
+    const [report] = await s.reports.list('b-maman', 'u-rodrigue');
+    const day = await s.reports.dayView('b-maman', 'u-rodrigue', report.day);
+    expect(day.cash).toBeNull();
+    expect(day.reports.every((r) => r.authorId === 'u-rodrigue')).toBe(true);
+  });
+  it('refuse le stock étranger, dupliqué ou désactivé sans écrire de bilan', async () => {
+    const { s } = setup();
+    for (const stockSales of [[{ itemId: 'foreign', quantity: 1 }], [{ itemId: 'st-eau', quantity: 1 }, { itemId: 'st-eau', quantity: 1 }]]) {
+      await expectCode(s.reports.submit('b-maman', 'u-rodrigue', { content: contentWith(1, { stockSales }) }), 'VALIDATION');
+    }
+    await expectCode(s.reports.submit('b-eshop', 'u-koffi', { content: contentWith(1, { stockSales: [{ itemId: 'st-eau', quantity: 1 }] }) }), 'VALIDATION');
+    expect((await s.reports.managerHome('b-maman', 'u-rodrigue')).myReportToday).toBeNull();
+    const [own] = await s.reports.list('b-etoile', 'u-koffi');
+    await expectCode(s.reports.edit(own.id, 'u-koffi', contentWith(1, { stockSales: [{ itemId: 'st-eau', quantity: 1 }] })), 'VALIDATION');
+    expect((await s.reports.get(own.id, 'u-koffi')).versions).toHaveLength(own.versions.length);
+  });
+  it('isole les rôles par business et protège les invitations des autres numéros', async () => {
+    const { s } = setup();
+    await expectCode(s.team.invite('b-maman', 'u-koffi', { phone: '01 97 00 00 55', roleId: 'r-livreur' }), 'NOT_FOUND');
+    const [inv] = await s.team.listMyInvitations('u-rodrigue');
+    await expectCode(s.team.respondToInvitation(inv.id, 'u-fatou', true), 'NOT_FOUND');
+    await s.team.respondToInvitation(inv.id, 'u-rodrigue', false);
+    await expectCode(s.team.respondToInvitation(inv.id, 'u-rodrigue', true), 'NOT_FOUND');
+  });
+  it('réactive un membre invité à nouveau sans perdre ses bilans ni leur auteur', async () => {
+    const { s } = setup();
+    const oldReports = await s.reports.list('b-maman', 'u-rodrigue');
+    const member = (await s.team.listMembers('b-maman', 'u-koffi')).find((m) => m.user.id === 'u-rodrigue')!;
+    await s.team.removeMember(member.member.id, 'u-koffi');
+    const inv = await s.team.invite('b-maman', 'u-koffi', { phone: '01 97 00 00 02', roleId: 'r-serveur' });
+    await s.team.respondToInvitation(inv.id, 'u-rodrigue', true);
+    expect(await s.reports.list('b-maman', 'u-rodrigue')).toEqual(oldReports);
+    expect((await s.team.listMembers('b-maman', 'u-koffi')).filter((m) => m.user.id === 'u-rodrigue')).toHaveLength(1);
+  });
+});

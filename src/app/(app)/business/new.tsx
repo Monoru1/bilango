@@ -97,7 +97,7 @@ export default function NewBusinessScreen() {
         <Text variant="label">Heure du rappel de bilan</Text>
         <Segmented options={REMINDERS} value={reminderTime} onChange={setReminderTime} />
         <Text variant="caption" tone="secondary">
-          Un rappel est envoyé aux managers qui n'ont pas encore fait leur bilan. Vous pouvez la changer plus tard.
+          Heure prévue pour les rappels, modifiable plus tard. Aucun rappel n'est envoyé dans cette démonstration.
         </Text>
       </View>
 

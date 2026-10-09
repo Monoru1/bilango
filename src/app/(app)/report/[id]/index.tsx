@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { formatDateTime, formatDayLong } from '@/domain/dates';
-import { canEditReport } from '@/domain/permissions';
+import { editWindowEnd, canEditReport } from '@/domain/permissions';
 import { isEdited } from '@/domain/reports';
 import { ContentView } from '@/features/report/ContentView';
 import { editHint } from '@/features/reports/format';
 import { useCurrentBusiness } from '@/state/business';
-import { useQuery, useServices } from '@/state/services';
+import { useDeadlineClock, useQuery, useServices } from '@/state/services';
 import { AsyncBoundary } from '@/ui/feedback';
 import { Segmented } from '@/ui/forms';
 import { Avatar, Badge, Button, Card, Row, Screen, Text } from '@/ui/primitives';
@@ -23,7 +23,7 @@ export default function ReportDetail() {
   const [which, setWhich] = useState<'current' | 'original'>('current');
   const query = useQuery(['report', id, user.id], () => services.reports.get(id, user.id));
   const names = useQuery(['stockNames', overview.business.id, user.id], () => services.stock.names(overview.business.id, user.id));
-  const now = services.now();
+  const now = useDeadlineClock(query.data ? [editWindowEnd(query.data)] : []);
 
   return (
     <Screen

@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
+import { nextBusinessDayAt } from '@/domain/dates';
 import type { Services } from '@/services/types';
 import { createAppServices } from './composition';
 
@@ -15,6 +17,26 @@ export function useServices(): Services {
   const ctx = useContext(ServicesContext);
   if (!ctx) throw new Error('useServices doit être utilisé dans un <ServicesProvider>.');
   return ctx;
+}
+
+/** Réévalue les droits à leur échéance et au retour de veille, sans polling. */
+export function useDeadlineClock(deadlines: readonly number[]): number {
+  const services = useServices();
+  const [revision, refresh] = useState(0);
+  const now = services.now();
+  const next = Math.min(...deadlines.filter((deadline) => deadline > now));
+  useEffect(() => {
+    const update = () => refresh((value) => value + 1);
+    const timer = Number.isFinite(next) ? setTimeout(update, Math.max(0, next - services.now())) : undefined;
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') update();
+    });
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      listener.remove();
+    };
+  }, [next, services, revision]);
+  return now;
 }
 
 export interface QueryResult<T> {
@@ -53,6 +75,19 @@ export function useQuery<T>(key: readonly unknown[], fetcher: () => Promise<T>, 
   });
 
   useEffect(() => services.events.subscribe(() => setTick((t) => t + 1)), [services]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const refresh = () => setTick((t) => t + 1);
+    const timer = setTimeout(refresh, nextBusinessDayAt(services.now()) - services.now());
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => {
+      clearTimeout(timer);
+      listener.remove();
+    };
+  }, [services, enabled, requestId]);
 
   useEffect(() => {
     if (!enabled) return;

@@ -2,11 +2,11 @@ import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 
 import { formatTime } from '@/domain/dates';
-import { canEditReport, can } from '@/domain/permissions';
+import { editWindowEnd, canEditReport, can } from '@/domain/permissions';
 import type { Access, Business } from '@/domain/types';
 import { CashDayCard } from '@/features/dashboard/CashDayCard';
 import { editHint } from '@/features/reports/format';
-import { useQuery, useServices } from '@/state/services';
+import { useDeadlineClock, useQuery, useServices } from '@/state/services';
 import { AsyncBoundary, Banner } from '@/ui/feedback';
 import { Button, Card, Row, Screen, Text, Icon } from '@/ui/primitives';
 import { colors, spacing } from '@/ui/theme';
@@ -16,6 +16,7 @@ export function ManagerHome({ userId, business, access }: { userId: string; busi
   const router = useRouter();
   const services = useServices();
   const query = useQuery(['managerHome', business.id, userId], () => services.reports.managerHome(business.id, userId));
+  const now = useDeadlineClock(query.data?.myReportToday ? [editWindowEnd(query.data.myReportToday)] : []);
   const canSubmit = can(access, 'submitReport');
 
   return (
@@ -23,7 +24,7 @@ export function ManagerHome({ userId, business, access }: { userId: string; busi
       <AsyncBoundary query={query}>
         {(home) => {
           const mine = home.myReportToday;
-          const editable = mine ? canEditReport(access, mine, userId, services.now()) : false;
+          const editable = mine ? canEditReport(access, mine, userId, now) : false;
           return (
             <>
               <CashDayCard cash={home.cash} missing={home.openingCashMissing} emphasis />
@@ -73,7 +74,7 @@ export function ManagerHome({ userId, business, access }: { userId: string; busi
               />
 
               <Text variant="caption" tone="muted" align="center">
-                Rappel automatique à {business.reminderTime.replace(':', 'h')} si le bilan n'est pas envoyé.
+                Rappel prévu à {business.reminderTime.replace(':', 'h')}. Aucune notification envoyée dans cette démonstration.
               </Text>
             </>
           );

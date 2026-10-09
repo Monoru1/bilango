@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 96 96">
+  <!-- Source fidèle à src/ui/logo.tsx. Pour les couches transparentes, omettre le fond. -->
+  <rect width="96" height="96" rx="22" fill="#0F6E56"/>
+  <path d="M10 48 C26 26 70 26 86 48 C70 70 26 70 10 48Z" fill="#FFFFFF"/>
+  <circle cx="48" cy="48" r="16" fill="#0F6E56"/>
+  <rect x="39" y="49" width="5" height="7" rx="1" fill="#FFFFFF"/>
+  <rect x="46" y="44" width="5" height="12" rx="1" fill="#FFFFFF"/>
+  <rect x="53" y="39" width="5" height="17" rx="1" fill="#5DCAA5"/>
+</svg>
