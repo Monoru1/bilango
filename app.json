@@ -24,6 +24,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
+      "versionCode": 1,
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
@@ -39,6 +40,11 @@
       ],
       "expo-secure-store"
     ],
+    "extra": {
+      "eas": {
+        "projectId": "14f789f6-e58c-464e-a128-1e64f57d8eab"
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
