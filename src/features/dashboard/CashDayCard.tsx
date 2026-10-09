@@ -10,7 +10,7 @@ import { colors, spacing } from '@/ui/theme';
  * Caisse théorique (cahier §5.3) : même niveau d'importance que le CA. Aucun écart ni alerte :
  * l'app donne la référence, le contrôle physique reste celui du propriétaire.
  */
-export function CashDayCard({ cash, missing, emphasis = false }: { cash: CashDay | null; missing: boolean; emphasis?: boolean }) {
+export function CashDayCard({ cash, missing, emphasis = false }: { cash: CashDay | Pick<CashDay, 'closing'> | null; missing: boolean; emphasis?: boolean }) {
   const tone = emphasis ? 'onPrimary' : 'primary';
   const sub = emphasis ? 'onPrimary' : 'secondary';
   return (
@@ -24,10 +24,10 @@ export function CashDayCard({ cash, missing, emphasis = false }: { cash: CashDay
       {cash ? (
         <>
           <BigAmount value={cash.closing} tone={tone} />
-          <Text variant="caption" tone={sub}>
+          {'opening' in cash ? <Text variant="caption" tone={sub}>
             Veille {formatFcfa(cash.opening)} + CA {formatFcfa(cash.revenue)} + ajouts {formatFcfa(cash.cashIn)} − dépenses{' '}
             {formatFcfa(cash.expenses)}
-          </Text>
+          </Text> : null}
         </>
       ) : (
         <View style={{ gap: spacing.xs }}>

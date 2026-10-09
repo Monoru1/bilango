@@ -3,11 +3,11 @@ import { View } from 'react-native';
 
 import { formatDayLong, formatDayRelative, formatTime, toDayKey } from '@/domain/dates';
 import { formatFcfa } from '@/domain/money';
-import { can, canEditReport } from '@/domain/permissions';
+import { editWindowEnd, can, canEditReport } from '@/domain/permissions';
 import { currentVersion, isEdited, totalsOfDay } from '@/domain/reports';
 import type { Report } from '@/domain/types';
 import { useCurrentBusiness } from '@/state/business';
-import { useQuery, useServices } from '@/state/services';
+import { useDeadlineClock, useQuery, useServices } from '@/state/services';
 import { AsyncBoundary, EmptyState } from '@/ui/feedback';
 import { Badge, Card, Divider, ListItem, Screen, Text } from '@/ui/primitives';
 import { spacing } from '@/ui/theme';
@@ -20,7 +20,7 @@ export default function ReportsTab() {
   const { business, access } = overview;
   const all = can(access, 'viewAllReports');
   const query = useQuery(['reports', business.id, user.id], () => services.reports.list(business.id, user.id));
-  const now = services.now();
+  const now = useDeadlineClock((query.data ?? []).map(editWindowEnd));
   const today = toDayKey(now);
 
   return (

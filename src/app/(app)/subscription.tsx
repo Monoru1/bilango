@@ -68,7 +68,7 @@ export default function SubscriptionScreen() {
               </Card>
 
               <Banner>
-                Abonnement : {formatFcfa(SUBSCRIPTION_PRICE_FCFA)} pour {SUBSCRIPTION_DAYS} jours, par Mobile Money. Le lien de paiement vous est envoyé sur WhatsApp ; rien ne se paie dans l'application. Si vous renouvelez avant l'échéance, les {SUBSCRIPTION_DAYS} jours s'ajoutent aux jours restants.
+                Abonnement : {formatFcfa(SUBSCRIPTION_PRICE_FCFA)} pour {SUBSCRIPTION_DAYS} jours. Cet écran présente votre statut et votre historique.
               </Banner>
 
               <SectionTitle>Historique des paiements</SectionTitle>

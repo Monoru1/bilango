@@ -32,6 +32,11 @@ export function toDayKey(value: Date | number | string): DayKey {
   return new Date(toMs(value) + BENIN_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+/** Prochain minuit à Cotonou, en millisecondes UTC. */
+export function nextBusinessDayAt(now: number): number {
+  return (Math.floor((now + BENIN_OFFSET_MS) / DAY_MS) + 1) * DAY_MS - BENIN_OFFSET_MS;
+}
+
 function dayKeyToUtcMs(day: DayKey): number {
   return Date.parse(`${day}T00:00:00.000Z`);
 }

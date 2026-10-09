@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { formatPhone } from '@/domain/money';
-import { MOCK_OTP_COOLDOWN_SECONDS } from '@/services/mock';
+import { useServices } from '@/state/services';
 import { errorMessage } from '@/services/types';
 import { useSessionController } from '@/state/session';
 import { Banner } from '@/ui/feedback';
@@ -12,13 +12,14 @@ import { Button, Screen, Text } from '@/ui/primitives';
 import { spacing } from '@/ui/theme';
 
 export default function OtpScreen() {
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { phone, retryAfterSeconds } = useLocalSearchParams<{ phone: string; retryAfterSeconds?: string }>();
+  const demo = useServices().auth.demo;
   const session = useSessionController();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [cooldown, setCooldown] = useState(MOCK_OTP_COOLDOWN_SECONDS);
+  const [cooldown, setCooldown] = useState(Number(retryAfterSeconds) || 0);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -75,7 +76,7 @@ export default function OtpScreen() {
         error={error}
         autoComplete="sms-otp"
       />
-      <Banner>Mode démonstration : le code est 123456.</Banner>
+      {demo ? <Banner>Mode démonstration : le code est {demo.otpCode}.</Banner> : null}
       <Button
         variant="ghost"
         label={cooldown > 0 ? `Renvoyer le code (${cooldown} s)` : 'Renvoyer le code'}

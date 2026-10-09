@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { formatPhone, normalizeBeninPhone } from '@/domain/money';
-import { DEMO_ACCOUNTS, DEMO_OTP_CODE } from '@/services/mock/seed';
+import { useServices } from '@/state/services';
 import { errorMessage } from '@/services/types';
 import { useSessionController } from '@/state/session';
 import { TextField } from '@/ui/forms';
@@ -13,6 +13,7 @@ import { colors, radius, spacing } from '@/ui/theme';
 
 export default function PhoneScreen() {
   const router = useRouter();
+  const demo = useServices().auth.demo;
   const session = useSessionController();
   const [value, setValue] = useState('');
   const [fieldError, setFieldError] = useState<string>();
@@ -29,8 +30,8 @@ export default function PhoneScreen() {
     setServiceError(undefined);
     setLoading(true);
     try {
-      await session.requestOtp(phone);
-      router.push({ pathname: '/otp', params: { phone } });
+      const { retryAfterSeconds } = await session.requestOtp(phone);
+      router.push({ pathname: '/otp', params: { phone, retryAfterSeconds: String(retryAfterSeconds) } });
     } catch (e) {
       setServiceError(errorMessage(e));
     } finally {
@@ -67,14 +68,14 @@ export default function PhoneScreen() {
       />
       {serviceError ? <Banner tone="negative">{serviceError}</Banner> : null}
 
-      <Card tone="tint">
+      {demo ? <Card tone="tint">
         <Text variant="label" tone="primary">
           Mode démonstration
         </Text>
         <Text variant="caption" tone="secondary">
-          Aucun message n'est envoyé. Le code est toujours {DEMO_OTP_CODE}. Touchez un compte pour pré-remplir le numéro :
+          Aucun message n'est envoyé. Le code est toujours {demo.otpCode}. Touchez un compte pour pré-remplir le numéro :
         </Text>
-        {DEMO_ACCOUNTS.map((a) => (
+        {demo.accounts.map((a) => (
           <Pressable
             key={a.phone}
             accessibilityRole="button"
@@ -97,7 +98,7 @@ export default function PhoneScreen() {
             </Text>
           </Pressable>
         ))}
-      </Card>
+      </Card> : null}
     </Screen>
   );
 }

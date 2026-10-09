@@ -29,7 +29,7 @@ import {
   type MemberView,
   type Services,
 } from '../types';
-import { buildSeed, DEMO_OTP_CODE, type MockDb } from './seed';
+import { buildSeed, DEMO_ACCOUNTS, DEMO_OTP_CODE, type MockDb } from './seed';
 
 export const MOCK_OTP_COOLDOWN_SECONDS = 30;
 const OTP_MAX_PER_DAY = 5;
@@ -109,6 +109,7 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
   // --- Auth ----------------------------------------------------------------------
 
   const auth: Services['auth'] = {
+    demo: { otpCode: DEMO_OTP_CODE, accounts: DEMO_ACCOUNTS },
     requestOtp: (phone) =>
       write(() => {
         if (!normalizeBeninPhone(phone)) throw new ServiceError('VALIDATION', 'Numéro de téléphone invalide.');
@@ -270,8 +271,9 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
         const business = db.businesses.find((b) => b.id === businessId)!;
         const today = toDayKey(now());
         const mine = businessReports(businessId).filter((r) => r.authorId === userId);
+        const cash = cashFor(businessId, today);
         return {
-          cash: cashFor(businessId, today),
+          cash: cash ? { closing: cash.closing } : null,
           openingCashMissing: business.openingCash === null && can(access, 'submitReport'),
           myReportToday: mine.find((r) => r.day === today) ?? null,
           lastDayWithReport: latestReportDay(mine, businessId, today),
@@ -302,7 +304,12 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
       read((): DayView => {
         const access = accessOf(businessId, userId);
         const visible = reportsOfDay(visibleReports(access, userId), businessId, day);
-        return { day, reports: visible, totals: totalsOfDay(visible, businessId, day), cash: cashFor(businessId, day) };
+        return {
+          day,
+          reports: visible,
+          totals: totalsOfDay(visible, businessId, day),
+          cash: can(access, 'viewAllReports') ? cashFor(businessId, day) : null,
+        };
       }),
 
     submit: (businessId, userId, input) =>
@@ -320,7 +327,7 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
           openingCash: input.openingCash ?? null,
           remainingStock: business.stockEnabled
             ? remainingStockExcluding(db.stockItems, db.reports, businessId)
-            : undefined,
+            : {},
         });
         if (!check.ok) throw new ServiceError('VALIDATION', Object.values(check.errors)[0] ?? 'Bilan invalide.');
 
@@ -361,7 +368,7 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
         const check = validateDraft(content, {
           remainingStock: business.stockEnabled
             ? remainingStockExcluding(db.stockItems, db.reports, business.id, report.id)
-            : undefined,
+            : {},
         });
         if (!check.ok) throw new ServiceError('VALIDATION', Object.values(check.errors)[0] ?? 'Bilan invalide.');
         const updated: Report = {

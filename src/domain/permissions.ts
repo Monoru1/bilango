@@ -92,8 +92,8 @@ export function grantableLevels(actor: Pick<Access, 'isOwner' | 'role'>): Permis
   return (['entry', 'readonly', 'full'] as const).filter((l) => canGrantLevel(actor, l));
 }
 
-export function canViewReport(access: Pick<Access, 'isOwner' | 'role'>, report: Report, userId: Id): boolean {
-  return can(access, 'viewAllReports') || report.authorId === userId;
+export function canViewReport(access: Pick<Access, 'businessId' | 'isOwner' | 'role'>, report: Report, userId: Id): boolean {
+  return access.businessId === report.businessId && (can(access, 'viewAllReports') || report.authorId === userId);
 }
 
 export function editWindowEnd(report: Pick<Report, 'submittedAt'>): number {
@@ -105,10 +105,10 @@ export function editWindowEnd(report: Pick<Report, 'submittedAt'>): number {
  * modifications ne prolongent pas la fenêtre).
  */
 export function canEditReport(
-  access: Pick<Access, 'isOwner' | 'role'>,
-  report: Pick<Report, 'authorId' | 'submittedAt'>,
+  access: Pick<Access, 'businessId' | 'isOwner' | 'role'>,
+  report: Pick<Report, 'businessId' | 'authorId' | 'submittedAt'>,
   userId: Id,
   now: number,
 ): boolean {
-  return can(access, 'submitReport') && report.authorId === userId && now < editWindowEnd(report);
+  return access.businessId === report.businessId && can(access, 'submitReport') && report.authorId === userId && now < editWindowEnd(report);
 }

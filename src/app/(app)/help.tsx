@@ -69,9 +69,8 @@ const OWNER_TOPICS: Topic[] = [
   {
     title: 'Gérer l\'abonnement',
     body: [
-      "L'abonnement coûte 2 000 FCFA pour 30 jours, payés par Mobile Money (MTN ou Moov).",
-      "Le lien de paiement vous est envoyé sur WhatsApp : l'application affiche seulement l'état de l'abonnement et les jours restants.",
-      'Si vous payez avant la fin, les 30 jours s\'ajoutent à ceux qu\'il vous reste.',
+      "L'écran « Mon abonnement » affiche le statut, la date de fin et le nombre de jours restants.",
+      "L'historique des paiements passés est réservé au propriétaire.",
     ],
   },
 ];

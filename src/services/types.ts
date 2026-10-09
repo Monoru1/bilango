@@ -55,6 +55,8 @@ export function errorMessage(error: unknown): string {
 // --- Auth ----------------------------------------------------------------------
 
 export interface AuthService {
+  /** Présent uniquement pour les services de démonstration. */
+  readonly demo?: { otpCode: string; accounts: readonly { phone: string; label: string }[] };
   /** Envoie un code OTP (WhatsApp en production). Soumis au rate limiting. */
   requestOtp(phone: string): Promise<{ retryAfterSeconds: number }>;
   verifyOtp(phone: string, code: string): Promise<{ token: string; user: User }>;
@@ -111,7 +113,8 @@ export interface DayView {
 }
 
 export interface ManagerHome {
-  cash: CashDay | null;
+  /** Solde visible sans révéler les mouvements globaux aux profils Saisie seule. */
+  cash: Pick<CashDay, 'closing'> | null;
   openingCashMissing: boolean;
   myReportToday: Report | null;
   lastDayWithReport: DayKey | null;

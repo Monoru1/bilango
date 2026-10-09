@@ -69,11 +69,12 @@ export interface DraftValidation {
 const NOTE_MAX = 500;
 
 function validateAmount(amount: ReportAmount): string | undefined {
-  if (!Number.isFinite(amount.total) || amount.total < 0) return 'Montant invalide.';
+  if (!Number.isSafeInteger(amount.total) || amount.total < 0) return 'Montant invalide.';
   for (const line of amount.lines) {
     if (line.label.trim() === '') return 'Chaque ligne détaillée doit avoir un nom.';
-    if (!Number.isFinite(line.amount) || line.amount <= 0) return 'Chaque ligne doit avoir un montant supérieur à 0.';
+    if (!Number.isSafeInteger(line.amount) || line.amount <= 0) return 'Chaque ligne doit avoir un montant supérieur à 0.';
   }
+  if (!Number.isSafeInteger(normalizeAmount(amount).total)) return 'Montant invalide.';
   return undefined;
 }
 
@@ -102,18 +103,28 @@ export function validateDraft(
     const v = options.openingCash;
     if (v === null || v === undefined || Number.isNaN(v)) {
       errors.openingCash = 'Indiquez le montant compté dans la caisse.';
-    } else if (v < 0) {
+    } else if (!Number.isSafeInteger(v) || v < 0) {
       errors.openingCash = 'Montant invalide.';
     }
   }
 
-  if (options.remainingStock) {
+  {
+    const seen = new Set<Id>();
     for (const sale of content.stockSales) {
       if (!Number.isInteger(sale.quantity) || sale.quantity < 0) {
         errors.stock = 'Quantité invalide.';
         break;
       }
-      const remaining = options.remainingStock[sale.itemId];
+      if (seen.has(sale.itemId)) {
+        errors.stock = 'Un article ne peut apparaître qu’une fois.';
+        break;
+      }
+      seen.add(sale.itemId);
+      const remaining = options.remainingStock?.[sale.itemId];
+      if (options.remainingStock && remaining === undefined) {
+        errors.stock = 'Article de stock introuvable pour ce business.';
+        break;
+      }
       if (remaining !== undefined && sale.quantity > remaining) {
         errors.stock = 'Une quantité vendue dépasse le stock restant.';
         break;
