@@ -1,18 +1,50 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ServicesProvider } from '@/state/services';
+import { SessionProvider, useSessionState } from '@/state/session';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function RootNavigator() {
+  const session = useSessionState();
+
+  useEffect(() => {
+    if (session.status !== 'booting') SplashScreen.hideAsync().catch(() => undefined);
+  }, [session.status]);
+
+  if (session.status === 'booting') return null;
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Stack.Protected guard={session.status === 'signedOut'}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Protected guard={session.status === 'locked'}>
+        <Stack.Screen name="unlock" />
+      </Stack.Protected>
+      <Stack.Protected guard={session.status === 'onboarding'}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
+      <Stack.Protected guard={session.status === 'ready'}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <ServicesProvider>
+        <SessionProvider>
+          <RootNavigator />
+        </SessionProvider>
+      </ServicesProvider>
+    </SafeAreaProvider>
   );
 }
