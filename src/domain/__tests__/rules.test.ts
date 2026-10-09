@@ -1,4 +1,4 @@
-import { addDays, beninInstant, formatDayLong, formatTime, nextBusinessDayAt, toDayKey } from '../dates';
+import { addDays, beninInstant, calendarDays, formatDayLong, formatTime, nextBusinessDayAt, parseFrenchDay, periodRange, rangeError, toDayKey } from '../dates';
 import { formatFcfa, normalizeBeninPhone, parseAmount, percentChange } from '../money';
 import {
   can,
@@ -17,6 +17,9 @@ import {
   stockLevels,
   theoreticalCash,
   totalsOfDay,
+  totalsInRange,
+  revenueTrend,
+  periodComparison,
   validateDraft,
 } from '../reports';
 import { daysRemaining, extendedPaidUntil, subscriptionStatus } from '../subscription';
@@ -51,6 +54,51 @@ const owner: Access = { businessId: BIZ, userId: 'o', isOwner: true, role: null 
 const full: Access = { businessId: BIZ, userId: 'f', isOwner: false, role: role('full') };
 const entry: Access = { businessId: BIZ, userId: 'e', isOwner: false, role: role('entry') };
 const readonly: Access = { businessId: BIZ, userId: 'r', isOwner: false, role: role('readonly') };
+
+describe('périodes libres inclusives', () => {
+  const rows = [report('2024-01-01', content(100, 10, 5)), report('2025-06-15', content(200, 20)), report('2026-10-09', content(300, 30)), report('2026-10-10', content(999)), report('2025-06-15', content(999), { businessId: 'étranger' })];
+  it('agrège plusieurs années sans plafond ni données étrangères ou hors bornes', () => {
+    expect(totalsInRange(rows, BIZ, { from: '2024-01-01', to: '2026-10-09' })).toMatchObject({ revenue: 600, expenses: 60, cashIn: 5, reportCount: 3 });
+  });
+  it('permet une journée unique, les bornes sont inclusives', () => {
+    expect(totalsInRange(rows, BIZ, { from: '2025-06-15', to: '2025-06-15' })).toMatchObject({ revenue: 200, reportCount: 1 });
+  });
+  it('ne compte que les versions courantes et tous les contributeurs', () => {
+    const edited = report('2025-06-15', content(50));
+    edited.versions.push({ content: content(70, 7), savedAt: edited.submittedAt });
+    expect(totalsInRange([...rows, edited], BIZ, { from: '2025-06-15', to: '2025-06-15' })).toMatchObject({ revenue: 270, expenses: 27, reportCount: 2 });
+  });
+  it('rend les absences explicites sans faux points à zéro', () => {
+    expect(revenueTrend(rows, BIZ, { from: '2024-01-01', to: '2026-10-09' }).map(r => r.revenue)).toEqual([100, 200, 300]);
+    expect(totalsInRange(rows, BIZ, { from: '2023-01-01', to: '2023-12-31' }).reportCount).toBe(0);
+    expect(periodComparison(rows, BIZ, { from: '2023-01-01', to: '2023-12-31' })).toBeNull();
+  });
+  it('compare des intervalles précédents de même durée', () => {
+    const comparisonRows = [report('2026-10-01', content(100)), report('2026-10-03', content(150))];
+    expect(periodComparison(comparisonRows, BIZ, { from: '2026-10-03', to: '2026-10-04' })).toBe(50);
+  });
+  it('calcule un solde à la fin, inclut les mouvements antérieurs, sans somme des soldes', () => {
+    const business = { id: BIZ, openingCash: { day: '2024-01-01', amount: 1000, declaredById: 'u1' } };
+    expect(theoreticalCash(business, rows, '2025-06-15')).toMatchObject({ opening: 1095, closing: 1275 });
+    expect(theoreticalCash(business, rows, '2026-10-09')?.closing).toBe(1545);
+    expect(theoreticalCash(business, rows, '2023-12-31')).toBeNull();
+  });
+  it.each([
+    [{ from: '2026-10-10', to: '2026-10-09' }, 'La fin'],
+    [{ from: '2026-02-31', to: '2026-10-09' }, 'valides'],
+    [{ from: '2026-10-09', to: '2026-10-10' }, 'futures'],
+  ])('refuse les intervalles invalides : %j', (range, message) => {
+    expect(rangeError(range, '2026-10-09')).toContain(message);
+  });
+  it('n’impose aucune durée maximale, convertit la saisie française et gère les années bissextiles', () => {
+    expect(rangeError({ from: '1900-01-01', to: '2026-10-09' }, '2026-10-09')).toBeUndefined();
+    expect(parseFrenchDay('29/02/2024')).toBe('2024-02-29');
+    expect(parseFrenchDay('29/02/2025')).toBeNull();
+    expect(calendarDays('2026-10-01')).toHaveLength(42);
+    expect(calendarDays('2026-10-01')[0]).toBe('2026-09-28');
+    expect(periodRange(7, '2026-10-09')).toEqual({ from: '2026-10-03', to: '2026-10-09' });
+  });
+});
 
 describe('dates', () => {
   it('calcule le jour métier à Cotonou (UTC+1)', () => {

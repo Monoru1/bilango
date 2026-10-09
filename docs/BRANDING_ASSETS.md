@@ -1,20 +1,19 @@
 # Assets Android — BilanGo
 
-Préparation mission 04, issue du logo existant `src/ui/logo.tsx` et du cahier §7 : œil blanc, iris vert et barres montantes, palette #0F6E56 / #5DCAA5. **Rendu natif et validation visuelle finale non exécutés.**
+Identité client mission 05 : loupe blanche et graphique vert foncé sur carré arrondi `#25D366`. Les PNG fournis sont conservés sans recoloration ni déformation. Le vert du logo ne remplace pas la palette générale de l'app.
 
-| Fichier dans `assets/images/` | Format | Usage |
-| --- | --- | --- |
-| `brand.svg` | Source vectorielle, viewBox 96 × 96, export 1024 × 1024 | Logo complet, géométrie du composant Logo |
-| `icon.png` | PNG RGBA 1024 × 1024 | Icône classique, carré arrondi vert |
-| `android-icon-foreground.png` | PNG RGBA 1024 × 1024, transparent | Œil et iris, sans carré de fond |
-| `android-icon-background.png` | PNG RGBA 1024 × 1024, opaque | Fond uni #0F6E56 |
-| `android-icon-monochrome.png` | PNG RGBA 1024 × 1024 | Masque blanc transparent, iris évidé et barres blanches, icônes thématiques |
-| `splash-icon.png` | PNG RGBA 1024 × 1024, transparent | Symbole centré ; plugin expo-splash-screen, fond #0F6E56, imageWidth 160, contain |
+| Fichier dans `assets/images/` | Usage |
+| --- | --- |
+| `logo.png` | PNG client 512 × 512, composant Logo (accueils, connexion et menu), contain |
+| `icon.png` | PNG client 1024 × 1024, icône classique, identique au fichier fourni |
+| `brand.svg` | SVG original fourni dans la demande : géométrie de référence |
+| `android-icon-foreground.png` | Symbole loupe/barres sur transparence, 1024 × 1024 |
+| `android-icon-background.png` | Couleur unie #25D366, 1024 × 1024 |
+| `android-icon-monochrome.png` | Masque blanc sur transparence pour icônes thématiques, 1024 × 1024 |
+| `splash-icon.png` | Composition centrée à 75 % du PNG client, transparente, 1024 × 1024 |
 
-Les couches foreground, monochrome et splash reprennent la géométrie du SVG avec une échelle de 72 % centrée sur (48,48), sans le rectangle de fond. L'œil tient dans une largeur d'environ 57 % du canevas : il reste dans la zone sûre centrale du masque adaptive. Les pixels anti-aliasés sont conservés. Pour réexporter, utiliser la source vectorielle : fond séparé, même transformation pour les trois couches, dernier rectangle blanc pour le monochrome. Les PNG ont été rasterisés avec System.Drawing sur Windows, sans dépendance ajoutée au projet.
+Les couches adaptive sont dérivées du SVG : loupe et barres, sans carré de fond, transformées avec un facteur 1,35 puis translation (166,4 ; 166,4) dans le canevas 1024. Le dessin reste dans la zone sûre centrale. Le monochrome est un masque système, pas une recoloration du logo affiché dans l'interface. Les couches se régénèrent sous Windows avec `powershell -File scripts/prepare-brand.ps1` (System.Drawing, aucune dépendance ajoutée).
 
-`app.json` référence ces fichiers existants. Le test de `src/ui/__tests__/contrast.test.ts` vérifie les cinq PNG (signature, en-tête, dimensions), les couleurs configurées et la présence de la source SVG. Cela ne valide ni les masques des lanceurs ni le rendu du splash.
+`app.json` utilise le fond adaptive #25D366 et le splash sur fond blanc, largeur configurée 160, contain. Aucun dossier natif modifié. Tests : signature/dimensions des cinq PNG Android, palette configurée et présence du SVG. Les captures Web confirment le rendu du logo officiel sur blanc, mais ne montrent pas le lanceur ni le splash natifs.
 
-Vérifier sur un **binaire release** : masques rond/carré arrondi, icônes thématiques Android, démarrage à froid, fond de splash, absence de rognage et lisibilité des barres. Expo Go ne reproduit pas intégralement le splash natif : [documentation SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/splash-screen/). Configuration adaptive : [app.json SDK 57](https://docs.expo.dev/versions/v57.0.0/config/app/#androidadaptiveicon).
-
-Ne pas modifier les dossiers natifs : ces réglages passent par `app.json` et les config plugins. Aucune build EAS, soumission Play Store ou validation sur appareil n'a été réalisée dans cette mission.
+Reste à vérifier sur **binaire release** : masques ronds/carrés, icônes thématiques, démarrage à froid, centrage du splash et absence de rognage. Aucun essai téléphone/émulateur, aucune build EAS ni soumission Play Store. Documentation : [splash SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/splash-screen/), [adaptive icon SDK 57](https://docs.expo.dev/versions/v57.0.0/config/app/#androidadaptiveicon).

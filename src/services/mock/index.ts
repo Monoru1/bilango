@@ -1,4 +1,4 @@
-import { toDayKey } from '@/domain/dates';
+import { addDays, periodRange, rangeError, toDayKey } from '@/domain/dates';
 import { normalizeBeninPhone } from '@/domain/money';
 import {
   can,
@@ -16,7 +16,9 @@ import {
   stockLevels,
   theoreticalCash,
   totalsOfDay,
-  totalsOfPeriod,
+  totalsInRange,
+  revenueTrend,
+  periodComparison,
   validateDraft,
 } from '@/domain/reports';
 import { daysRemaining, subscriptionEnd, subscriptionStatus } from '@/domain/subscription';
@@ -250,15 +252,22 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
         const access = accessOf(businessId, userId);
         requireCapability(access, 'viewDashboard');
         const today = toDayKey(now());
+        const range = periodRange(periodDays, today);
+        const invalid = rangeError(range, today);
+        if (invalid) throw new ServiceError('VALIDATION', invalid);
         const all = businessReports(businessId);
         const business = db.businesses.find((b) => b.id === businessId)!;
         const headline = buildHeadline(all, businessId, today);
         return {
           headline,
           headlineTotals: headline.day ? totalsOfDay(all, businessId, headline.day) : null,
-          period: totalsOfPeriod(all, businessId, today, periodDays),
-          periodDays,
-          cash: theoreticalCash(business, all, today),
+          period: totalsInRange(all, businessId, range),
+          periodDays: typeof periodDays === 'number' ? periodDays : null,
+          range,
+          trend: revenueTrend(all, businessId, periodDays === 1 ? { from: addDays(headline.day ?? today, -6), to: headline.day ?? today } : range),
+          deltaPercent: periodDays === 1 ? headline.deltaPercent : periodComparison(all, businessId, range),
+          headlineContributors: all.filter(r => r.day === headline.day).map(r => ({ name: r.authorName, submittedAt: r.submittedAt })),
+          cash: theoreticalCash(business, all, range.to),
           openingCashMissing: business.openingCash === null,
           reportsToday: totalsOfDay(all, businessId, today).reportCount,
           isFirstUse: all.length === 0,

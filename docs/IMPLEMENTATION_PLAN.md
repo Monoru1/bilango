@@ -2,6 +2,10 @@
 
 État au lot `feat/android-foundation`. Légende : **fait** (avec données fictives), **partiel**, **à faire**.
 
+Checkpoint mission 05 sur `feat/client-ui-feedback` : accueils propriétaire/Saisie seule, logo loupe client et calendrier libre intégrés ; 153 tests validés et captures Web disponibles. Recette Android toujours à faire. Reprise immédiate : [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
+
+Stratégie actuelle : finaliser Android, puis audit de sécurité/tests d'intrusion autorisés, corrections de sécurité et conformité RGPD, développement propre de la version web, recette complète et livraison. La prévisualisation Web locale ne constitue pas cette future version web.
+
 ## Mission 1 — fondation Android (cette branche)
 
 | Domaine | Cahier | État |

@@ -43,5 +43,20 @@ export const typography = {
 
 export type TextVariant = keyof typeof typography;
 
+/** Retours client mission 05 : limités aux accueils, sans recolorer les autres écrans. */
+export const homeColors = {
+  background: '#FFFFFF',
+  text: '#14181A',
+  secondary: '#6B7280',
+  decorative: '#9AA09C',
+  separator: '#F0F0EE',
+  negative: '#A34232', // #B54B3A du PDF renforcé pour WCAG AA sur la pastille.
+  negativeTint: '#FBEDEA',
+  positiveTint: '#EAF5EF',
+  roleTint: '#F3F3F1',
+  roleText: '#626973',
+  logo: '#25D366',
+} as const;
+
 /** Taille minimale d'une cible tactile (accessibilité, utilisateurs peu à l'aise avec le numérique). */
 export const MIN_TOUCH = 48;

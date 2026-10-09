@@ -26,6 +26,7 @@ import type {
   User,
   DayKey,
 } from './reexports';
+import type { DashboardPeriod, DateRange } from '@/domain/dates';
 
 export type ServiceErrorCode =
   | 'FORBIDDEN'
@@ -96,7 +97,11 @@ export interface DashboardData {
   /** Totaux du jour mis en avant par `headline` (CA, dépenses, ajouts), `null` si aucun bilan. */
   headlineTotals: DayTotals | null;
   period: DayTotals;
-  periodDays: 1 | 7 | 30;
+  periodDays: 1 | 7 | 30 | null;
+  range: DateRange;
+  trend: DayTotals[];
+  deltaPercent: number | null;
+  headlineContributors: { name: string; submittedAt: string }[];
   cash: CashDay | null;
   openingCashMissing: boolean;
   /** Nombre de bilans reçus aujourd'hui. */
@@ -127,7 +132,7 @@ export interface SubmitReportInput {
 }
 
 export interface ReportService {
-  dashboard(businessId: Id, userId: Id, periodDays: 1 | 7 | 30): Promise<DashboardData>;
+  dashboard(businessId: Id, userId: Id, period: DashboardPeriod): Promise<DashboardData>;
   managerHome(businessId: Id, userId: Id): Promise<ManagerHome>;
   /** Liste filtrée selon la permission : "Saisie seule" ne voit que ses propres bilans. */
   list(businessId: Id, userId: Id, options?: { mineOnly?: boolean }): Promise<Report[]>;

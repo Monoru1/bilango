@@ -1,4 +1,4 @@
-import { addDays, diffDays, eachDay } from './dates';
+import { addDays, diffDays, eachDay, type DateRange } from './dates';
 import { percentChange } from './money';
 import type {
   Business,
@@ -181,16 +181,35 @@ export function totalsOfDay(reports: Report[], businessId: Id, day: DayKey): Day
 
 /** Totaux sur `days` jours se terminant à `endDay` (inclus). */
 export function totalsOfPeriod(reports: Report[], businessId: Id, endDay: DayKey, days: number): DayTotals {
-  const start = addDays(endDay, -(days - 1));
-  const acc: DayTotals = { day: endDay, revenue: 0, expenses: 0, cashIn: 0, reportCount: 0 };
-  for (const day of eachDay(start, endDay)) {
-    const t = totalsOfDay(reports, businessId, day);
-    acc.revenue += t.revenue;
-    acc.expenses += t.expenses;
-    acc.cashIn += t.cashIn;
-    acc.reportCount += t.reportCount;
-  }
-  return acc;
+  return totalsInRange(reports, businessId, { from: addDays(endDay, 1 - days), to: endDay });
+}
+
+/** Bornes inclusives, versions courantes, coût proportionnel aux bilans et non aux jours. */
+export function totalsInRange(reports: Report[], businessId: Id, range: DateRange): DayTotals {
+  return reports.reduce<DayTotals>((acc, r) => {
+    if (r.businessId === businessId && r.day >= range.from && r.day <= range.to) {
+      const c = currentVersion(r).content;
+      acc.revenue += c.revenue.total;
+      acc.expenses += c.expenses.total;
+      acc.cashIn += c.cashIn.total;
+      acc.reportCount++;
+    }
+    return acc;
+  }, { day: range.to, revenue: 0, expenses: 0, cashIn: 0, reportCount: 0 });
+}
+
+/** Seuls les jours ayant un bilan sont des points mesurés ; les absences ne valent pas zéro. */
+export function revenueTrend(reports: Report[], businessId: Id, range: DateRange): DayTotals[] {
+  const days = [...new Set(reports.filter(r => r.businessId === businessId && r.day >= range.from && r.day <= range.to).map(r => r.day))].sort();
+  return days.map(day => totalsOfDay(reports, businessId, day));
+}
+
+export function periodComparison(reports: Report[], businessId: Id, range: DateRange): number | null {
+  const length = diffDays(range.to, range.from) + 1;
+  const previous = { from: addDays(range.from, -length), to: addDays(range.from, -1) };
+  const current = totalsInRange(reports, businessId, range);
+  const before = totalsInRange(reports, businessId, previous);
+  return current.reportCount && before.reportCount ? percentChange(current.revenue, before.revenue) : null;
 }
 
 export function latestReportDay(reports: Report[], businessId: Id, upTo: DayKey): DayKey | null {
@@ -308,8 +327,11 @@ export function theoreticalCash(
   reports: Report[],
   day: DayKey,
 ): CashDay | null {
-  const timeline = cashTimeline(business, reports, day);
-  return timeline.length > 0 ? timeline[timeline.length - 1] : null;
+  if (!business.openingCash || business.openingCash.day > day) return null;
+  const before = totalsInRange(reports, business.id, { from: business.openingCash.day, to: addDays(day, -1) });
+  const today = totalsOfDay(reports, business.id, day);
+  const opening = business.openingCash.amount + before.revenue + before.cashIn - before.expenses;
+  return { day, revenue: today.revenue, expenses: today.expenses, cashIn: today.cashIn, opening, closing: opening + today.revenue + today.cashIn - today.expenses };
 }
 
 // --- Stock ---------------------------------------------------------------------

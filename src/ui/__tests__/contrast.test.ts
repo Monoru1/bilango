@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { colors } from '../theme';
+import { colors, homeColors } from '../theme';
 
 /** Rapport de contraste WCAG 2.x entre deux couleurs #RRGGBB. */
 function luminance(hex: string): number {
@@ -20,6 +20,12 @@ const AA_TEXT = 4.5;
 
 // Paires texte / fond réellement utilisées par les composants (voir ui/primitives.tsx).
 const TEXT_PAIRS: [string, string, string][] = [
+  ['accueil texte noir sur blanc', homeColors.text, homeColors.background],
+  ['accueil texte secondaire sur blanc', homeColors.secondary, homeColors.background],
+  ['accueil badge de rôle', homeColors.roleText, homeColors.roleTint],
+  ['accueil variation négative', homeColors.negative, homeColors.negativeTint],
+  ['accueil variation positive', colors.primary, homeColors.positiveTint],
+  ['accueil carte sombre', '#D0D3D1', homeColors.text],
   ['texte sur fond', colors.text, colors.background],
   ['texte sur carte', colors.text, colors.surface],
   ['texte secondaire sur fond', colors.textSecondary, colors.background],
@@ -64,9 +70,9 @@ describe('assets Android de marque configurés', () => {
   });
   it('utilise la palette officielle et le plugin splash', () => {
     expect(paths).toHaveLength(5);
-    expect(expo.android.adaptiveIcon.backgroundColor).toBe(colors.primary);
-    expect(splash.backgroundColor).toBe(colors.primary);
+    expect(expo.android.adaptiveIcon.backgroundColor).toBe(homeColors.logo);
+    expect(splash.backgroundColor).toBe(homeColors.background);
     expect(splash.resizeMode).toBe('contain');
-    expect(readFileSync(resolve(__dirname, '../../../assets/images/brand.svg'), 'utf8')).toContain(colors.primary);
+    expect(readFileSync(resolve(__dirname, '../../../assets/images/brand.svg'), 'utf8')).toContain(homeColors.logo);
   });
 });

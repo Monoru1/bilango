@@ -8,7 +8,7 @@ Référence fonctionnelle : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES
 >
 > **Non testé sur appareil Android** : la validation automatisée (tests, TypeScript, lint, export du bundle) est faite ; aucun essai sur téléphone ou émulateur n'a encore été réalisé. Suivre la procédure ci-dessous pour le faire.
 
-Android uniquement : pas de WebView, pas de site emballé, pas de cible web ni iOS.
+Produit Android natif : pas de WebView, pas de site emballé ni de version web commerciale. Une cible Web isolée sert uniquement à la recette visuelle locale.
 
 ## Tester sur un téléphone Android
 
@@ -81,6 +81,8 @@ Procédure détaillée et journal de résultats : [ANDROID_ACCEPTANCE.md](docs/A
 - Les nouveaux comptes de démo et leurs business disparaissent au rechargement de la base en mémoire ; seul le stockage local de session/PIN persiste.
 
 ## Commandes
+
+Prévisualisation visuelle sur PC, sans appareil Android : [procédure et limites Web/Android](docs/VISUAL_PREVIEW.md). `npm run preview:visual` génère la galerie locale `artifacts/visual-preview/index.html` à partir des composants existants, avec Chrome et Playwright.
 
 | Commande | Rôle |
 | --- | --- |

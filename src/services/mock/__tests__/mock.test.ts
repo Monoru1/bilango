@@ -23,6 +23,58 @@ function contentWith(revenue: number, extra: Partial<ReturnType<typeof emptyCont
   return { ...c, ...extra };
 }
 
+describe('dashboard sur intervalle libre', () => {
+  it.each([1, 7, 30] as const)('recalcule les agrégats de la période rapide %i', async days => {
+    const { s } = setup();
+    const result = await s.reports.dashboard('b-etoile', 'u-koffi', days);
+    const all = await s.reports.list('b-etoile', 'u-koffi');
+    const included = all.filter(r => r.day >= result.range.from && r.day <= result.range.to);
+    expect(result.period.reportCount).toBe(included.length);
+    expect(result.period.revenue).toBe(included.reduce((sum, r) => sum + r.versions.at(-1)!.content.revenue.total, 0));
+    expect(result.period.expenses).toBe(included.reduce((sum, r) => sum + r.versions.at(-1)!.content.expenses.total, 0));
+  });
+  it('agrège une plage de plusieurs années avec une caisse à la borne finale', async () => {
+    const { s } = setup();
+    const all = await s.reports.list('b-etoile', 'u-koffi');
+    const data = await s.reports.dashboard('b-etoile', 'u-koffi', { from: '2020-01-01', to: '2026-10-09' });
+    expect(data.period.revenue).toBe(all.reduce((sum, r) => sum + r.versions.at(-1)!.content.revenue.total, 0));
+    expect(data.period.expenses).toBe(all.reduce((sum, r) => sum + r.versions.at(-1)!.content.expenses.total, 0));
+    expect(data.cash?.closing).toBe((await s.reports.dashboard('b-etoile', 'u-koffi', 1)).cash?.closing);
+    expect(data.periodDays).toBeNull();
+  });
+  it('affiche zéro bilan pour une période ancienne, sans fausse comparaison ni caisse', async () => {
+    const { s } = setup();
+    const result = await s.reports.dashboard('b-etoile', 'u-koffi', { from: '2020-01-01', to: '2020-01-01' });
+    expect(result.period.reportCount).toBe(0);
+    expect(result.trend).toEqual([]);
+    expect(result.deltaPercent).toBeNull();
+    expect(result.cash).toBeNull();
+  });
+  it('applique la journée inclusive et le fuseau métier', async () => {
+    const s = createMockServices({ now: () => Date.parse('2026-10-09T23:30:00Z'), latencyMs: 0 });
+    const result = await s.reports.dashboard('b-etoile', 'u-koffi', { from: '2026-10-10', to: '2026-10-10' });
+    expect(result.range.to).toBe('2026-10-10');
+    expect((await s.reports.dashboard('b-etoile', 'u-koffi', 1)).range.to).toBe('2026-10-10');
+  });
+  it.each([
+    { from: '2026-10-10', to: '2026-10-09' },
+    { from: '2026-10-09', to: '2026-10-10' },
+    { from: '2026-02-31', to: '2026-10-09' },
+  ])('rejette une période invalide sans écriture : %j', async range => {
+    const { s } = setup();
+    const before = JSON.stringify(s.db());
+    await expectCode(s.reports.dashboard('b-etoile', 'u-koffi', range), 'VALIDATION');
+    expect(JSON.stringify(s.db())).toBe(before);
+  });
+  it('ne contourne pas les permissions par business avec une période personnalisée', async () => {
+    const { s } = setup();
+    const period = { from: '2020-01-01', to: '2026-10-09' };
+    await expectCode(s.reports.dashboard('b-maman', 'u-rodrigue', period), 'FORBIDDEN');
+    await expectCode(s.reports.dashboard('b-etoile', 'u-yacine', period), 'FORBIDDEN');
+    await expect(s.reports.dashboard('b-maman', 'u-yacine', period)).resolves.toBeDefined();
+  });
+});
+
 describe('auth OTP', () => {
   it('refuse un mauvais code et accepte le code de démo', async () => {
     const { s } = setup();

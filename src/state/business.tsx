@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { User } from '@/domain/types';
+import type { DashboardPeriod } from '@/domain/dates';
 import type { BusinessOverview } from '@/services/types';
 import { useQuery, useServices } from './services';
 import { secureStorage, type KeyValueStore } from './storage';
@@ -16,6 +17,8 @@ interface BusinessContextValue {
   select: (businessId: string) => void;
   menuOpen: boolean;
   setMenuOpen: (open: boolean) => void;
+  dashboardPeriod: DashboardPeriod;
+  setDashboardPeriod: (period: DashboardPeriod) => void;
 }
 
 const BusinessContext = createContext<BusinessContextValue | null>(null);
@@ -33,6 +36,7 @@ export function BusinessProvider({
   const query = useQuery(['businesses', user.id], () => services.businesses.listMine(user.id));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [periods, setPeriods] = useState<Record<string, DashboardPeriod>>({});
   const storageKey = `bilango.business.${user.id}`;
 
   useEffect(() => {
@@ -66,8 +70,12 @@ export function BusinessProvider({
       select,
       menuOpen,
       setMenuOpen,
+      dashboardPeriod: current ? periods[current.business.id] ?? 1 : 1,
+      setDashboardPeriod: (period) => {
+        if (current) setPeriods(previous => ({ ...previous, [current.business.id]: period }));
+      },
     }),
-    [user, query.data, query.loading, query.error, query.reload, current, select, menuOpen],
+    [user, query.data, query.loading, query.error, query.reload, current, select, menuOpen, periods],
   );
 
   return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;

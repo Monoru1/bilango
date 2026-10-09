@@ -3,9 +3,10 @@
  * connexion OTP + PIN, gardes de navigation par état de session, parcours propriétaire et manager.
  * Les modules natifs et le stockage sont doublés dans jest.setup.ts.
  */
-import { fireEvent, renderRouter, screen, waitFor, within } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, testRouter, waitFor, within } from 'expo-router/testing-library';
 
 import { press, autoConfirmAlerts, createPin, enterPhoneAndOtp, FIND, loginExisting, resetDevice } from '@/test-utils/flows';
+import { addDays, frenchDay, formatDayFull, toDayKey } from '@/domain/dates';
 
 jest.setTimeout(60_000);
 
@@ -18,6 +19,75 @@ afterEach(() => {
 });
 
 describe('propriétaire', () => {
+  it('affiche le logo officiel et les périodes rapides soulignées', async () => {
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 01');
+    await screen.findByText('Détail du jour', {}, FIND);
+    expect(screen.getByLabelText('Logo BilanGo')).toBeTruthy();
+    expect(screen.getByLabelText('Logo BilanGo').props.resizeMode).toBe('contain');
+    expect(screen.getByText(/48\s?500/).props.maxFontSizeMultiplier).toBe(1.8);
+    await press(screen.getByRole('tab', { name: '7 jours' }));
+    await screen.findByText('Détail de la période', {}, FIND);
+    expect(screen.getByRole('tab', { name: '7 jours' }).props.accessibilityState.selected).toBe(true);
+    await press(screen.getByRole('tab', { name: '30 jours' }));
+    await screen.findByText('Détail de la période', {}, FIND);
+    expect(screen.getByRole('tab', { name: '30 jours' }).props.accessibilityState.selected).toBe(true);
+    await press(screen.getByRole('tab', { name: "Aujourd'hui" }));
+    await screen.findByText('Détail du jour', {}, FIND);
+  });
+
+  it('sélectionne plusieurs années et conserve la période après navigation', async () => {
+    const today = toDayKey(Date.now());
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 01');
+    await screen.findByText('Détail du jour', {}, FIND);
+    await press(screen.getByRole('tab', { name: 'Personnalisée' }));
+    fireEvent.changeText(screen.getByLabelText('Date de début (JJ/MM/AAAA)'), '01/01/2020');
+    fireEvent.changeText(screen.getByLabelText('Date de fin (JJ/MM/AAAA)'), frenchDay(today));
+    await press(screen.getByLabelText('Appliquer la période'));
+    await screen.findByText('Détail de la période', {}, FIND);
+    expect(screen.getByText(`1 janvier 2020 → ${formatDayFull(today)} · inclus`)).toBeTruthy();
+    await press(screen.getByLabelText('Ouvrir le menu'));
+    await press(screen.getByLabelText(/Mon abonnement/));
+    await screen.findByText('Historique des paiements', {}, FIND);
+    await act(async () => testRouter.back());
+    await screen.findByText('Détail de la période', {}, FIND);
+    expect(screen.getByRole('tab', { name: 'Personnalisée' }).props.accessibilityState.selected).toBe(true);
+  });
+
+  it('rejette la fin avant le début et les dates futures, puis affiche une période vide', async () => {
+    const today = toDayKey(Date.now());
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 01');
+    await screen.findByText('Détail du jour', {}, FIND);
+    await press(screen.getByRole('tab', { name: 'Personnalisée' }));
+    fireEvent.changeText(screen.getByLabelText('Date de début (JJ/MM/AAAA)'), frenchDay(today));
+    fireEvent.changeText(screen.getByLabelText('Date de fin (JJ/MM/AAAA)'), frenchDay(addDays(today, -1)));
+    await press(screen.getByLabelText('Appliquer la période'));
+    expect(screen.getByText('La fin ne peut pas précéder le début.')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Date de fin (JJ/MM/AAAA)'), frenchDay(addDays(today, 1)));
+    await press(screen.getByLabelText('Appliquer la période'));
+    expect(screen.getByText('Les dates futures ne sont pas disponibles.')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Date de début (JJ/MM/AAAA)'), '01/01/2020');
+    fireEvent.changeText(screen.getByLabelText('Date de fin (JJ/MM/AAAA)'), '01/01/2020');
+    await press(screen.getByLabelText('Appliquer la période'));
+    await screen.findByText('Aucun bilan sur cette période', {}, FIND);
+  });
+
+  it('sélectionne un jour par le calendrier avec des libellés français et des cibles 48 px', async () => {
+    const today = toDayKey(Date.now());
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 01');
+    await screen.findByText('Détail du jour', {}, FIND);
+    await press(screen.getByRole('tab', { name: 'Personnalisée' }));
+    const day = screen.getByLabelText(`Choisir le ${formatDayFull(today)} comme début`);
+    expect(day.props.style.width).toBe(48);
+    expect(day.props.style.minHeight).toBe(48);
+    await press(day);
+    await press(screen.getByLabelText(`Choisir le ${formatDayFull(today)} comme fin`));
+    await press(screen.getByLabelText('Appliquer la période'));
+    await screen.findByText('Détail de la période', {}, FIND);
+  });
   it("se connecte par OTP puis PIN et voit CA, caisse théorique et l'attente du bilan du jour", async () => {
     renderRouter('./src/app');
     await loginExisting('01 97 00 00 01');
@@ -52,6 +122,21 @@ describe('propriétaire', () => {
 });
 
 describe('manager (Saisie seule)', () => {
+  it('remplace la carte de saisie par le statut envoyé et les actions autorisées', async () => {
+    autoConfirmAlerts();
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 02');
+    await press(await screen.findByLabelText('Faire le bilan du jour', {}, FIND));
+    const fields = await screen.findAllByLabelText('Montant global, en francs CFA', {}, FIND);
+    fireEvent.changeText(fields[0], '42000');
+    await press(screen.getByLabelText('Envoyer le bilan'));
+    await screen.findByText(/42\s?000/, {}, FIND);
+    testRouter.navigate('/home');
+    await screen.findByLabelText('Modifier mon bilan', {}, FIND);
+    expect(screen.getByText(/Bilan du jour envoyé à/)).toBeTruthy();
+    expect(screen.queryByText('Pas encore envoyé')).toBeNull();
+    expect(screen.getByLabelText('Voir mon bilan')).toBeTruthy();
+  });
   it("envoie son bilan du jour puis voit le bouton Modifier avec l'heure limite", async () => {
     autoConfirmAlerts();
     renderRouter('./src/app');
@@ -88,6 +173,12 @@ describe('manager (Saisie seule)', () => {
     await loginExisting('01 97 00 00 02');
     await screen.findByLabelText('Faire le bilan du jour', {}, FIND);
     expect(screen.queryByText('Équipe')).toBeNull();
+    expect(screen.queryByText('Stock')).toBeNull();
+    expect(screen.getByText('Bonjour, Rodrigue')).toBeTruthy();
+    expect(screen.getByText('Caissier')).toBeTruthy();
+    expect(screen.getByText('Pas encore envoyé')).toBeTruthy();
+    expect(screen.getByLabelText('Logo BilanGo')).toBeTruthy();
+    expect(screen.getByText('Historique')).toBeTruthy();
 
     await press(screen.getByLabelText('Ouvrir le menu'));
     await screen.findByText('MES BUSINESS', {}, FIND);

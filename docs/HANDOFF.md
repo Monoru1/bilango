@@ -1,4 +1,10 @@
-# HANDOFF — mission 04 terminée
+# HANDOFF — checkpoint mission 05 pour Claude
+
+État du 2026-10-09 : branche `feat/client-ui-feedback`, issue de `a2e7d56` sur `feat/android-foundation`. Refonte ciblée des deux accueils, logo client et calendrier libre terminés dans le code. **153 tests / 7 suites réussis**, TypeScript/ESLint réussis, Expo Doctor 21/21, export Android 1 422 modules / ≈3,2 Mo / 29 assets. Galerie locale : 15 captures réelles Web ; le script attend maintenant la fin des chargements.
+
+La priorité est la finalisation Android. Aucun appareil ni émulateur testé. Lire [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) pour la reprise exacte, les limites et les fichiers modifiés. L'historique mission 04 ci-dessous est conservé ; ses nombres et son ancien logo décrivent la livraison précédente.
+
+---
 
 Date : 2026-10-09. Branche : `feat/android-foundation`, dépôt `Monoru1/bilango`. Reprise depuis `43b80349b310d78c0dc430d51688a86fa6f9576b` ; fetch effectué, branche déjà à jour (aucun pull nécessaire). Aucun merge vers main.
 

@@ -57,7 +57,7 @@ L'UI ne dépend plus des constantes du mock : `AuthService.demo` expose facultat
 
 - `session-controller.ts` : machine d'états `booting → signedOut | locked | onboarding | ready`, indépendante de React et testée. Persistance du jeton et du PIN dans `expo-secure-store`. Déconnexion volontaire = verrouillage (le PIN suffit) ; PIN oublié ou 5 erreurs = appareil oublié, nouvel OTP requis.
 - `services.tsx` : `useDeadlineClock` réévalue la fenêtre de modification à la prochaine échéance et au retour de veille, sans polling ; utilisé par accueil manager, historique, détail et édition.
-- `business.tsx` : liste des business du compte, business courant mémorisé, état du menu latéral.
+- `business.tsx` : liste des business du compte, business courant mémorisé, état du menu latéral ; période du dashboard conservée en mémoire par business pendant la session.
 - `services.tsx` : `ServicesProvider`, `useServices`, `useQuery(key, fetcher)` — états chargement/erreur, rechargement automatique après écriture, au minuit Cotonou et à la reprise, jamais de données d'une autre clé.
 
 ## 5. Navigation (`src/app`)
@@ -119,7 +119,7 @@ Ces tests ne remplacent pas un essai sur appareil ou émulateur (rendu, clavier,
 ## 9. Choix d'outillage
 
 - **ESLint** : config Expo complète, avec une seule règle désactivée, `react/no-unescaped-entities`. Raison : l'interface est en français, le texte JSX est plein d'apostrophes ; en React Native le texte est rendu tel quel dans `<Text>` (pas d'analyse HTML), et les échapper (`&apos;`) dégraderait la relecture des textes. Justification également en commentaire dans `eslint.config.js`.
-- **Android uniquement** : `react-native-web` et `react-dom` ne sont pas installés ; `app.json` déclare `platforms: ["android"]`.
+- **Produit Android** : `app.json` déclare `platforms: ["android"]`. `react-native-web`, `react-dom` et `playwright-core` sont des dépendances de développement pour la recette locale ; `app.config.js` active Web seulement avec `BILANGO_VISUAL_PREVIEW=1`. Aucun produit web commercial.
 - **Icônes** : import ciblé `@expo/vector-icons/Ionicons` ; `expo-symbols` (iOS) n'est pas utilisé.
 
 ## 10. Audit fonctionnel — mission 04 (2026-10-09)
@@ -170,3 +170,16 @@ Audit du code et des contrats automatisés, comparés au cahier intégral ; aucu
 | Mineur pour démo | Historique chargé intégralement | Pagination au lot suivant |
 
 **Questions ouvertes inchangées** : numéro invité → Invitations ou dashboard ; un bilan par auteur/jour ; nom demandé à l'inscription. Aucune alternative n'a été choisie dans cette mission. Expiration de l'abonnement et durée exacte d'essai restent non spécifiées : aucune restriction nouvelle ; l'essai de création à 7 jours demeure une valeur fictive de démonstration.
+
+## 11. Retours client — mission 05 et checkpoint Claude
+
+Branche `feat/client-ui-feedback`, base `a2e7d56`. Référence visuelle : page 3 du PDF client `bilango-ameliorations-design.pdf`. Les deux accueils utilisent des tokens dédiés `homeColors` : blanc, quasi noir, séparateurs fins, accents sobres. Les autres écrans conservent leur composition ; le composant Logo commun affiche désormais le PNG officiel. Le logo loupe fourni dans la mission remplace l'identité œil de la fondation, sans changer la palette métier générale.
+
+- Propriétaire / profils autorisés au dashboard : CA noir avec unité secondaire, tendance issue des versions courantes, variation atténuée, caisse/dépenses compactes, détail en lignes et bouton sombre. Le repli vers le dernier bilan daté est conservé pour Aujourd'hui.
+- Saisie seule : salutation, nom de rôle personnalisé, carte sombre de saisie/modification/consultation selon l'état et les 24 h, solde seul, trois bilans personnels précédents. Navigation Accueil/Historique. Les droits Gestion complète et Lecture seule restent ceux du domaine ; aucun rôle « Boss » n'est créé.
+- `DashboardPeriod` = 1 / 7 / 30 ou `{from,to}` ; le service valide des dates civiles ISO, l'ordre et l'absence de futur dans le fuseau Porto-Novo. Bornes inclusives, une seule journée possible, aucune durée maximale. `PeriodPicker` est un calendrier React Native français avec saisie directe JJ/MM/AAAA pour sauter à une année ancienne, sans dépendance supplémentaire.
+- `totalsInRange` parcourt les bilans plutôt que tous les jours. La caisse est le solde dérivé à la fin sélectionnée, incluant les mouvements antérieurs au début ; jamais une somme de soldes. `theoreticalCash` conserve les règles existantes avec un calcul direct équivalent.
+- Tendance : seuls les jours ayant un bilan sont des points, positions selon leurs dates réelles. Aujourd'hui montre le contexte des sept jours jusqu'au jour affiché. Les autres périodes utilisent leur intervalle exact ; comparaison avec l'intervalle précédent de même durée, sur données renseignées. Absence de bilans comparables / référence zéro : pastille neutre, aucun pourcentage inventé.
+- Sélection conservée par business entre onglets, détails et changement de business pendant la session. Pas de persistance après déconnexion/redémarrage promise.
+
+Écarts volontaires avec la référence : textes #9AA09C remplacés par des tons lisibles AA ; rouge renforcé ; menu hamburger conservé ; valeurs, noms et dates issus du mock existant ; calendrier ajouté hors aperçu PDF. Aucun test natif de polices, clavier, retour système, icônes ou splash. Validation et prochain travail : [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md). Galerie locale : [VISUAL_PREVIEW.md](VISUAL_PREVIEW.md).

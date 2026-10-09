@@ -77,15 +77,16 @@ interface ScreenProps {
   keyboardPersist?: boolean;
   /** Marge haute (safe area) : désactivée quand un en-tête natif est déjà affiché. */
   topInset?: boolean;
+  backgroundColor?: string;
 }
 
-export function Screen({ children, scroll = true, footer, padded = true, keyboardPersist, topInset = false }: ScreenProps) {
+export function Screen({ children, scroll = true, footer, padded = true, keyboardPersist, topInset = false, backgroundColor }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const pad = padded ? spacing.lg : 0;
   // Android (edge-to-edge) : `KeyboardAvoidingView` sans `behavior` suffit à garder le champ visible
   // (doc Expo « Keyboard handling »). Le bas d'écran respecte la barre de navigation système.
   return (
-    <KeyboardAvoidingView style={[styles.screen, topInset && { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView style={[styles.screen, backgroundColor && { backgroundColor }, topInset && { paddingTop: insets.top }]}>
       {scroll ? (
         <ScrollView
           contentContainerStyle={{

@@ -1,13 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { View, type ColorValue } from 'react-native';
 
 import { can } from '@/domain/permissions';
 import { useBusiness } from '@/state/business';
 import { useQuery, useServices } from '@/state/services';
 import { ErrorState, LoadingState } from '@/ui/feedback';
-import { IconButton } from '@/ui/primitives';
-import { colors } from '@/ui/theme';
+import { IconButton, Row, Text } from '@/ui/primitives';
+import { Logo } from '@/ui/logo';
+import { colors, homeColors } from '@/ui/theme';
 
 function tabIcon(name: keyof typeof Ionicons.glyphMap) {
   function TabIcon({ color, size }: { color: ColorValue; size: number }) {
@@ -51,13 +52,19 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="home"
-        options={{ title: current.business.name, tabBarLabel: 'Accueil', tabBarIcon: tabIcon('home-outline') }}
+        options={{ title: current.business.name, tabBarLabel: 'Accueil', tabBarIcon: () => <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: homeColors.text }} />,
+          headerStyle: { backgroundColor: homeColors.background }, headerTintColor: homeColors.text,
+          headerLeft: () => <IconButton name="menu" label="Ouvrir le menu" color={homeColors.text} onPress={() => setMenuOpen(true)} />,
+          headerTitle: () => <Row style={{ gap: 10, flex: 1 }}><Logo size={32} /><View style={{ flexShrink: 1 }}><Text variant="label" numberOfLines={1} style={{ color: homeColors.text }}>{current.business.name}</Text><Text variant="caption" style={{ color: homeColors.secondary, fontSize: 11 }}>BilanGo</Text></View></Row>,
+          tabBarActiveTintColor: homeColors.text, tabBarInactiveTintColor: homeColors.secondary,
+          tabBarStyle: { backgroundColor: 'white', borderTopColor: homeColors.separator, minHeight: 64, paddingBottom: 8 },
+        }}
       />
       <Tabs.Screen
         name="reports"
         options={{
           title: can(access, 'viewAllReports') ? 'Historique des bilans' : 'Mes bilans',
-          tabBarLabel: can(access, 'viewAllReports') ? 'Bilans' : 'Mes bilans',
+          tabBarLabel: can(access, 'viewAllReports') ? 'Bilans' : 'Historique',
           tabBarIcon: tabIcon('document-text-outline'),
         }}
       />
@@ -74,7 +81,7 @@ export default function TabsLayout() {
         options={{
           title: 'Stock',
           tabBarIcon: tabIcon('cube-outline'),
-          href: current.business.stockEnabled && can(access, 'viewStock') ? undefined : null,
+          href: current.business.stockEnabled && can(access, 'viewStock') && can(access, 'viewDashboard') ? undefined : null,
         }}
       />
     </Tabs>
