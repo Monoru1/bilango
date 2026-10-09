@@ -1,5 +1,46 @@
 # Passation immédiate à Claude Code — BilanGo
 
+> **Mise à jour — reprise Claude Code, mission 04 (9 octobre 2026).** Cette section remplace « Prochain travail exact » et le tableau de validation plus bas, conservés pour l'historique du checkpoint `24369ec`.
+
+## État actuel
+
+Branche `feat/client-ui-feedback` (publiée sur `origin`). Commits de la reprise : `59a2e95` (correctifs Android) et `55d5d31` (documentation) sur `24369ec` ; le commit de passation les suit (`git log --oneline -5`). Rien fusionné dans `main`.
+
+**Retours client (PDF « Direction visuelle finale »)** — vérifiés dans le code et les captures Chrome, puis complétés : dashboard blanc avec CA noir + FCFA atténué, sparkline, pastille de variation, onglets de période soulignés, caisse/dépenses en rangée, détail en lignes, bouton quasi noir ; accueil Saisie seule avec prénom, badge de rôle, carte sombre, caisse disponible, trois bilans précédents, deux onglets ; logo client ; période personnalisée (calendrier + saisie, bornes inclusives, une journée, années multiples, futures/inversées refusées, calculs sans énumérer les jours). **Corrigés dans cette reprise** : en-têtes blancs sur tous les écrans (barre d'état lisible), onglets à point actif sans icônes, saisie des dates au pavé numérique avec masque `JJ/MM/AAAA`, clavier des feuilles modales, `allowBackup=false`, permissions Android réduites à `INTERNET` + `VIBRATE`.
+
+## Validation exécutée (HEAD `55d5d31`)
+
+| Contrôle | Résultat |
+| --- | --- |
+| `npm run check` | exit 0 |
+| Jest | **157 tests / 7 suites** réussis, **0 avertissement `act`** |
+| TypeScript, ESLint | propres, 0 avertissement |
+| `npx expo-doctor` | 21/21 |
+| `npm run bundle:android` | OK : 1 423 modules, Hermes 3,2 Mo |
+| `expo prebuild --platform android` | manifeste contrôlé (permissions, backup, edge-to-edge, schéma) puis dossier ignoré supprimé |
+| `npm run preview:visual` | 15 captures régénérées et relues (en-têtes, onglets, calendrier) |
+| `npm audit` | 61 avis, tous transitifs de l'outillage de build/test (voir ARCHITECTURE §12) |
+| Téléphone / émulateur / EAS | **non exécutés** (pas de SDK Android, ni d'appareil) |
+
+## Problèmes restants
+
+- Aucune recette native : suivre `docs/ANDROID_ACCEPTANCE.md` (D, P, A1–A16). À observer en priorité : clavier dans le calendrier et les formulaires en edge-to-edge (A5, A14), grandes polices, geste Retour, TalkBack, icône adaptive et splash sur binaire release.
+- Sécurité : P0/P1 listés dans `docs/ARCHITECTURE.md` §12 (mock sans authentification, mode démo en dur, PIN en clair, validations côté client uniquement).
+- Logo : fond #25D366 (proche de WhatsApp) différent de la palette du cahier (#0F6E56) — à faire confirmer par le client.
+- Questions métier toujours ouvertes (numéro invité, un bilan par auteur et par jour, nom à l'inscription, expiration d'abonnement, durée d'essai) : ne pas trancher sans le client.
+- Hors itération : PDF du bilan, push réels, backend, paiement, confidentialité/Play Store, pagination de l'historique, édition de rôles/business.
+
+## Commandes
+
+`npm ci` · `npm start` (Expo Go) · `npm run check` · `npx expo-doctor` · `npm run bundle:android` · `npm run preview:visual` (Chrome + Playwright). Ne jamais lancer `expo prebuild` sans restaurer `package.json` (il réécrit le script `android`) ni laisser `android/` dans le dépôt.
+
+## Prochaines missions
+
+1. **Recette Android** sur un vrai téléphone (docs/ANDROID_ACCEPTANCE.md), correction des KO, build EAS `preview` (APK) pour le client.
+2. **Sécurité approfondie** : backend de test + comptes autorisés, RLS, OTP/anti-abus, sessions, journaux ; tests d'intrusion limités à cet environnement ; mode démo retiré du binaire de production.
+3. **Conformité** : confidentialité, suppression de compte/données, fiche Play Store, test fermé.
+4. **Version web** : prérequis détaillés dans `docs/ARCHITECTURE.md` §13 (le cœur `domain`/`services` n'a aucune dépendance Android).
+
 Checkpoint du 9 octobre 2026. Dépôt `Monoru1/bilango`, branche **`feat/client-ui-feedback`**, créée depuis le dernier état distant validé `feat/android-foundation` : `a2e7d5665993615512af2af3ccd8ba669dd35498`. Fetch effectué ; fondation locale/distante identiques. Aucun merge main, aucune réécriture d'historique. Les changements validés sont sauvegardés dans le commit de checkpoint. Pour son SHA exact : `git log -1 --oneline` et `git rev-parse origin/feat/client-ui-feedback` après fetch.
 
 ## Prochain travail exact
