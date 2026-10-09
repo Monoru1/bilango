@@ -7,10 +7,10 @@
 | Domaine | Cahier | État |
 | --- | --- | --- |
 | Expo + TypeScript + Expo Router, Android uniquement | — | fait |
-| Design system, palette officielle, logo SVG | §7 | fait (icône d'app / splash : placeholders Expo à remplacer) |
+| Design system, palette officielle, logo SVG | §7 | fait (assets BilanGo préparés ; rendu release à recetter) |
 | Auth simulée OTP + PIN local, session persistante | §3.2, §5.0 | fait (mock) |
 | Création de business (nom, secteur, stock, rappel), rôles suggérés | §4.1 | fait |
-| Rôles personnalisés, permissions, hiérarchie | §4.2, §4.3 | fait |
+| Rôles personnalisés, permissions, hiérarchie | §4.2, §4.3 | partiel : création/attribution faites ; renommage/suppression absents |
 | Invitations (acceptation / refus) | §4.2bis | fait |
 | Retrait d'un membre (soft delete) | §4.4 | fait |
 | Navigation multi-business, CA du jour dans le menu, jours d'abonnement | §4.5 | fait |
@@ -30,9 +30,10 @@
 1. **Stabilisation et démonstration** (priorité actuelle, avant tout backend)
    - *Fait (mission 02)* : reliquats du template Expo supprimés, dépendances inutiles retirées, exclusions `tsc`/ESLint supprimées, branche publiée.
    - **Essai sur téléphone Android / émulateur** (jamais réalisé) : rendu, clavier numérique, pavé PIN, menu latéral, modales, safe areas, retour système. Corriger les écarts constatés.
-   - Accessibilité TalkBack, grandes polices, contrastes.
-   - Icône d'application, icône adaptive et splash BilanGo (images Expo temporaires ; le fond est déjà #0F6E56).
-   - Réduire le poids : n'embarquer que la police Ionicons.
+   - *Fait (mission 03)* : contraste automatisé, libellés TalkBack, cibles tactiles, police plafonnée à 1,8, clavier et confirmation avant abandon. TalkBack/grandes polices/clavier restent à recetter.
+   - *Fait (mission 04)* : [assets BilanGo](BRANDING_ASSETS.md), tests PNG/configuration, [procédure de recette Android](ANDROID_ACCEPTANCE.md), scénario complet automatisé, avertissements `act` corrigés sans filtrage.
+   - *Fait (mission 04)* : imports Ionicons ciblés ; 28 assets au lieu de 46, bundle Hermes ≈ 3,2 Mo au lieu de 3,5. La police MaterialSymbols interne Expo Router reste exportée.
+   - *Fait (mission 04)* : audit indépendant consigné dans ARCHITECTURE §10 ; séparation des droits par business, solde seul pour Saisie seule, gardes de routes directes, expiration UI 24 h, validation FCFA/stock, aucune mention de paiement externe.
    - PDF « Télécharger le bilan » (§6.2) si la démonstration l'exige : texte pur, généré au clic (`expo-print` + partage).
 2. **Backend** (Supabase prévu au cahier §9.6) : schéma (utilisateurs, business, rôles, membres, invitations, bilans + versions, stock, abonnements, paiements), **RLS stricte par business et par niveau**, fonctions transactionnelles (envoi / modification de bilan, acceptation d'invitation, prolongation d'abonnement), implémentation HTTP de `Services`, remplacement de `composition.ts`.
 3. **Authentification réelle** : OTP via l'API WhatsApp Business (template « Authentication »), rate limiting (par numéro, par appareil/IP), CAPTCHA, jeton de session long, PIN stocké sous forme de verrou local (pas de secret serveur).
