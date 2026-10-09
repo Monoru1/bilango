@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from './primitives';
@@ -20,7 +20,8 @@ export function BottomSheet({
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.root}>
+      {/* Une Modal est une fenêtre à part : sans cela le clavier recouvrirait les champs de la feuille (Android). */}
+      <KeyboardAvoidingView style={styles.root}>
         <Pressable accessibilityRole="button" accessibilityLabel="Fermer" style={styles.scrim} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.handle} />
@@ -29,7 +30,7 @@ export function BottomSheet({
             {children}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

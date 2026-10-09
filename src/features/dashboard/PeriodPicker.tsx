@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { addDays, calendarDays, frenchDay, formatDayFull, parseFrenchDay, rangeError, type DateRange } from '@/domain/dates';
+import { addDays, calendarDays, frenchDay, formatDayFull, maskFrenchDayInput, parseFrenchDay, rangeError, type DateRange } from '@/domain/dates';
 import { TextField } from '@/ui/forms';
 import { BottomSheet } from '@/ui/sheet';
 import { Button, IconButton, Row, Text } from '@/ui/primitives';
@@ -33,8 +33,8 @@ export function PeriodPicker({ initial, today, onApply, onClose }: {
 
   return <BottomSheet visible title="Période personnalisée" onClose={onClose}>
     <Text variant="caption" style={{ color: homeColors.secondary }}>Dates inclusives · heure de Porto-Novo. Aucune durée maximale.</Text>
-    <TextField label="Date de début (JJ/MM/AAAA)" value={from} onChangeText={v => { setFrom(v); const parsed = parseFrenchDay(v); if (parsed && parsed <= today) setMonth(`${parsed.slice(0, 7)}-01`); setError(undefined); }} onFocus={() => setField('from')} placeholder="01/01/2025" keyboardType="numbers-and-punctuation" />
-    <TextField label="Date de fin (JJ/MM/AAAA)" value={to} onChangeText={v => { setTo(v); setError(undefined); }} onFocus={() => setField('to')} placeholder="09/10/2026" keyboardType="numbers-and-punctuation" />
+    <TextField label="Date de début (JJ/MM/AAAA)" value={from} onChangeText={raw => { const v = maskFrenchDayInput(raw); setFrom(v); const parsed = parseFrenchDay(v); if (parsed && parsed <= today) setMonth(`${parsed.slice(0, 7)}-01`); setError(undefined); }} onFocus={() => setField('from')} placeholder="01/01/2025" keyboardType="number-pad" maxLength={10} />
+    <TextField label="Date de fin (JJ/MM/AAAA)" value={to} onChangeText={raw => { setTo(maskFrenchDayInput(raw)); setError(undefined); }} onFocus={() => setField('to')} placeholder="09/10/2026" keyboardType="number-pad" maxLength={10} />
     <Row>
       <Button label="Choisir le début" variant={field === 'from' ? 'secondary' : 'ghost'} onPress={() => setField('from')} style={{ flex: 1 }} />
       <Button label="Choisir la fin" variant={field === 'to' ? 'secondary' : 'ghost'} onPress={() => setField('to')} style={{ flex: 1 }} />

@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
 import { useBusiness } from '@/state/business';
@@ -14,9 +13,6 @@ export default function NoBusinessScreen() {
   const session = useSessionController();
   const { user } = useBusiness();
   return (
-    <>
-      {/* Écran sans en-tête vert : icônes de barre d'état sombres. */}
-      <StatusBar style="dark" />
       <Screen
         topInset
         scroll={false}
@@ -37,6 +33,5 @@ export default function NoBusinessScreen() {
           </Text>
         </View>
       </Screen>
-    </>
   );
 }

@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 
 import { can } from '@/domain/permissions';
 import { SideMenu } from '@/features/menu/SideMenu';
 import { BusinessProvider, useBusiness } from '@/state/business';
 import { useSessionState } from '@/state/session';
 import { ErrorState, LoadingState } from '@/ui/feedback';
+import { headerOptions } from '@/ui/navigation';
 import { colors } from '@/ui/theme';
 
 export default function AppLayout() {
@@ -24,15 +24,9 @@ function AppNavigator() {
   const allowed = (capability: Parameters<typeof can>[1]) => current !== null && can(current.access, capability);
   return (
     <>
-      {/* En-têtes verts : icônes de barre d'état claires. */}
-      <StatusBar style="light" />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.primary },
-          headerTintColor: colors.textOnPrimary,
-          headerTitleStyle: { fontWeight: '700' },
-          headerShadowVisible: false,
-          headerBackButtonDisplayMode: 'minimal',
+          ...headerOptions,
           contentStyle: { backgroundColor: colors.background },
         }}
       >

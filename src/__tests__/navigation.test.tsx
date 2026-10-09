@@ -55,6 +55,22 @@ describe('propriétaire', () => {
     expect(screen.getByRole('tab', { name: 'Personnalisée' }).props.accessibilityState.selected).toBe(true);
   });
 
+
+  it('accepte une date saisie au pavé numérique (chiffres seuls) et la met en forme JJ/MM/AAAA', async () => {
+    const today = toDayKey(Date.now());
+    renderRouter('./src/app');
+    await loginExisting('01 97 00 00 01');
+    await screen.findByText('Détail du jour', {}, FIND);
+    await press(screen.getByRole('tab', { name: 'Personnalisée' }));
+    const start = screen.getByLabelText('Date de début (JJ/MM/AAAA)');
+    expect(start.props.keyboardType).toBe('number-pad');
+    fireEvent.changeText(start, '01032021');
+    expect(screen.getByLabelText('Date de début (JJ/MM/AAAA)').props.value).toBe('01/03/2021');
+    fireEvent.changeText(screen.getByLabelText('Date de fin (JJ/MM/AAAA)'), frenchDay(today).replace(/\D/g, ''));
+    await press(screen.getByLabelText('Appliquer la période'));
+    await screen.findByText('Détail de la période', {}, FIND);
+    expect(screen.getByText(`1 mars 2021 → ${formatDayFull(today)} · inclus`)).toBeTruthy();
+  });
   it('rejette la fin avant le début et les dates futures, puis affiche une période vide', async () => {
     const today = toDayKey(Date.now());
     renderRouter('./src/app');

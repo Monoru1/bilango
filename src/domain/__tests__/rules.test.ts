@@ -1,4 +1,4 @@
-import { addDays, beninInstant, calendarDays, formatDayLong, formatTime, nextBusinessDayAt, parseFrenchDay, periodRange, rangeError, toDayKey } from '../dates';
+import { addDays, beninInstant, calendarDays, formatDayLong, maskFrenchDayInput, formatTime, nextBusinessDayAt, parseFrenchDay, periodRange, rangeError, toDayKey } from '../dates';
 import { formatFcfa, normalizeBeninPhone, parseAmount, percentChange } from '../money';
 import {
   can,
@@ -349,4 +349,24 @@ describe('régressions audit mission 04', () => {
 it('programme le prochain jour métier à minuit Cotonou et non à minuit du téléphone', () => {
   expect(nextBusinessDayAt(Date.parse('2026-10-09T22:59:59.000Z'))).toBe(Date.parse('2026-10-09T23:00:00.000Z'));
   expect(nextBusinessDayAt(Date.parse('2026-10-09T23:00:00.000Z'))).toBe(Date.parse('2026-10-10T23:00:00.000Z'));
+});
+
+describe('masque de saisie de date (clavier numérique Android)', () => {
+  it('insère les barres au fil de la frappe et ignore tout sauf les chiffres', () => {
+    expect(maskFrenchDayInput('0')).toBe('0');
+    expect(maskFrenchDayInput('0810')).toBe('08/10');
+    expect(maskFrenchDayInput('08102026')).toBe('08/10/2026');
+    expect(maskFrenchDayInput('08/10/2026')).toBe('08/10/2026');
+    expect(maskFrenchDayInput('08a10-20269999')).toBe('08/10/2026');
+  });
+
+  it('permet de corriger : effacer une barre retire le chiffre suivant sans bloquer', () => {
+    expect(maskFrenchDayInput('08/')).toBe('08');
+    expect(maskFrenchDayInput('08/1')).toBe('08/1');
+  });
+
+  it("produit une chaîne que parseFrenchDay accepte quand la date est complète et valide", () => {
+    expect(parseFrenchDay(maskFrenchDayInput('09102026'))).toBe('2026-10-09');
+    expect(parseFrenchDay(maskFrenchDayInput('31022026'))).toBeNull();
+  });
 });

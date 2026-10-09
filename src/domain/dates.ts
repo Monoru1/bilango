@@ -138,3 +138,15 @@ export function calendarDays(month: DayKey): DayKey[] {
   const start = addDays(first, -((weekday + 6) % 7));
   return Array.from({ length: 42 }, (_, i) => addDays(start, i));
 }
+
+/**
+ * Masque de saisie JJ/MM/AAAA pour un clavier numérique (qui n'a pas de touche « / » sous Android) :
+ * ne garde que les chiffres (8 max) et insère les barres au fur et à mesure.
+ */
+export function maskFrenchDayInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += `/${d.slice(2, 4)}`;
+  if (d.length > 4) out += `/${d.slice(4, 8)}`;
+  return out;
+}
