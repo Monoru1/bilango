@@ -205,7 +205,7 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
           joinedAt: business.createdAt,
         };
         // Suggestions de rôles pré-remplies selon le secteur (cahier §4.1), modifiables ensuite.
-        const suggestions: Record<string, Array<[string, 'entry' | 'full' | 'readonly']>> = {
+        const suggestions: Record<string, [string, 'entry' | 'full' | 'readonly'][]> = {
           bar_restaurant: [['Gérant', 'full'], ['Serveur', 'entry'], ['Caissier', 'entry']],
           boutique: [['Gérant', 'full'], ['Vendeur', 'entry']],
           ecommerce: [['Livreur', 'entry'], ['Closer', 'entry']],
@@ -251,8 +251,10 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
         const today = toDayKey(now());
         const all = businessReports(businessId);
         const business = db.businesses.find((b) => b.id === businessId)!;
+        const headline = buildHeadline(all, businessId, today);
         return {
-          headline: buildHeadline(all, businessId, today),
+          headline,
+          headlineTotals: headline.day ? totalsOfDay(all, businessId, headline.day) : null,
           period: totalsOfPeriod(all, businessId, today, periodDays),
           periodDays,
           cash: theoreticalCash(business, all, today),
@@ -547,6 +549,20 @@ export function createMockServices(options: MockOptions = {}): Services & { db: 
         const business = db.businesses.find((b) => b.id === businessId)!;
         if (!business.stockEnabled) throw new ServiceError('NOT_FOUND', "Le module Stock n'est pas activé.");
         return stockLevels(db.stockItems, businessReports(businessId), businessId);
+      }),
+
+    forReport: (businessId, userId) =>
+      read(() => {
+        const access = accessOf(businessId, userId);
+        requireCapability(access, 'submitReport');
+        const business = db.businesses.find((b) => b.id === businessId)!;
+        return business.stockEnabled ? stockLevels(db.stockItems, businessReports(businessId), businessId) : [];
+      }),
+
+    names: (businessId, userId) =>
+      read(() => {
+        accessOf(businessId, userId);
+        return Object.fromEntries(db.stockItems.filter((i) => i.businessId === businessId).map((i) => [i.id, i.name]));
       }),
 
     addItem: (businessId, userId, input) =>

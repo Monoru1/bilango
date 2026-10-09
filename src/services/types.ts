@@ -91,6 +91,8 @@ export interface BusinessService {
 
 export interface DashboardData {
   headline: Headline;
+  /** Totaux du jour mis en avant par `headline` (CA, dépenses, ajouts), `null` si aucun bilan. */
+  headlineTotals: DayTotals | null;
   period: DayTotals;
   periodDays: 1 | 7 | 30;
   cash: CashDay | null;
@@ -169,7 +171,12 @@ export interface TeamService {
 // --- Stock ---------------------------------------------------------------------
 
 export interface StockService {
+  /** Vue complète du stock (permission : voir le stock). */
   list(businessId: Id, userId: Id): Promise<StockLevel[]>;
+  /** Articles vendables à déclarer dans un bilan (permission : saisir un bilan). Vide si le module est désactivé. */
+  forReport(businessId: Id, userId: Id): Promise<StockLevel[]>;
+  /** Noms des articles, pour relire un bilan. Vide si le module est désactivé. */
+  names(businessId: Id, userId: Id): Promise<Record<Id, string>>;
   addItem(businessId: Id, userId: Id, input: { name: string; initialQuantity: number }): Promise<void>;
 }
 

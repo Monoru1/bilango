@@ -52,7 +52,7 @@ function rng(seed: number) {
 
 const round500 = (n: number) => Math.round(n / 500) * 500;
 
-function amount(total: number, lines: Array<[string, number]> = []): ReportAmount {
+function amount(total: number, lines: [string, number][] = []): ReportAmount {
   return normalizeAmount({
     total,
     lines: lines.map(([label, value], i) => ({ id: `l${i}-${label}`, label, amount: value })),
