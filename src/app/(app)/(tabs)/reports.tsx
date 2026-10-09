@@ -77,6 +77,15 @@ function ReportRow({ report, editable, showAuthor }: { report: Report; editable:
   const c = currentVersion(report).content;
   return (
     <ListItem
+      accessibilityLabel={[
+        showAuthor ? report.authorName : null,
+        `envoyé à ${formatTime(report.submittedAt)}`,
+        `chiffre d'affaires ${formatFcfa(c.revenue.total)}`,
+        isEdited(report) ? 'modifié' : null,
+        editable ? 'modifiable' : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
       title={showAuthor ? report.authorName : `Envoyé à ${formatTime(report.submittedAt)}`}
       subtitle={showAuthor ? `Envoyé à ${formatTime(report.submittedAt)}` : formatFcfa(c.revenue.total)}
       onPress={() => router.push({ pathname: '/report/[id]', params: { id: report.id } })}

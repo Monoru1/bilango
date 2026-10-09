@@ -36,7 +36,7 @@ export default function DayDetail() {
                   Chiffre d'affaires du jour
                 </Text>
                 <BigAmount value={view.totals.revenue} tone="onPrimary" />
-                <Text variant="caption" style={{ color: colors.primaryLight }}>
+                <Text variant="caption" style={{ color: colors.primaryTint }}>
                   Somme de {view.reports.length} bilan{view.reports.length > 1 ? 's' : ''}
                 </Text>
               </Card>
@@ -49,6 +49,9 @@ export default function DayDetail() {
                     <View key={r.id}>
                       {i > 0 ? <Divider /> : null}
                       <ListItem
+                        accessibilityLabel={`${r.authorName}, envoyé à ${formatTime(r.submittedAt)}, chiffre d'affaires ${formatFcfa(c.revenue.total)}${
+                          r.versions.length > 1 ? ', modifié' : ''
+                        }`}
                         title={r.authorName}
                         subtitle={`Envoyé à ${formatTime(r.submittedAt)}${
                           c.revenue.lines.length === 0 && c.revenue.total > 0 ? ' · non détaillé' : ''

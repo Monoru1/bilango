@@ -71,7 +71,9 @@ export function SideMenu() {
                     key={o.business.id}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    accessibilityLabel={`${o.business.name}, ${roleLabel(o.access)}${active ? ', affiché' : ''}`}
+                    accessibilityLabel={`${o.business.name}, ${roleLabel(o.access)}${
+                      o.todayRevenue !== null ? `, chiffre d'affaires du jour ${formatFcfa(o.todayRevenue)}` : ''
+                    }${active ? ', affiché' : ''}`}
                     onPress={() => {
                       select(o.business.id);
                       setMenuOpen(false);

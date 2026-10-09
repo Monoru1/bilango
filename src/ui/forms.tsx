@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Switch, TextInput, View, type TextInputProps } f
 
 import { groupThousands } from '@/domain/money';
 import { colors, MIN_TOUCH, radius, spacing, typography } from './theme';
-import { Row, Text } from './primitives';
+import { MAX_FONT_SCALE, Row, Text } from './primitives';
 
 interface FieldShellProps {
   label: string;
@@ -46,6 +46,7 @@ export function TextField({ label, error, hint, optional, ...input }: TextFieldP
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.textMuted}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         {...input}
         onFocus={(e) => {
           setFocused(true);
@@ -95,6 +96,7 @@ export function AmountField({
           value={value === '' ? '' : groupThousands(Number(value))}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, 12))}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -138,6 +140,8 @@ export function SwitchRow({
         ) : null}
       </View>
       <Switch
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         value={value}
         onValueChange={onChange}
         trackColor={{ true: colors.primaryLight, false: colors.border }}
@@ -166,7 +170,7 @@ export function Segmented<T extends string | number>({ options, value, onChange 
             onPress={() => onChange(o.value)}
             style={[styles.segment, active && styles.segmentActive]}
           >
-            <Text variant="label" tone={active ? 'onPrimary' : 'secondary'}>
+            <Text variant="label" tone={active ? 'onPrimary' : 'secondary'} numberOfLines={1} adjustsFontSizeToFit>
               {o.label}
             </Text>
           </Pressable>
@@ -194,6 +198,7 @@ export function ChoiceList<T extends string>({
           <Pressable
             key={o.value}
             accessibilityRole="radio"
+            accessibilityLabel={o.description ? `${o.label}. ${o.description}` : o.label}
             accessibilityState={{ selected: active }}
             onPress={() => onChange(o.value)}
             style={[styles.choice, active && styles.choiceActive]}
@@ -262,7 +267,8 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 40,
+    minHeight: MIN_TOUCH,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

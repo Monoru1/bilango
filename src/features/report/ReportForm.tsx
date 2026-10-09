@@ -12,6 +12,7 @@ import { AsyncBoundary, Banner } from '@/ui/feedback';
 import { AmountField, TextField } from '@/ui/forms';
 import { Button, Card, Icon, IconButton, Row, Screen, Text } from '@/ui/primitives';
 import { colors, radius, spacing } from '@/ui/theme';
+import { useConfirmLeave } from './useConfirmLeave';
 import {
   draftFromContent,
   draftOpeningCash,
@@ -34,7 +35,9 @@ interface Props {
 export function ReportForm({ business, userId, editing }: Props) {
   const router = useRouter();
   const services = useServices();
-  const [draft, setDraft] = useState<Draft>(() => (editing ? draftFromContent(currentVersion(editing).content) : emptyDraft()));
+  const [initialDraft] = useState<Draft>(() => (editing ? draftFromContent(currentVersion(editing).content) : emptyDraft()));
+  const [draft, setDraft] = useState<Draft>(initialDraft);
+  const { allowLeave } = useConfirmLeave(JSON.stringify(draft) !== JSON.stringify(initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [submitError, setSubmitError] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -82,6 +85,7 @@ export function ReportForm({ business, userId, editing }: Props) {
     try {
       if (editing) {
         await services.reports.edit(editing.id, userId, content);
+        allowLeave();
         router.replace({ pathname: '/report/[id]', params: { id: editing.id } });
       } else {
         const opening = draftOpeningCash(draft);
@@ -89,6 +93,7 @@ export function ReportForm({ business, userId, editing }: Props) {
           content,
           openingCash: needsOpening && opening !== null ? opening : undefined,
         });
+        allowLeave();
         router.replace({ pathname: '/report/[id]', params: { id: report.id } });
       }
     } catch (e) {
@@ -287,7 +292,7 @@ function AmountSection({
           <Pressable
             accessibilityRole="button"
             onPress={() => onChange({ detailOpen: false, total: detailTotal > 0 ? String(detailTotal) : value.total })}
-            style={{ minHeight: 44, justifyContent: 'center' }}
+            style={{ minHeight: 48, justifyContent: 'center' }}
           >
             <Row style={{ gap: spacing.xs }}>
               <Icon name="chevron-up" size={16} color={colors.primary} />
@@ -305,7 +310,7 @@ function AmountSection({
             accessibilityLabel={`Détailler ${title} (optionnel)`}
             onPress={() => onChange({ detailOpen: true, lines: value.lines.length > 0 ? value.lines : [newLine()] })}
             style={({ pressed }) => ({
-              minHeight: 44,
+              minHeight: 48,
               justifyContent: 'center',
               borderRadius: radius.md,
               opacity: pressed ? 0.6 : 1,

@@ -53,6 +53,7 @@ export default function InviteScreen() {
           setPhoneError(undefined);
         }}
         keyboardType="phone-pad"
+        autoComplete="tel"
         placeholder="01 97 00 00 01"
         error={phoneError}
       />

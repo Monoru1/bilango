@@ -40,6 +40,8 @@ export default function TabsLayout() {
         headerTitleStyle: { fontWeight: '700' },
         headerShadowVisible: false,
         headerLeft: () => <IconButton name="menu" label="Ouvrir le menu" color={colors.textOnPrimary} onPress={() => setMenuOpen(true)} />,
+        // Cache les onglets quand le clavier s'ouvre (recommandation Expo, évite qu'ils remontent au-dessus).
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },

@@ -58,7 +58,13 @@ export function Dashboard({ userId, business, access }: { userId: string; busine
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Voir le détail du bilan"
+                accessibilityLabel={
+                  showToday && headlineDay
+                    ? `Chiffre d'affaires ${formatDayRelative(headlineDay, today)}, ${formatFcfa(h.revenue)}${
+                        h.awaitingToday ? ', en attente du bilan du jour' : ''
+                      }. Toucher pour voir le détail.`
+                    : `Chiffre d'affaires sur ${period} jours, ${formatFcfa(data.period.revenue)}`
+                }
                 disabled={!showToday || !headlineDay}
                 onPress={() => headlineDay && router.push({ pathname: '/day/[day]', params: { day: headlineDay } })}
               >
@@ -73,7 +79,7 @@ export function Dashboard({ userId, business, access }: { userId: string; busine
                   </Row>
                   <BigAmount value={showToday ? h.revenue : data.period.revenue} tone="onPrimary" />
                   {showToday && headlineDay ? (
-                    <Text variant="caption" style={{ color: colors.primaryLight }}>
+                    <Text variant="caption" style={{ color: colors.primaryTint }}>
                       {h.kind === 'last' ? `Dernier bilan reçu : ${formatDayLong(headlineDay)}` : formatDayLong(headlineDay)}
                       {h.deltaPercent !== null
                         ? ` · ${h.deltaPercent >= 0 ? '+' : ''}${h.deltaPercent} % vs la veille`
@@ -82,7 +88,7 @@ export function Dashboard({ userId, business, access }: { userId: string; busine
                           : ''}
                     </Text>
                   ) : (
-                    <Text variant="caption" style={{ color: colors.primaryLight }}>
+                    <Text variant="caption" style={{ color: colors.primaryTint }}>
                       {data.period.reportCount} bilan{data.period.reportCount > 1 ? 's' : ''} reçu
                       {data.period.reportCount > 1 ? 's' : ''}
                     </Text>

@@ -73,7 +73,7 @@ export default function OtpScreen() {
         placeholder="000000"
         autoFocus
         error={error}
-        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
       />
       <Banner>Mode démonstration : le code est 123456.</Banner>
       <Button

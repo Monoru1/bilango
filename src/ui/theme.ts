@@ -15,7 +15,7 @@ export const colors = {
 
   text: '#10231D',
   textSecondary: '#52665F',
-  textMuted: '#7D8F88',
+  textMuted: '#5B6D66',
   textOnPrimary: '#FFFFFF',
 
   positive: '#0F6E56',

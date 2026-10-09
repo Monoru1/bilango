@@ -58,6 +58,7 @@ export default function PhoneScreen() {
           setFieldError(undefined);
         }}
         keyboardType="phone-pad"
+        autoComplete="tel"
         placeholder="01 97 00 00 01"
         error={fieldError}
         autoFocus

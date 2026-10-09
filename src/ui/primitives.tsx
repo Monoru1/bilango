@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,7 +19,17 @@ import { colors, MIN_TOUCH, radius, spacing, typography, type TextVariant } from
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
 export function Icon({ name, size = 22, color = colors.text }: { name: IconName; size?: number; color?: string }) {
-  return <Ionicons name={name} size={size} color={color} />;
+  // Décoratives : le sens est porté par le libellé du bouton ou de la ligne qui les contient.
+  return (
+    <Ionicons
+      name={name}
+      size={size}
+      color={color}
+      accessible={false}
+      importantForAccessibility="no"
+      accessibilityElementsHidden
+    />
+  );
 }
 
 // --- Texte -------------------------------------------------------------------------
@@ -40,8 +51,18 @@ interface TextProps extends RNTextProps {
   align?: 'left' | 'center' | 'right';
 }
 
+/** Plafond du grossissement système : respecte les grandes polices sans casser les mises en page. */
+export const MAX_FONT_SCALE = 1.8;
+
 export function Text({ variant = 'body', tone = 'default', align, style, ...rest }: TextProps) {
-  return <RNText {...rest} style={[typography[variant], { color: TONES[tone] }, align && { textAlign: align }, style]} />;
+  return (
+    <RNText
+      accessibilityRole={variant === 'title' || variant === 'heading' ? 'header' : undefined}
+      maxFontSizeMultiplier={MAX_FONT_SCALE}
+      {...rest}
+      style={[typography[variant], { color: TONES[tone] }, align && { textAlign: align }, style]}
+    />
+  );
 }
 
 // --- Écran -------------------------------------------------------------------------
@@ -61,11 +82,17 @@ interface ScreenProps {
 export function Screen({ children, scroll = true, footer, padded = true, keyboardPersist, topInset = false }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const pad = padded ? spacing.lg : 0;
+  // Android (edge-to-edge) : `KeyboardAvoidingView` sans `behavior` suffit à garder le champ visible
+  // (doc Expo « Keyboard handling »). Le bas d'écran respecte la barre de navigation système.
   return (
-    <View style={[styles.screen, topInset && { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView style={[styles.screen, topInset && { paddingTop: insets.top }]}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={{ padding: pad, paddingBottom: pad + spacing.xl, gap: spacing.lg }}
+          contentContainerStyle={{
+            padding: pad,
+            paddingBottom: pad + spacing.xl + (footer ? 0 : insets.bottom),
+            gap: spacing.lg,
+          }}
           keyboardShouldPersistTaps={keyboardPersist ? 'always' : 'handled'}
           showsVerticalScrollIndicator={false}
         >
@@ -77,7 +104,7 @@ export function Screen({ children, scroll = true, footer, padded = true, keyboar
       {footer ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>{footer}</View>
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -118,6 +145,7 @@ export function Button({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
       onPress={inactive ? undefined : onPress}
+      hitSlop={compact ? { top: 2, bottom: 2 } : undefined}
       style={({ pressed }) => [
         styles.button,
         compact && styles.buttonCompact,
@@ -216,9 +244,20 @@ interface ListItemProps {
   onPress?: () => void;
   chevron?: boolean;
   tone?: 'default' | 'negative';
+  /** Libellé lu par TalkBack quand la ligne est touchable ; inclure montants et badges de `right`. */
+  accessibilityLabel?: string;
 }
 
-export function ListItem({ title, subtitle, icon, right, onPress, chevron, tone = 'default' }: ListItemProps) {
+export function ListItem({
+  title,
+  subtitle,
+  icon,
+  right,
+  onPress,
+  chevron,
+  tone = 'default',
+  accessibilityLabel,
+}: ListItemProps) {
   const content = (
     <Row style={styles.listItem}>
       {icon ? (
@@ -244,7 +283,7 @@ export function ListItem({ title, subtitle, icon, right, onPress, chevron, tone 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+      accessibilityLabel={accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title)}
       onPress={onPress}
       style={({ pressed }) => pressed && { backgroundColor: colors.neutralTint }}
     >
@@ -316,7 +355,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  buttonCompact: { minHeight: MIN_TOUCH - 8, paddingHorizontal: spacing.md },
+  // 44 px + hitSlop vertical de 2 px de chaque côté = zone tactile de 48 px.
+  buttonCompact: { minHeight: MIN_TOUCH - 4, paddingHorizontal: spacing.md },
   iconButton: { width: MIN_TOUCH, height: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
   card: {
     backgroundColor: colors.surface,

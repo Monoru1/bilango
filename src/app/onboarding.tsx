@@ -47,6 +47,7 @@ function NameStep() {
         }}
         autoFocus
         autoCapitalize="words"
+        autoComplete="name"
         placeholder="Ex. Mireille Agbo"
         error={error}
         returnKeyType="done"

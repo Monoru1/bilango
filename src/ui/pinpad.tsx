@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
   dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.primary },
   dotFilled: { backgroundColor: colors.primary },
   grid: { width: 280, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, justifyContent: 'center' },
-  key: { width: 80, height: 64, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg },
+  key: { width: 80, minHeight: 64, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg },
   keyActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
 });

@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 import { SideMenu } from '@/features/menu/SideMenu';
 import { BusinessProvider } from '@/state/business';
@@ -10,6 +11,8 @@ export default function AppLayout() {
   if (session.status !== 'ready') return null;
   return (
     <BusinessProvider user={session.user}>
+      {/* En-têtes verts : icônes de barre d'état claires. */}
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.primary },

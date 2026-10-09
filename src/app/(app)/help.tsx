@@ -101,7 +101,7 @@ function Accordion({ topic }: { topic: Topic }) {
         accessibilityState={{ expanded: open }}
         accessibilityLabel={topic.title}
         onPress={() => setOpen((o) => !o)}
-        style={{ minHeight: 44, justifyContent: 'center' }}
+        style={{ minHeight: 48, justifyContent: 'center' }}
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <Text variant="bodyStrong" style={{ flex: 1 }}>
