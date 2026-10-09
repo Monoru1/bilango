@@ -79,6 +79,8 @@ Les onglets se masquent selon les droits (`href: null`) : Équipe pour propriét
 
 ## 7. Décisions et interprétations (à valider avec le client)
 
+> **Ce ne sont pas des décisions définitives.** Ce sont des interprétations de travail, retenues pour pouvoir démontrer l'application. Les lignes 1 (numéro invité), 2 (nom à l'inscription) et 3 (un bilan par auteur et par jour) sont des **questions ouvertes à soumettre au client** ; elles sont reprises dans [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+
 | # | Point du cahier | Choix retenu |
 | --- | --- | --- |
 | 1 | §3.3 « numéro déjà invité → dashboard directement » vs §4.2bis « accès après acceptation » | Un compte sans business mais avec invitation(s) arrive sur l'écran **Invitations** ; le dashboard s'ouvre après acceptation. |
@@ -100,6 +102,12 @@ Les onglets se masquent selon les droits (`href: null`) : Équipe pour propriét
 - `services/mock/__tests__` : contrat de bout en bout (OTP, multi-business, invitations, soft delete, bilans, stock).
 - `state/__tests__` : session persistante, PIN, verrouillage.
 - `features/report/__tests__` : brouillon du formulaire.
-- `src/__tests__/navigation.test.tsx` : **vrai arbre de routes** rendu avec `expo-router/testing-library` (connexion OTP + PIN, gardes, menu, saisie d'un bilan, invitations, validation). Modules natifs doublés dans `jest.setup.ts`.
+- `src/__tests__/navigation.test.tsx` et `consolidation.test.tsx` : **vrai arbre de routes** rendu avec `expo-router/testing-library` (connexion OTP + PIN, gardes de session, menu multi-business, saisie / modification de bilan, caisse après premier bilan, création de business, invitations, abonnement sans parcours de paiement, permissions par rôle). Modules natifs doublés dans `jest.setup.ts`, helpers dans `src/test-utils/flows.ts`.
 
-Ces tests ne remplacent pas un essai sur appareil ou émulateur (rendu, clavier, gestes) : aucun n'a été exécuté dans cet environnement faute de SDK Android.
+Ces tests ne remplacent pas un essai sur appareil ou émulateur (rendu, clavier, gestes) : aucun n'a été exécuté faute de SDK Android sur la machine de développement. Procédure d'essai : voir le README.
+
+## 9. Choix d'outillage
+
+- **ESLint** : config Expo complète, avec une seule règle désactivée, `react/no-unescaped-entities`. Raison : l'interface est en français, le texte JSX est plein d'apostrophes ; en React Native le texte est rendu tel quel dans `<Text>` (pas d'analyse HTML), et les échapper (`&apos;`) dégraderait la relecture des textes. Justification également en commentaire dans `eslint.config.js`.
+- **Android uniquement** : `react-native-web` et `react-dom` ne sont pas installés ; `app.json` déclare `platforms: ["android"]`.
+- **Icônes** : `@expo/vector-icons` (Ionicons) ; `expo-symbols` (iOS) n'est pas utilisé.

@@ -27,11 +27,13 @@
 
 ## Prochains lots (ordre proposé)
 
-1. **Finitions de la fondation**
-   - Retirer les reliquats du template Expo (`src/components`, `src/constants`, `src/hooks`, `src/app/explore.tsx`, `scripts/`, `assets/` du template) puis les dépendances devenues inutiles (`@expo/ui`, `expo-glass-effect`, `expo-symbols`, `expo-web-browser`, `expo-device`, `expo-image`, `react-dom`, `react-native-web`) et lever les exclusions de `tsconfig.json` / `eslint.config.js`.
-   - Icône d'application, icône adaptive et splash BilanGo (le splash natif est vert #0F6E56 mais utilise encore l'image Expo).
+1. **Stabilisation et démonstration** (priorité actuelle, avant tout backend)
+   - *Fait (mission 02)* : reliquats du template Expo supprimés, dépendances inutiles retirées, exclusions `tsc`/ESLint supprimées, branche publiée.
+   - **Essai sur téléphone Android / émulateur** (jamais réalisé) : rendu, clavier numérique, pavé PIN, menu latéral, modales, safe areas, retour système. Corriger les écarts constatés.
+   - Accessibilité TalkBack, grandes polices, contrastes.
+   - Icône d'application, icône adaptive et splash BilanGo (images Expo temporaires ; le fond est déjà #0F6E56).
    - Réduire le poids : n'embarquer que la police Ionicons.
-   - Essai sur appareil / émulateur Android (non réalisé dans cet environnement) ; accessibilité TalkBack ; grandes polices.
+   - PDF « Télécharger le bilan » (§6.2) si la démonstration l'exige : texte pur, généré au clic (`expo-print` + partage).
 2. **Backend** (Supabase prévu au cahier §9.6) : schéma (utilisateurs, business, rôles, membres, invitations, bilans + versions, stock, abonnements, paiements), **RLS stricte par business et par niveau**, fonctions transactionnelles (envoi / modification de bilan, acceptation d'invitation, prolongation d'abonnement), implémentation HTTP de `Services`, remplacement de `composition.ts`.
 3. **Authentification réelle** : OTP via l'API WhatsApp Business (template « Authentication »), rate limiting (par numéro, par appareil/IP), CAPTCHA, jeton de session long, PIN stocké sous forme de verrou local (pas de secret serveur).
 4. **Notifications push (FCM)** : rappel manager à l'heure du business, nouveau bilan, bilan modifié, expiration d'abonnement. Jetons d'appareil, tâche planifiée côté serveur.
@@ -41,16 +43,21 @@
 8. **Publication Play Store** : EAS Build `.aab`, politique de confidentialité publiée (§9.6), test fermé (12 testeurs / 14 jours), fiche et visuels.
 9. **Réglages manquants** : édition du business (nom, module Stock, suppression), rôles (renommer / supprimer), réapprovisionnement de stock, pagination de l'historique (aujourd'hui l'historique complet est chargé), mode hors-ligne minimal.
 
-## Questions ouvertes pour le client
+## Questions ouvertes pour le client (à valider — aucune n'est tranchée)
 
-1. Numéro déjà invité : l'écran Invitations (choix retenu) convient-il, ou l'accès doit-il être automatique à l'inscription ? (cahier §3.3 vs §4.2bis)
-2. Que se passe-t-il à l'expiration de l'abonnement : lecture seule, blocage de la saisie, période de grâce ?
-3. Un même auteur peut-il envoyer plusieurs bilans le même jour (ex. deux postes) ou un seul, modifiable 24 h (choix retenu) ?
-4. Peut-on antidater un bilan (oubli de la veille) ? Aujourd'hui non.
-5. La création de rôles doit-elle rester réservée au propriétaire ?
-6. Durée exacte de l'essai gratuit.
-7. Faut-il demander le nom à la première connexion (choix retenu) ou le faire saisir par le propriétaire à l'invitation ?
+Les trois premières portent sur des interprétations déjà implémentées dans la démo ; leur choix actuel est provisoire.
+
+1. **Numéro déjà invité** (cahier §3.3 vs §4.2bis). Implémenté : le compte arrive sur l'écran Invitations et n'accède au business qu'après acceptation. Alternative : accès direct au dashboard dès l'inscription, sans acceptation.
+2. **Un bilan par auteur et par jour.** Implémenté : un même auteur envoie un seul bilan par jour (puis « Modifier » pendant 24 h) ; plusieurs contributeurs possibles. Alternative : autoriser plusieurs bilans par personne (ex. deux postes).
+3. **Nom demandé à la première connexion.** Implémenté : un écran demande le nom (affiché sur les bilans) après l'OTP, car l'inscription se fait par téléphone seul. Alternative : le propriétaire saisit le nom à l'invitation.
+
+Autres points non spécifiés :
+
+4. Comportement à l'expiration de l'abonnement : lecture seule, blocage de la saisie, période de grâce ? (aujourd'hui rien n'est bloqué)
+5. Antidatage d'un bilan oublié la veille ? (aujourd'hui impossible)
+6. La création de rôles reste-t-elle réservée au propriétaire ?
+7. Durée exacte de l'essai gratuit.
 
 ## Hors périmètre de cette branche
 
-Back-office web, programme d'affiliation (§12, suivi manuel au départ), V2 (§13). Rien n'a été poussé ni fusionné.
+Back-office web, programme d'affiliation (§12, suivi manuel au départ), V2 (§13). Le **backend réel n'est pas commencé** (lots 2 à 8 ci-dessus) : la priorité est de stabiliser l'application Android et de préparer une démonstration client. La branche `feat/android-foundation` est publiée sur GitHub ; elle n'est pas fusionnée dans `main`.
