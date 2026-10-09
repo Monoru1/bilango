@@ -4,20 +4,15 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: [
-      'dist/*',
-      '.expo/*',
-      // Reliquats du template Expo par défaut, non utilisés par BilanGo (à supprimer).
-      'src/components/*',
-      'src/constants/*',
-      'src/hooks/*',
-      'src/app/explore.tsx',
-    ],
+    ignores: ['dist/*', '.expo/*'],
   },
   {
     rules: {
-      // L'interface est en français : les apostrophes sont partout dans le texte JSX.
-      // En React Native, ces caractères n'ont pas besoin d'être échappés.
+      // Désactivée volontairement : l'interface est en français et le texte JSX contient des
+      // apostrophes (« l'activité », « n'est »). En React Native le texte est rendu tel quel
+      // dans <Text> : il n'existe pas d'analyse HTML à protéger, et échapper chaque apostrophe
+      // en &apos; dégraderait la lisibilité et les relectures de texte. Toutes les autres
+      // règles de la config Expo restent actives.
       'react/no-unescaped-entities': 'off',
     },
   },

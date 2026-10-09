@@ -20,10 +20,6 @@
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "src/components",
-    "src/constants",
-    "src/hooks",
-    "src/app/explore.tsx"
+    "dist"
   ]
 }
