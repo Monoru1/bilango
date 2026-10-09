@@ -183,3 +183,51 @@ Branche `feat/client-ui-feedback`, base `a2e7d56`. Référence visuelle : page 3
 - Sélection conservée par business entre onglets, détails et changement de business pendant la session. Pas de persistance après déconnexion/redémarrage promise.
 
 Écarts volontaires avec la référence : textes #9AA09C remplacés par des tons lisibles AA ; rouge renforcé ; menu hamburger conservé ; valeurs, noms et dates issus du mock existant ; calendrier ajouté hors aperçu PDF. Aucun test natif de polices, clavier, retour système, icônes ou splash. Validation et prochain travail : [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md). Galerie locale : [VISUAL_PREVIEW.md](VISUAL_PREVIEW.md).
+
+### Reprise Claude Code — mission 04 (2026-10-09)
+
+Vérifié dans le code puis corrigé (le checkpoint `24369ec` ne les traitait pas) :
+
+- **En-têtes incohérents** : l'accueil avait un en-tête blanc, les autres onglets et les écrans empilés un en-tête vert, avec une barre d'état à icônes claires forcée (illisibles sur blanc). Un seul style d'en-tête blanc (`src/ui/navigation.ts`, `headerOptions`), barre d'état sombre partout ; la couleur de marque reste réservée aux accents (cahier client : fond blanc, accent limité).
+- **Onglets** : la maquette n'a qu'un point actif au-dessus du libellé. Tous les onglets l'utilisent désormais (`TabDot`), plus d'icônes sur deux onglets sur trois.
+- **Saisie des dates du calendrier** : `numbers-and-punctuation` n'existe pas sous Android (clavier texte par défaut) et le pavé numérique Android n'a pas de touche « / ». La saisie utilise `number-pad` et un masque `maskFrenchDayInput` (chiffres seuls → `JJ/MM/AAAA`).
+- **Clavier dans les feuilles modales** : `BottomSheet` (calendrier, rôle, rappel) est une fenêtre `Modal` distincte ; ajout d'un `KeyboardAvoidingView` pour que les champs ne soient pas masqués. À valider sur appareil.
+- **Configuration Android** (`app.json`) : `allowBackup: false` (les secrets du SecureStore ne doivent pas transiter par la sauvegarde) ; permissions `SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE` bloquées. Manifeste généré et contrôlé avec `expo prebuild` (dossier `android/` ignoré par Git, supprimé après contrôle) : il ne reste que `INTERNET` et `VIBRATE`, `edgeToEdgeEnabled=true`, Hermes et nouvelle architecture actifs, `adjustResize`, orientation portrait, schéma `bilango`.
+
+## 12. Sécurité — constats préliminaires (pas un audit d'intrusion)
+
+Contrôles réalisés sur le dépôt, sans test offensif ni service externe :
+
+| Contrôle | Résultat |
+| --- | --- |
+| Secrets dans les fichiers suivis (clés, jetons, mots de passe, `.env`, keystores) | aucun ; seul un faux jeton `mock-token:<id>` dans le mock |
+| Appels réseau, `fetch`, URLs de production | aucun dans `src/` ; l'app ne contacte aucun service (seul le script de prévisualisation parle à `127.0.0.1`) |
+| Journaux | aucun `console.*` dans l'app, donc aucune donnée sensible journalisée |
+| Stockage local | jeton, PIN et dernier business dans `expo-secure-store` (Keystore Android) ; sauvegarde Android désactivée ; stockage Web de prévisualisation en mémoire uniquement |
+| Permissions Android | réduites à `INTERNET` et `VIBRATE` |
+| Dépendances (`npm audit`) | 61 avis (16 modérés, 45 élevés) **tous transitifs de l'outillage** (Metro, Jest, `@expo/config-plugins`…) : `braces`, `node-forge`, `decode-uri-component`, `sprintf-js`, `uuid`. Aucun n'est exposé à un réseau par l'app actuelle. `npm audit fix --force` rétrograderait Expo : à ne pas faire ; suivre les correctifs du SDK. |
+| Autorisations et séparation des données | appliquées dans le mock (`accessOf`, `can*`, `Stack.Protected`) et testées (accès à un autre business, Saisie seule limitée à ses bilans, hiérarchie, retrait) ; **ce n'est pas une protection** : tout s'exécute sur l'appareil |
+
+Risques réels à traiter avant toute mise en production :
+
+1. **P0 — Aucune authentification ni autorisation serveur.** Le jeton `mock-token:<id>` est forgeable ; `userId` est un paramètre de chaque appel. Le serveur doit dériver l'identité de la session et appliquer RLS par business et par niveau.
+2. **P0 — Mode démonstration actif en dur.** `composition.ts` instancie toujours le mock ; l'OTP `123456` et la liste des comptes de démo sont affichés. Prévoir un drapeau de build (démo vs production) et retirer ces écrans du binaire de production.
+3. **P1 — PIN stocké en clair** dans le SecureStore (acceptable pour le mock). En production : le PIN n'est qu'un verrou local, stocké haché avec sel (ou protégé par authentification biométrique du Keystore) ; le compteur d'essais local est contournable en effaçant les données de l'appli, il ne remplace pas la limitation serveur.
+4. **P1 — Validation des entrées côté client uniquement** (montants à 12 chiffres, longueurs de noms et de notes) ; elle doit être refaite côté serveur, avec bornes et types stricts.
+5. **P1 — Anti-abus OTP simulé** (30 s, 5/24 h en mémoire) ; à reconstruire côté serveur (numéro, appareil/IP, CAPTCHA).
+6. **P2 — Logo et couleur** : l'asset client utilise un vert (#25D366) proche de l'identité WhatsApp, différent de la palette du cahier (#0F6E56) ; à confirmer avec le client avant la fiche Play Store (risque de confusion de marque).
+
+Un audit d'intrusion ne pourra être mené qu'une fois un backend de test déployé, sur des comptes et un environnement explicitement autorisés.
+
+## 13. Préparation de la version Web
+
+Le cœur est déjà isolé de la plateforme : `src/domain` et `src/services` n'importent ni React Native ni Expo (vérifié par recherche des imports). Seuls `src/state/storage.ts` (SecureStore) et les composants de `src/ui` / `src/features` dépendent de React Native ; `src/state/storage.web.ts` fournit déjà un adaptateur mémoire pour la prévisualisation.
+
+Prérequis pour une vraie application Web (hors périmètre de cette mission, rien n'a été lancé) :
+
+1. Backend et authentification réels partagés avec Android (mêmes `Services`) ; session Web par cookie `HttpOnly` plutôt que stockage local.
+2. Activer proprement la cible Web (`platforms`, `web.output`) dans `app.json` au lieu du seul drapeau `BILANGO_VISUAL_PREVIEW`, et déplacer `react-dom` / `react-native-web` en dépendances de production.
+3. Remplacer les API purement mobiles : `Alert.alert` (vide sur React Native Web → modale maison), `Modal`/feuilles, clavier numérique, gestes, `expo-secure-store`, retour système.
+4. Mises en page responsives (largeur maximale, navigation latérale sur grand écran, tableaux) ; le design actuel est calibré 360–412 dp.
+5. Politique de confidentialité, CSP/en-têtes de sécurité, accessibilité clavier et lecteurs d'écran du navigateur.
+6. Tests de bout en bout navigateur (Playwright est déjà présent pour les captures).

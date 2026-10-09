@@ -73,9 +73,12 @@ P10 demande une attente réelle jusqu'à l'échéance dans une instance maintenu
 | A8 | Envoi réussi puis retour système | Pas de confirmation d'abandon du bilan enregistré ; pas de double envoi |
 | A9 | Rotation, passage en veille, reprise et fermeture/réouverture | Portrait maintenu ; session persistante pour les comptes seed ; aucun écran étranger ; droits de modification réévalués à la reprise |
 | A10 | Se déconnecter puis rouvrir avec le PIN correct | Aucun nouvel OTP ; mauvais PIN décrémente les essais ; oublier le PIN revient à la connexion |
-| A11 | Alterner gestes et navigation trois boutons | Pied de formulaire et derniers éléments visibles ; barres d'état lisibles sur fond vert et clair |
-| A12 | Binaire release : icône, thème monochrome Android, démarrage à froid | Œil et barres reconnaissables, pas de placeholder Expo, symbole non coupé ; fond splash #0F6E56 |
+| A11 | Alterner gestes et navigation trois boutons | Pied de formulaire et derniers éléments visibles ; icônes sombres de la barre d’état lisibles sur tous les en-têtes (tous blancs depuis la reprise mission 04) |
+| A12 | Binaire release : icône, thème monochrome Android, démarrage à froid | Logo client reconnaissable, pas de placeholder Expo, symbole non coupé ; icône adaptive sur fond #25D366, splash blanc avec logo centré |
 | A13 | Mesurer 3 démarrages à froid sur binaire release | Noter les durées ; cible cahier < 2 s, aucune performance affirmée sans mesure |
+| A14 | Dashboard → Personnalisée → toucher « Date de début » | Pavé **numérique** affiché ; taper `01032021` produit `01/03/2021` ; effacer revient proprement ; le champ et le bouton « Appliquer la période » restent atteignables clavier ouvert (feuille modale + `KeyboardAvoidingView`, à valider en edge-to-edge) |
+| A15 | Parcourir Accueil, Bilans, Équipe, Stock selon le profil | En-têtes blancs partout, un seul point noir sous l'onglet actif, aucune icône d'onglet ; manager : deux onglets Accueil / Historique |
+| A16 | Installer le binaire et ouvrir Réglages → Applications → BilanGo → Autorisations | Aucune permission demandée (la liste du manifeste est limitée à INTERNET et VIBRATE, contrôlée par `expo prebuild`) ; sauvegarde Android désactivée |
 
 Les contrastes ont un contrôle automatisé ; TalkBack, grossissement et clavier exigent l'observation humaine. Le comportement edge-to-edge Android 15+ n'est pas encore validé.
 
@@ -87,4 +90,4 @@ Copier une ligne pour chaque cas D/P/A et chaque configuration. Valeurs : **non 
 | --- | --- | --- | --- | --- | --- | --- |
 | Ensemble | Non exécuté | — | — | — | — | Mission 04 : validation automatisée uniquement |
 
-Avant démonstration client : D1–D11 et P1–P9, puis A1–A11 sur téléphone ; A12–A13 sur release. Traiter les KO bloquants avant publication.
+Avant démonstration client : D1–D11 et P1–P9, puis A1–A11 et A14–A16 sur téléphone ; A12–A13 sur release. Traiter les KO bloquants avant publication.
