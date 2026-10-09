@@ -2,6 +2,25 @@
 
 > **Mise à jour — reprise Claude Code, mission 04 (9 octobre 2026).** Cette section remplace « Prochain travail exact » et le tableau de validation plus bas, conservés pour l'historique du checkpoint `24369ec`.
 
+
+## Build APK EAS (démonstration privée) — 9 octobre 2026
+
+| Élément | Valeur |
+| --- | --- |
+| Statut | **Réussi** (FINISHED, ≈ 21 min dont file d'attente) |
+| Profil | `preview` — APK, distribution interne, serveurs EAS Build |
+| Commit compilé | `53b37ab3796740f87424f9738eb3d74674cb8bcf` (branche `feat/client-ui-feedback`) |
+| Build Expo | https://expo.dev/accounts/monoru1s-team/projects/bilango/builds/20c1fd86-5afa-46b2-bae4-218e9dc89960 |
+| APK | https://expo.dev/artifacts/eas/o1F3j-LRGA3PZqXux1jO3WPYztviWlRi7UoZeiLVzvk.apk (HTTP 200, ≈ 103 Mo) |
+| Projet / compte | `@monoru1s-team/bilango`, ID `14f789f6-e58c-464e-a128-1e64f57d8eab` |
+| Package / version | `bj.novadis.bilango`, 0.1.0, versionCode 1 |
+| Signature | keystore généré et conservé par EAS (gestion officielle) — ne pas le perdre si l'app est un jour publiée |
+
+Installation : ouvrir le lien APK sur le téléphone Android, autoriser « Installer des applications inconnues » pour le navigateur utilisé, installer, ouvrir BilanGo. Connexion : numéro de la liste du README, code OTP `123456`.
+
+Limites : build de démonstration privé avec données fictives et authentification simulée ; **non testé sur un appareil** (aucun téléphone ni émulateur disponible) — la recette `docs/ANDROID_ACCEPTANCE.md` reste à exécuter ; APK multi-architectures volumineux (un `.aab` ou des splits réduiraient la taille, hors périmètre) ; le lien d'artefact peut expirer, le retrouver depuis la page du build ; aucun Play Store, backend, paiement ni OTP réel.
+
+Pour rebuilder : `npx eas-cli@latest build --platform android --profile preview` (session `eas login` requise ; incrémenter `android.versionCode` pour une nouvelle version installable par-dessus).
 ## État actuel
 
 Branche `feat/client-ui-feedback` (publiée sur `origin`). Commits de la reprise : `59a2e95` (correctifs Android) et `55d5d31` (documentation) sur `24369ec` ; le commit de passation les suit (`git log --oneline -5`). Rien fusionné dans `main`.
