@@ -53,7 +53,7 @@ export function roleLabel(access: Pick<Access, 'isOwner' | 'role'>): string {
   return access.isOwner ? 'Propriétaire' : (access.role?.name ?? '');
 }
 
-const CAPABILITIES: Record<Capability, ReadonlyArray<PermissionLevel | 'owner'>> = {
+const CAPABILITIES: Record<Capability, readonly (PermissionLevel | 'owner')[]> = {
   submitReport: ['owner', 'full', 'entry'],
   viewDashboard: ['owner', 'full', 'readonly'],
   viewAllReports: ['owner', 'full', 'readonly'],

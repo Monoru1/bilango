@@ -1,16 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { createMockServices } from '@/services/mock';
 import type { Services } from '@/services/types';
+import { createAppServices } from './composition';
 
 const ServicesContext = createContext<Services | null>(null);
 
-/**
- * Point unique d'injection du backend. Pour brancher l'API réelle, fournir une autre
- * implémentation de `Services` ici (voir docs/ARCHITECTURE.md).
- */
+/** Fournit les services à l'arbre React ; l'implémentation vient de `composition.ts`. */
 export function ServicesProvider({ children, services }: { children: ReactNode; services?: Services }) {
-  const value = useMemo(() => services ?? createMockServices(), [services]);
+  const value = useMemo(() => services ?? createAppServices(), [services]);
   return <ServicesContext.Provider value={value}>{children}</ServicesContext.Provider>;
 }
 

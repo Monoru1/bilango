@@ -16,11 +16,13 @@ export const secureStorage: KeyValueStore = {
   remove: (key) => SecureStore.deleteItemAsync(safe(key)),
 };
 
-export function createMemoryStorage(initial: Record<string, string> = {}): KeyValueStore {
+/** Stockage en mémoire pour les tests ; `clear()` repart d'un appareil vierge. */
+export function createMemoryStorage(initial: Record<string, string> = {}): KeyValueStore & { clear(): void } {
   const map = new Map(Object.entries(initial));
   return {
     get: async (key) => map.get(key) ?? null,
     set: async (key, value) => void map.set(key, value),
     remove: async (key) => void map.delete(key),
+    clear: () => map.clear(),
   };
 }

@@ -1,56 +1,58 @@
-# Welcome to your Expo app 👋
+# BilanGo
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application Android native (Expo, React Native, TypeScript, Expo Router) de **suivi à distance pour propriétaires de business** : l'équipe sur place envoie un bilan simple en fin de journée, le propriétaire consulte chiffre d'affaires, dépenses et caisse théorique depuis son téléphone. Éditeur : Novadis Digital.
 
-## Get started
+Référence fonctionnelle : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md).
 
-1. Install dependencies
+> **État : fondation démontrable avec données fictives.** Tout fonctionne sur un backend simulé en mémoire. Rien n'est envoyé nulle part (ni WhatsApp, ni push, ni paiement) et le mock **n'offre aucune sécurité** : les permissions sont appliquées pour reproduire le contrat, pas pour protéger des données. Voir [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) pour ce qui reste.
 
-   ```bash
-   npm install
-   ```
+## Démarrer
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Prérequis : Node 20+, un téléphone Android avec **Expo Go**, ou un émulateur Android (SDK + AVD).
 
 ```bash
-npm run reset-project
+npm install
+npm start          # puis scanner le QR code avec Expo Go, ou appuyer sur « a » pour l'émulateur
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Android uniquement : pas de WebView, pas de site emballé, pas de cible web ni iOS.
 
-### Other setup steps
+### Comptes de démonstration
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Écran de saisie du numéro → touchez un compte pour pré-remplir. **Code OTP : `123456`**, PIN au choix à la première connexion.
 
-## Learn more
+| Numéro | Profil |
+| --- | --- |
+| 01 97 00 00 01 | Koffi : propriétaire de *Chez Maman Bar* (stock activé) et *Boutique Étoile*, et livreur chez *E-Shop Cotonou* |
+| 01 97 00 00 02 | Rodrigue : caissier (Saisie seule) chez Chez Maman Bar, avec une invitation en attente |
+| 01 97 00 00 03 | Fatou : gérante (Gestion complète) |
+| 01 97 00 00 04 | Yacine : comptable (Lecture seule) |
+| 01 97 00 00 06 | Nouveau numéro déjà invité (arrive sur l'invitation) |
+| 01 97 00 00 99 | Nouveau numéro sans business (arrive sur « Créer mon business ») |
 
-To learn more about developing your project with Expo, look at the following resources:
+Les données sont régénérées à chaque lancement, relatives à la date du jour. Seuls la session et le PIN sont conservés sur l'appareil (SecureStore).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Commandes
 
-## Join the community
+| Commande | Rôle |
+| --- | --- |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (config Expo) |
+| `npm test` | Jest : règles métier, services mock, session, brouillon de bilan, parcours de navigation sur le vrai arbre de routes |
+| `npm run check` | les trois ci-dessus |
+| `npm run bundle:android` | `expo export` : vérifie que tout le bundle Android compile |
 
-Join our community of developers creating universal apps.
+## Structure
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/
+  app/        routes Expo Router (auth, unlock, onboarding, (app)/(tabs)…)
+  domain/     modèle et règles métier pures (permissions, caisse, bilans, abonnement)
+  services/   contrat typé des services + implémentation mock (remplaçable)
+  state/      session/PIN, business courant, injection des services, hook useQuery
+  features/   composants métier (dashboard, formulaire de bilan, menu latéral…)
+  ui/         design system (tokens, composants, logo, pavé PIN)
+docs/         cahier des charges, architecture, plan d'implémentation
+```
+
+Détails dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Consignes pour les agents/contributeurs dans [AGENTS.md](AGENTS.md).

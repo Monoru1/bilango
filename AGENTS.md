@@ -1,41 +1,43 @@
-This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
+# BilanGo — consignes pour agents et contributeurs
 
-## Expo has changed — do not trust your training data
+Application Android native pour Novadis Digital : Expo (SDK 57), React Native, TypeScript strict, Expo Router. **Android-first. Pas de WebView, pas de site web emballé.** Le back-office web est un projet séparé.
 
-Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
+## Source de vérité
 
-1. Read the major version of the `expo` package in `package.json`.
-2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
-3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
+`docs/CAHIER_DES_CHARGES.md` est la référence fonctionnelle. Le lire avant toute modification de comportement. En cas d'ambiguïté, appliquer la règle du cahier, noter l'interprétation dans `docs/ARCHITECTURE.md` (section « Décisions et interprétations ») et ne pas la présenter comme validée.
 
-## Commands
+## Expo change souvent — ne pas se fier à la mémoire
 
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
+Avant d'écrire du code touchant Expo, EAS ou React Native : lire la version majeure de `expo` dans `package.json`, puis la doc versionnée `https://docs.expo.dev/versions/v<major>.0.0/` et `https://docs.expo.dev/llms.txt`.
+
+## Commandes
 
 ```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
+npx expo install <paquet>   # TOUJOURS à la place de npm install : versions compatibles SDK
+npm run check               # typecheck + lint + tests — obligatoire avant de déclarer une tâche terminée
+npm run bundle:android      # vérifie que le bundle Android compile
 ```
 
-Run lint and typecheck before declaring any task done.
+## Architecture (voir docs/ARCHITECTURE.md)
 
-## Navigation & Routing
+- `src/domain` : logique métier **pure** (aucun import React/Expo). Toute règle du cahier vit ici et a un test.
+- `src/services` : l'UI ne dépend que des interfaces de `services/types.ts`. L'implémentation actuelle est `services/mock`. Ne jamais importer le mock depuis un écran : passer par `useServices()`.
+- `src/state` : session/PIN (`session-controller.ts`, testable sans React), business courant, `useQuery`.
+- `src/features` / `src/ui` : composants. Écrans fins dans `src/app` ; rien de non-route dans `src/app`.
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+## Règles non négociables
 
-## Building with EAS
+- **Aucun parcours de paiement dans l'app** : pas de bouton, lien ni mention redirigeant vers un paiement externe (Google Play, cahier §9.5). L'abonnement est affiché en lecture seule.
+- Les **mocks ne sont pas de la sécurité** : ne jamais les décrire comme une intégration de production (OTP WhatsApp, push FCM, Fedapay, anti-abus, RLS Supabase restent à faire côté serveur).
+- Permissions : toujours via `domain/permissions.ts` (`can`, `canManageMember`, `canGrantLevel`, `canEditReport`). Ne pas dupliquer la logique dans les écrans.
+- Soft delete des membres : ne jamais supprimer en cascade les bilans d'un compte retiré.
+- La caisse théorique est **dérivée** des bilans courants (jamais stockée) ; aucune alerte d'écart.
+- Interface en français, design system dans `src/ui/theme.ts` (palette officielle #0F6E56 / #085041 / #5DCAA5, pas de jaune/orange). Cibles tactiles ≥ 48 px, un seul chiffre fort par écran.
+- Montants : entiers FCFA. Jours métier : fuseau de Cotonou (UTC+1), voir `domain/dates.ts`.
+- Application légère : pas de dépendance lourde ni de multimédia superflu.
 
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
+## Divers
 
-## Rules
-
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+- Ne pas créer ni éditer `android/` ou `ios/` à la main (Continuous Native Generation) : tout passe par `app.json` et les config plugins.
+- Ne pas pousser ni fusionner sans autorisation explicite du propriétaire du dépôt.
+- Build/soumission : EAS (`npx eas-cli@latest build`), format `.aab` obligatoire pour le Play Store.
