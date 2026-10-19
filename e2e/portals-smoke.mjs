@@ -5,6 +5,9 @@
  * NE FAIT AUCUN ENVOI RÉEL. Voir docs/TEST_REPORT.md pour le dernier résultat réellement exécuté.
  */
 import { readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
 const { chromium } = require('playwright');
@@ -103,6 +106,73 @@ await adm.getByText('Rôle modifié et sessions révoquées. Nouvel accord requi
 await adm.getByRole('tab', { name: 'Audit', exact: true }).click();
 await adm.getByText('partner.role.change', { exact: true }).waitFor();
 check(true, 'changement de rôle partenaire autorisé et journalisé');
+
+// --- Agent et influenceur : accords, code, reconnexion, coordonnées, formats ----------------
+const activationToken = email => log().split(`[DEV EMAIL] to=${email} `).at(-1)?.split('[/DEV EMAIL]')[0].match(/activer\?token=([\w-]+)/)?.[1];
+async function activateProfile(email, firstName) {
+  const profile = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await profile.newPage(); page.on('pageerror', error => errors.push(String(error)));
+  const password = randomBytes(18).toString('base64url');
+  const token = activationToken(email); check(!!token, `activation Dev de ${firstName}`);
+  await page.goto(`http://localhost:5174/activer?token=${token}`);
+  await page.getByLabel('Mot de passe').fill(password);
+  check(!(await page.getByRole('button', { name: 'Activer mon accès' }).isEnabled()), 'accord obligatoire avant activation');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Activer mon accès' }).click();
+  await page.getByRole('heading', { name: `Bonjour, ${firstName}` }).waitFor();
+  await page.getByRole('button', { name: 'Se déconnecter' }).click();
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByLabel('Mot de passe').fill(password);
+  await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
+  await page.getByRole('heading', { name: `Bonjour, ${firstName}` }).waitFor();
+  check(true, `connexion ${firstName} sans second facteur`);
+  return { page, profile };
+}
+const agent = await activateProfile(AGT, 'Koffi');
+await agent.page.getByText(CODE, { exact: true }).waitFor();
+await agent.page.getByRole('heading', { name: 'Mes parrainages' }).waitFor();
+await agent.page.getByRole('heading', { name: 'Mes versements' }).waitFor();
+await agent.page.getByLabel('Numéro de paiement').fill('+2250700000000');
+await agent.page.getByLabel('Réseau', { exact: true }).selectOption('Orange');
+await agent.page.getByLabel('Nom affiché').fill('Koffi Fictif');
+await agent.page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+await agent.page.getByText('Coordonnées enregistrées.', { exact: true }).waitFor();
+await agent.page.reload(); await agent.page.getByRole('heading', { name: 'Bonjour, Koffi' }).waitFor();
+await agent.page.getByLabel('Numéro de paiement').waitFor();
+await agent.page.waitForFunction(() => document.querySelector('[aria-label="Numéro de paiement"]')?.value === '+2250700000000');
+check(true, 'bloc Paiement agent enregistré puis relu, sans OTP');
+
+await adm.getByRole('tab', { name: 'Partenaires', exact: true }).click();
+const influencerEmail = `influenceur-${TAG.toLowerCase()}@partner.test`;
+await adm.getByLabel('Nom', { exact: true }).fill('Lina Influenceur');
+await adm.getByLabel('E-mail', { exact: true }).fill(influencerEmail);
+await adm.getByLabel('Rôle', { exact: true }).selectOption('influencer');
+await adm.getByLabel('Code promo', { exact: true }).fill(`LINA${TAG}225`);
+await adm.getByRole('button', { name: 'Créer', exact: true }).click();
+await adm.getByText('Partenaire créé', { exact: false }).waitFor();
+const influencer = await activateProfile(influencerEmail, 'Lina');
+await influencer.page.getByRole('heading', { name: 'Mes abonnés' }).waitFor();
+await influencer.page.getByText(`LINA${TAG}225`, { exact: true }).waitFor();
+check(!(await influencer.page.locator('body').innerText()).includes('Enregistrer un agent'), 'influenceur sans gestion des agents');
+check(await influencer.page.locator('a[href*="5175"]').count() === 0, 'aucun lien vers administration dans le portail partenaires');
+await adm.getByRole('tab', { name: 'Abonnements', exact: true }).click();
+await adm.getByRole('heading', { name: 'Abonnements par business' }).waitFor();
+await adm.getByText('GoBilan Test réel', { exact: true }).waitFor();
+await adm.getByRole('tab', { name: 'Versements', exact: true }).click();
+await adm.getByRole('heading', { name: 'Calendrier des versements' }).waitFor();
+check(true, 'administration : abonnements persistants et calendrier des versements consultables');
+await par.reload(); await par.getByRole('heading', { name: 'Bonjour, Marie' }).waitFor();
+
+for (const [page, name] of [[agent.page, 'agent'], [influencer.page, 'influenceur'], [par, 'manager'], [adm, 'admin']]) {
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+    check(fits, `${name} : aucun débordement horizontal à ${width}px`);
+    check(await page.locator('.topbar strong').evaluate(node => node.getBoundingClientRect().height <= 80), `${name} : titre d’en-tête lisible à ${width}px`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: join(process.env.E2E_ARTIFACTS ?? tmpdir(), `gobilan-${name}-mobile.png`), fullPage: true });
+}
 check(errors.length === 0, 'aucune erreur JavaScript dans les pages (' + errors.length + ')');
 await browser.close();
 console.log('\nSMOKE E2E : tout est OK');

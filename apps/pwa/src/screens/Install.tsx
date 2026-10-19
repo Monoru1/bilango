@@ -1,5 +1,5 @@
 import { Logo } from '@gobilan/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShareIcon } from '../components/Icons';
 import type { Env } from '../lib/env';
@@ -84,10 +84,19 @@ function Shell({ children }: { children: React.ReactNode }) {
  * NON fournies à ce jour (voir docs/CODEX_HANDOFF.md) — illustrations vectorielles provisoires.
  */
 function IosGuide({ onClose }: { onClose: () => void }) {
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    closeButton.current?.focus();
+    return () => { if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+  }, []);
   return (
     <div className="overlay" role="presentation" style={{ alignItems: 'end', padding: 0 }}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label="Installer GoBilan sur iPhone" style={{ borderRadius: '20px 20px 0 0', maxWidth: 520, maxHeight: '92dvh', overflowY: 'auto' }}>
-        <div className="row"><h2 className="h2">Installer sur iPhone</h2><button className="link" onClick={onClose}>Fermer</button></div>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label="Installer GoBilan sur iPhone" onKeyDown={event => {
+        if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+        if (event.key === 'Tab') { event.preventDefault(); closeButton.current?.focus(); }
+      }} style={{ borderRadius: '20px 20px 0 0', maxWidth: 520, maxHeight: '92dvh', overflowY: 'auto' }}>
+        <div className="row"><h2 className="h2">Installer sur iPhone</h2><button ref={closeButton} className="link" onClick={onClose}>Fermer</button></div>
         <ol className="steps">
           <li><span>Appuie sur <strong>Partager</strong> <span style={{ display: 'inline-block', verticalAlign: 'middle' }}><ShareIcon /></span> en bas de Safari.</span></li>
           <li><span><strong>Fais défiler</strong> le menu vers le bas.</span></li>

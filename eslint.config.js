@@ -3,7 +3,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/node_modules/**', '**/dist/**', 'legacy/**', '**/*.tsbuildinfo', '**/coverage/**', 'apps/*/public/**'] },
+  { ignores: ['**/node_modules/**', '**/dist/**', 'legacy/**', '.local/**', '**/*.tsbuildinfo', '**/coverage/**', 'apps/*/public/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

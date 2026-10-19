@@ -21,6 +21,9 @@
     "dev:partners": "npm run dev -w @gobilan/partners",
     "dev:admin": "npm run dev -w @gobilan/admin",
     "dev:api": "npm run dev -w @gobilan/api",
+    "dev:local": "node scripts/dev-local.mjs",
+    "preview:local": "node scripts/dev-local.mjs --preview",
+    "seed:local": "node --env-file=.env.local --import tsx apps/api/src/local-seed.ts",
     "test:e2e": "node e2e/run-smoke.mjs"
   },
   "devDependencies": {

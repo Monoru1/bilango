@@ -1,5 +1,5 @@
 @import '@gobilan/ui/tokens.css';
-body { background: #fafaf9; }
+body { background: var(--bg); }
 .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px 48px; }
 .card { background: #fff; border: 1px solid var(--sep); border-radius: 16px; padding: 22px; }
 .narrow { max-width: 440px; margin: 48px auto; }
@@ -12,7 +12,12 @@ body { background: #fafaf9; }
 .h2 { font-size: 17px; margin: 0; }
 .link { background: none; border: 0; padding: 4px 0; text-decoration: underline; cursor: pointer; color: var(--text-2); font-size: 14px; }
 .topbar { background: #fff; border-bottom: 1px solid var(--sep); }
-.topbar .wrap { display: flex; align-items: center; gap: 12px; padding: 14px 20px; }
+.topbar .wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 20px; }
+.topbar .wrap > strong { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .topbar .wrap { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px 12px; }
+  .topbar .wrap > .muted, .topbar .wrap > .link { grid-column: 2; justify-self: start; overflow-wrap: anywhere; }
+}
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-3); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--sep); }
 td { padding: 12px 6px; border-bottom: 1px solid var(--sep); }

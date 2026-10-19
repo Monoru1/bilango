@@ -8,5 +8,7 @@ FedaPay → webhook signé HMAC → idempotence → re-vérification auprès de 
 ## Décision clé
 Partenaires et admin sur **hôtes distincts** en production (cookies/isolation, CDC §13.4). Le proxy Vite dev redirige `/v1` vers 127.0.0.1:8787.
 
-## Écart important
-La PWA utilise `apps/pwa/src/demo/store.ts` (DemoApi en mémoire, réutilise `@gobilan/domain`). Le client HTTP vers l'API réelle reste à brancher (priorité 1 de Codex).
+## PWA et environnement local
+La PWA utilise `apps/pwa/src/app/RemoteStore.ts` par défaut : sessions, business, équipe, stock et bilans proviennent de l'API et de PostgreSQL. `?demo=1` active explicitement le store en mémoire ; `?demo=0` revient au mode HTTP. Aucune erreur réseau ne bascule en démo.
+
+Les fournisseurs externes restent des doublures Dev, même en mode HTTP. Le signal standalone est émulé dans les E2E ; une installation physique Android/iOS demande une validation séparée. Voir `LOCAL_SETUP.md` et `LOCAL_ACCEPTANCE_REPORT.md` pour la recette Windows.
