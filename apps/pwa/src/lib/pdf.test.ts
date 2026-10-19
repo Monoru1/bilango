@@ -20,6 +20,6 @@ describe('PDF texte du bilan', () => {
     expect(lines.at(-1)).toContain('CA : 48 500 FCFA');
   });
   it('ne contient aucun espace insécable (rendu PDF)', () => {
-    expect(lines.join('\n')).not.toMatch(/[  ]/);
+    expect(lines.join('\n')).not.toMatch(/[\u202f\u00a0]/);
   });
 });

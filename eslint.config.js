@@ -14,4 +14,6 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
+  // Scripts de test manuel : la sortie console est leur interface.
+  { files: ['e2e/**'], rules: { 'no-console': 'off' } },
 );

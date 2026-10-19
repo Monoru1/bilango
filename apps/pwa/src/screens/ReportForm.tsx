@@ -10,7 +10,6 @@ const HELP: Record<Key, string> = { revenue: 'Le total des ventes du jour.', exp
 
 interface Line { id: string; label: string; amount: string }
 interface FieldState { total: string; lines: Line[]; detail: boolean }
-const blank = (): FieldState => ({ total: '', lines: [], detail: false });
 const fromAmount = (a: ReportAmount): FieldState => ({ total: a.total ? String(a.total) : '', lines: a.lines.map((l) => ({ id: l.id, label: l.label, amount: String(l.amount) })), detail: a.lines.length > 0 });
 
 /** Saisie du bilan quotidien (§6.2) — création, ou modification quand `:reportId` est présent (§6.6). */

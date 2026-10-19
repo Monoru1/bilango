@@ -2,7 +2,7 @@ import {
   computeCommissions,
   payoutDateFor,
   reversalOf,
-  subscriptionStatus,
+  type subscriptionStatus,
   type CommissionLine,
   type LedgerEntry,
   type Referral,

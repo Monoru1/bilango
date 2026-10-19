@@ -79,9 +79,9 @@ export function OwnerHome() {
         </section>
         <hr className="gb-sep" style={{ margin: '0 24px' }} />
         <div className="kv2" style={{ borderBottom: '1px solid var(--sep)' }}>
-          <div className="cell"><div className="gb-label">Caisse théorique</div><div className="gb-amount gb-amount--md" style={{ marginTop: 8 }}>{cash ? formatFcfa(cash.closing).replace(/ FCFA$/, '').replace(/ FCFA$/, '') : '—'}</div></div>
+          <div className="cell"><div className="gb-label">Caisse théorique</div><div className="gb-amount gb-amount--md" style={{ marginTop: 8 }}>{cash ? amountParts(cash.closing).number : '—'}</div></div>
           <div className="vsep" />
-          <div className="cell"><div className="gb-label">Dépenses</div><div className="gb-amount gb-amount--md" style={{ marginTop: 8 }}>{formatFcfa(cur.expenses).replace(/ FCFA$/, '').replace(/ FCFA$/, '')}</div></div>
+          <div className="cell"><div className="gb-label">Dépenses</div><div className="gb-amount gb-amount--md" style={{ marginTop: 8 }}>{amountParts(cur.expenses).number}</div></div>
         </div>
         <section className="section" style={{ borderBottom: 0 }}>
           <h2 className="h2" style={{ marginBottom: 6 }}>Détail du jour</h2>

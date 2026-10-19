@@ -110,7 +110,7 @@ export async function mkPartner(ctx: Ctx, kind: { role: 'manager' } | { role: 'i
 }
 
 /** Simule le paiement d'un abonnement de bout en bout : checkout serveur -> passerelle approuve -> webhook signé. */
-export async function payFor(ctx: Ctx, owner: { user: import('../src/services/auth').SessionUser }, businessId: string, opts: { eventId?: string; mode?: string } = {}) {
+export async function payFor(ctx: Ctx, owner: { user: SessionUser }, businessId: string, opts: { eventId?: string; mode?: string } = {}) {
   const { subs } = services(ctx);
   const checkout = await subs.createCheckout(owner.user, businessId);
   const created = ctx.providers.gateway.created.find((c) => c.merchantReference === checkout.merchantReference)!;

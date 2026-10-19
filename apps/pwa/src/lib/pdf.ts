@@ -21,7 +21,7 @@ export function reportLines(business: Pick<Business, 'name'>, day: string, repor
   }
   out.push(`Total du jour — CA : ${formatFcfa(revenue)} · Dépenses : ${formatFcfa(expenses)} · Ajouts : ${formatFcfa(cashIn)}`);
   // Espaces fines/insécables → espace simple : la police PDF standard ne les rend pas.
-  return out.map((l) => l.replace(/[  ]/g, ' '));
+  return out.map((l) => l.replace(/[\u202f\u00a0]/g, ' '));
 }
 
 export async function downloadReportPdf(business: Pick<Business, 'name'>, day: string, reports: Report[], offset: number): Promise<void> {

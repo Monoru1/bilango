@@ -121,7 +121,7 @@ describe('webhook FedaPay (§8.2)', () => {
     // Horodatage hors tolérance (rejeu d'un vieil évènement) — dans les deux sens.
     await expectCode(sendWebhook(ctx, p.event, { timestampSec: Math.floor(ctx.clock.now() / 1000) - 301 }), 'unauthenticated');
     await expectCode(sendWebhook(ctx, p.event, { timestampSec: Math.floor(ctx.clock.now() / 1000) + 301 }), 'unauthenticated');
-    expect(await paidUntil(t.businessId)).not.toBeNull; // aucune prolongation obtenue
+    expect(await paidUntil(t.businessId)).toBeNull(); // aucune prolongation obtenue
     expect((await ctx.db.query('select 1 from payments where status = \'confirmed\'')).rows).toHaveLength(0);
   });
 
