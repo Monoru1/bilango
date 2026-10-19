@@ -1,0 +1,30 @@
+{
+  "name": "@gobilan/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API GoBilan partagée par la PWA, le portail partenaires et l'administration",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx src/migrate-cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.0",
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@gobilan/contracts": "*",
+    "@gobilan/domain": "*",
+    "fastify": "^5.4.0",
+    "pg": "^8.13.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0"
+  }
+}
