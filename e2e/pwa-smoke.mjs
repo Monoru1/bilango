@@ -68,8 +68,12 @@ try {
   await owner.getByLabel('Nom du rôle').fill('Caissier');
   await owner.getByRole('button', { name: 'Créer le rôle', exact: true }).click();
   await owner.getByText('Rôle créé.', { exact: true }).waitFor();
+  await owner.getByRole('button', { name: 'Modifier le rôle Caissier', exact: true }).click();
+  await owner.getByLabel('Nom du rôle modifié').fill('Caissier test');
+  await owner.getByRole('button', { name: 'Enregistrer le rôle', exact: true }).click();
+  await owner.getByText('Rôle modifié.', { exact: true }).waitFor();
   const guestPhone = national();
-  await owner.getByLabel('Rôle', { exact: true }).selectOption({ label: 'Caissier — Saisie seule' });
+  await owner.getByLabel('Rôle', { exact: true }).selectOption({ label: 'Caissier test — Saisie seule' });
   await owner.getByLabel('Numéro WhatsApp de la personne').fill(guestPhone);
   await owner.getByRole('button', { name: 'Inviter', exact: true }).click();
   await owner.getByText('Invitation enregistrée', { exact: false }).waitFor();

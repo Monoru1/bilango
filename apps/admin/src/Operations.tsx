@@ -39,3 +39,19 @@ export function PayoutCorrection() {
     {message && <p role="status">{message}</p>}
   </section>;
 }
+
+export function PartnerRoleChange() {
+  const [partners, setPartners] = useState<{ id: string; name: string; role: string }[]>([]);
+  const [id, setId] = useState(''); const [role, setRole] = useState('influencer'); const [managerId, setManagerId] = useState(''); const [promoCode, setPromoCode] = useState(''); const [message, setMessage] = useState('');
+  const load = useCallback(() => { void api<{ partners: typeof partners }>('/v1/admin/partners').then(r => setPartners(r.partners), e => setMessage(errorText(e))); }, []);
+  useEffect(load, [load]);
+  return <section className="card stack"><h2 className="h2">Changer le rôle d’un partenaire</h2>
+    <p>Ce changement est possible avant de porter une équipe, des parrainages ou des commissions. Sinon, créez un compte distinct pour conserver les obligations du compte existant. Les sessions sont coupées et le nouvel accord doit être accepté.</p>
+    <label>Partenaire à modifier<select className="gb-input" value={id} onChange={e => setId(e.target.value)}><option value="">Choisir…</option>{partners.map(p => <option key={p.id} value={p.id}>{p.name} — {p.role}</option>)}</select></label>
+    <label>Nouveau rôle<select className="gb-input" aria-label="Nouveau rôle" value={role} onChange={e => setRole(e.target.value)}><option value="manager">Manager</option><option value="agent">Agent</option><option value="influencer">Influenceur</option></select></label>
+    {role === 'agent' && <label>Manager de l’agent<select className="gb-input" value={managerId} onChange={e => setManagerId(e.target.value)}><option value="">Choisir…</option>{partners.filter(p => p.role === 'manager' && p.id !== id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+    {role !== 'manager' && <label>Nouveau code promo<input className="gb-input" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} /></label>}
+    <button className="gb-btn" disabled={!id || (role !== 'manager' && !promoCode) || (role === 'agent' && !managerId)} onClick={() => void api(`/v1/admin/partners/${id}/role`, { method: 'PUT', body: { role, ...(role !== 'manager' ? { promoCode } : {}), ...(role === 'agent' ? { managerId } : {}) } }).then(() => { setMessage('Rôle modifié et sessions révoquées. Nouvel accord requis.'); load(); }, e => setMessage(errorText(e)))}>Changer et journaliser le rôle</button>
+    {message && <p role="status">{message}</p>}
+  </section>;
+}

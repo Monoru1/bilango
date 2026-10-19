@@ -18,3 +18,9 @@ export const adminAllowlistChangeSchema = z.discriminatedUnion('action', [
   z.object({ email: z.string().email().transform(s => s.toLowerCase()), action: z.literal('remove') }),
 ]);
 export const adminAllowlistConfirmSchema = z.object({ requestId: idSchema, code: z.string().regex(/^\d{6}$/) });
+
+export const changePartnerRoleSchema = z.object({
+  role: z.enum(['agent', 'manager', 'influencer']),
+  managerId: idSchema.optional(),
+  promoCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{3,20}$/).optional(),
+});

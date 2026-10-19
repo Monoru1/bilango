@@ -9,7 +9,7 @@ Référence : CDC du 19 octobre 2026. « Conforme » signifie validé dans le p�
 | R03 | WhatsApp OTP / CAPTCHA réels | simulé / bloqué production | Codes Dev dans console serveur, jamais dans réponse HTTP ; jeton CAPTCHA de développement explicitement marqué |
 | R04 | Sessions persistantes / nouvel appareil / PIN oublié | conforme API, partiel navigateur | Cookies httpOnly ; OTP, reset, révocation et quotas testés ; bouton déconnecter anciens appareils branché |
 | R05 | Création et sélection de business | conforme | PostgreSQL + navigateur ; anti-abus essais numéro/appareil, concurrence testée |
-| R06 | Rôles, invitations, acceptation, retrait logique | conforme pour création et retrait | API et PWA réelles ; entrée seule filtrée serveur ; propriétaire protégé ; modification/suppression de rôles existants absentes |
+| R06 | Rôles, invitations, acceptation, retrait logique | conforme pour création, édition et archivage sécurisé | API et PWA réelles ; entrée seule filtrée serveur ; propriétaire protégé ; rôle attribué/invité non archivable |
 | R07 | Bilans, caisse initiale, contributions | conforme | Création persistante et agrégation vérifiées navigateur/API/SQL |
 | R08 | Modification sous 24 h, versions conservées | conforme | Parcours employé exécuté ; auteur et délai contrôlés côté serveur ; append-only |
 | R09 | Historique / dashboard / caisse | conforme fonctionnellement | Historique complet autorisé, aucune troncature comptable ; volumes importants à optimiser |
@@ -23,7 +23,7 @@ Référence : CDC du 19 octobre 2026. « Conforme » signifie validé dans le p�
 | R17 | Codes, attribution, commissions, plafonds | conforme aux règles codées | Domaine et API, taux figés ; exclusions manuelles ; hypothèses D-004/D-014/D-018 à valider client |
 | R18 | Versements 1er/15, seuil, frais, annulations | conforme en tests API | Journal append-only, doubles versements refusés ; aucun transfert réel, validation manuelle après virement hors app |
 | R19 | Administration 2FA / allowlist | conforme en Dev intégré | Confirmation e-mail, révocation, minimum deux adresses ; code lié au challenge ; scénario navigateur exécuté |
-| R20 | Admin : partenaires, exclusions, coordonnées, abonnements | partiel | UI/API ajoutées ; correction coordonnées chiffrée/auditée, liste abonnements paginée ; changement de rôle partenaire absent |
+| R20 | Admin : partenaires, exclusions, coordonnées, abonnements | partiel | UI/API ajoutées ; coordonnées chiffrées/auditées, abonnements paginés ; changement de rôle avant obligations uniquement, nouvel accord et révocation des sessions |
 | R21 | Isolation et permissions serveur | conforme dans les scénarios exécutés | IDOR et retrait membre refusés ; entrée seule sans équipe, autres bilans ni historique paiements |
 | R22 | Quotas / CSRF / secrets / cookies | partiel pour production | CSRF et Origin, cookies par audience, proxy non fiable refusé ; limites distribuées et infrastructure TLS à configurer |
 | R23 | Réseau / erreurs / chargement | conforme parcours testés | Perte de réponse, identifiant d'envoi stable, panne réseau réelle interceptée dans Chromium et bouton Réessayer ; pas d'écriture hors-ligne |

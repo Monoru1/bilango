@@ -274,6 +274,19 @@ export class DemoStore extends StoreView<DemoState> {
     this.set((s) => void s.roles.push({ id, businessId, name: name.trim(), level }));
     return { ok: true, value: { id } };
   }
+  updateRole(businessId: Id, roleId: Id, name: string, level: PermissionLevel): Result {
+    const access = this.user && this.accessOf(this.user.id, businessId);
+    if (!access || !can(access, 'createRoles')) return fail('Action non autorisée.');
+    const role = this.state.roles.find(r => r.id === roleId && r.businessId === businessId);
+    if (!role || !name.trim()) return fail('Rôle ou nom invalide.');
+    this.set(() => { role.name = name.trim(); role.level = level; }); return { ok: true };
+  }
+  archiveRole(businessId: Id, roleId: Id): Result {
+    const access = this.user && this.accessOf(this.user.id, businessId);
+    if (!access || !can(access, 'createRoles')) return fail('Action non autorisée.');
+    if (this.state.members.some(m => m.roleId === roleId && m.status === 'active') || this.state.invitations.some(i => i.roleId === roleId && i.status === 'pending')) return fail('Ce rôle est attribué ou proposé dans une invitation.');
+    this.set(s => { s.roles = s.roles.filter(r => !(r.businessId === businessId && r.id === roleId)); }); return { ok: true };
+  }
   invite(businessId: Id, localPhone: string, roleId: Id): Result {
     const u = this.user;
     const a = u && this.accessOf(u.id, businessId);

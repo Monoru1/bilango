@@ -1,6 +1,6 @@
-import { COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
+import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
-import type { adminAllowlistChangeSchema, payoutBlockSchema, excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
+import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
 import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
@@ -189,6 +189,31 @@ export class AdminService {
         iso(this.now), admin.email, 'referral.exclude', input.referralId, JSON.stringify({ excluded_reason: ref.excluded_reason }), JSON.stringify({ excluded_reason: input.reason, reversed }),
       ]);
       return { reversed };
+    });
+  }
+
+  async changePartnerRole(actor: AdminSession, partnerId: string, input: z.infer<typeof changePartnerRoleSchema>) {
+    await this.deps.db.tx(async t => {
+      const old = (await t.query<{ role: PartnerRole; name: string; country: keyof typeof COUNTRIES; manager_id: string | null; promo_code: string | null }>('select role,name,country,manager_id,promo_code from partners where id=$1 for update', [partnerId])).rows[0];
+      if (!old) throw notFound();
+      if (old.role === input.role) throw new AppError('conflict', 'Ce partenaire possède déjà ce rôle.');
+      // Existing referrals fix role, rates and manager for their full eligibility duration.
+      // Changing the account carrying those obligations would hide historical earnings.
+      const obligations = await t.query('select 1 from referrals where partner_id=$1 or manager_id=$1 union all select 1 from partners where manager_id=$1 union all select 1 from commission_ledger where partner_id=$1 union all select 1 from users where referral_partner_code=$2', [partnerId, old.promo_code]);
+      if (obligations.rows.length) throw new AppError('conflict', 'Ce compte porte une équipe, des parrainages ou des obligations financières. Conservez-le et créez un compte distinct pour le nouveau rôle.');
+      if (input.role === 'manager' && (input.promoCode || input.managerId)) throw new AppError('validation', 'Un manager ne possède ni code personnel ni manager.');
+      if (input.role !== 'manager' && !input.promoCode) throw new AppError('validation', 'Un code promo est requis.');
+      if (input.role === 'influencer' && input.managerId) throw new AppError('validation', 'Un influenceur n’est pas rattaché à un manager.');
+      if (input.role === 'agent') {
+        if (!input.managerId || input.managerId === partnerId) throw new AppError('validation', 'Choisissez un manager distinct.');
+        const manager = (await t.query<{ country: string }>("select country from partners where id=$1 and role='manager' and status='active' for update", [input.managerId])).rows[0];
+        if (!manager || manager.country !== old.country) throw new AppError('validation', 'Un manager actif du même pays est requis.');
+        const prefix = agentPromoCode(old.name.split(/\s+/)[0] ?? '', COUNTRIES[old.country].dialCode.replace('+', ''));
+        if (!input.promoCode!.startsWith(prefix.replace(/\d+$/, '')) || !/\d{3}\d*$/.test(input.promoCode!)) throw new AppError('validation', `Code agent attendu : ${prefix}.`);
+      }
+      await t.query('update partners set role=$2,manager_id=$3,promo_code=$4,agreement_renewal_required=true where id=$1', [partnerId, input.role, input.role === 'agent' ? input.managerId : null, input.role === 'manager' ? null : input.promoCode]);
+      await t.query('update partner_sessions set revoked_at=$2 where partner_id=$1 and revoked_at is null', [partnerId, iso(this.now)]);
+      await t.query('insert into audit_log(at,actor,action,target,old_value,new_value) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [iso(this.now), actor.email, 'partner.role.change', partnerId, JSON.stringify(old), JSON.stringify({ role: input.role, managerId: input.managerId ?? null, promoCode: input.promoCode ?? null, agreementRequired: true })]);
     });
   }
 

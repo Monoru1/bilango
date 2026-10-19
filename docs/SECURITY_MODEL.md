@@ -37,3 +37,9 @@ Ajout/retrait d'admin : demande authentifiée, code e-mail au demandeur, dix min
 ## Limites explicites
 
 Pas de validation de sécurité exhaustive ni de pentest. CAPTCHA, WhatsApp, SMTP et push sont des fournisseurs Dev. FedaPay externe non homologué. Hébergement TLS, secrets gérés, rotation, sauvegardes/restauration, comptes DB nominatifs et limites distribuées restent à réaliser. La détection automatique des liens familiaux ou de propriété d'un partenaire n'est pas possible avec les données présentes : exclusions administratives manuelles. Des hypothèses de règles métier de Claude restent à confirmer au client (DECISIONS.md).
+
+## Cycle de vie des rôles
+
+Les rôles applicatifs sont modifiables par le propriétaire uniquement ; leur permission est relue sur chaque accès. L'archivage conserve la ligne SQL et refuse un rôle encore attribué ou proposé dans une invitation. Invitation et archivage sont sérialisés sur le business.
+
+Une transition de rôle partenaire est refusée si le compte porte une équipe, un parrainage, une attribution de code sur un compte utilisateur ou des écritures de commission. Elle ne réécrit donc jamais les obligations existantes. Une transition admise révoque les sessions, exige le nouvel accord, valide le code et le manager du même pays, et écrit les valeurs avant/après dans le journal. Les opérations de rattachement, de profil et de changement de rôle verrouillent le partenaire pour prévenir les courses.

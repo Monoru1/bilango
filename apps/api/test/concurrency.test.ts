@@ -45,6 +45,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('real PostgreSQL concurrent tran
     expect((await ctx.db.query('select * from reports')).rows).toEqual([]);
     expect((await ctx.db.query<{ opening_cash_amount: string | null }>('select opening_cash_amount from businesses')).rows[0]?.opening_cash_amount).toBeNull();
   });
+  it('serializes archiving a role against sending an invitation', async () => {
+    const team = await mkTeam(ctx); const guest = await mkUser(ctx, 'Invité'); const { biz } = services(ctx);
+    const outcomes = await Promise.allSettled([biz.archiveRole(team.owner.user, team.businessId, team.roles.entry), biz.invite(team.owner.user, team.businessId, { phone: guest.user.phone, roleId: team.roles.entry })]);
+    expect(outcomes.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  });
+  it('serializes manager role changes against registering an agent', async () => {
+    const { mkPartner } = await import('./helpers'); const { AdminService } = await import('../src/services/admin'); const { PartnerService } = await import('../src/services/partners');
+    const manager = await mkPartner(ctx, { role: 'manager' }, 'concurrent-manager@test.example');
+    const outcomes = await Promise.allSettled([new AdminService(ctx.deps).changePartnerRole({ email: 'admin@test.example' }, manager.partner.id, { role: 'influencer', promoCode: 'NEW225' }), new PartnerService(ctx.deps).registerAgent(manager.partner, { name: 'Koffi Agent', email: 'concurrent-agent@test.example', promoCode: 'KOFFI225' })]);
+    expect(outcomes.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  });
   it('migrations are idempotent on an already migrated schema', async () => {
     const { migrate } = await import('../src/db'); expect(await migrate(ctx.db)).toEqual([]);
   });

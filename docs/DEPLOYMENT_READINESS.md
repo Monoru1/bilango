@@ -11,6 +11,7 @@
 - PostgreSQL réseau, concurrence, rollback, isolation et idempotence testés.
 - Portails partenaires/admin et contrôle e-mail de l'allowlist exécutés dans Chromium.
 - Correction coordonnées, exclusion parrainage et suivi abonnements accessibles admin.
+- Édition/archivage des rôles ; transitions de rôle partenaire autorisées avant obligations avec nouvel accord obligatoire. Un compte portant déjà une équipe/parrainages/commissions reste conservé : le nouveau rôle utilise un compte distinct.
 - jsPDF corrigé et export téléchargé/vérifié ; audit des dépendances production sans vulnérabilité au contrôle indiqué dans TEST_REPORT.
 
 ## Blocages externes
@@ -23,7 +24,6 @@
 ## Travail local restant pour V1
 
 - Enregistrement des abonnements Web Push et exécution des rappels/échéances ; planificateur de rapprochement FedaPay (la méthode existe, pas le service planifié).
-- Changement de rôle partenaire avec acceptation du nouvel accord et préservation des obligations existantes ; édition des rôles applicatifs existants non fournie.
 - Captures/vidéo d'installation iOS et tests sur Android/iPhone physiques (installabilité, standalone, notifications et clavier).
 - Validation du checkout FedaPay embarqué ; mode HTTP indique explicitement l'indisponibilité des paiements Dev.
 - Volumétrie et pagination : le workspace charge tout l'historique autorisé de tous les business pour calculer correctement la caisse. Il faut dissocier agrégats serveur et pages d'historique avant de viser des comptes volumineux / smartphones modestes.

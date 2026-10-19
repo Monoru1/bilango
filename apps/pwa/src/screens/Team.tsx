@@ -13,6 +13,9 @@ export function TeamScreen() {
   const [level, setLevel] = useState<PermissionLevel>('entry');
   const [phone, setPhone] = useState('');
   const [roleId, setRoleId] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState('');
+  const [editedLevel, setEditedLevel] = useState<PermissionLevel>('entry');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   if (!user) return null;
   const me = s.accessOf(user.id, b.id);
@@ -53,6 +56,16 @@ export function TeamScreen() {
         <input className="gb-input" inputMode="numeric" placeholder="Numéro WhatsApp de la personne" aria-label="Numéro WhatsApp de la personne" value={phone} onChange={(e) => setPhone(e.target.value)} />
         <button className="gb-btn" disabled={!roleId || !phone} onClick={async () => { const r = await s.invite(b.id, phone, roleId); report(r, 'Invitation enregistrée (statut « En attente » jusqu’à acceptation).'); if (r.ok) setPhone(''); }}>Inviter</button>
       </section>
+      {can(me, 'createRoles') && <section className="stack" style={{ gap: 10 }}>
+        <h2 className="h2">Rôles existants</h2>
+        {roles.map(r => <div key={r.id} className="row"><span>{r.name} · {LEVEL_LABELS[r.level]}</span><button className="link" onClick={() => { setEditing(r.id); setEditedName(r.name); setEditedLevel(r.level); }}>Modifier le rôle {r.name}</button><button className="link" onClick={async () => report(await s.archiveRole(b.id, r.id), 'Rôle archivé.')}>Archiver {r.name}</button></div>)}
+        {editing && <div className="stack" style={{ gap: 10 }}>
+          <label>Nom du rôle modifié<input className="gb-input" value={editedName} onChange={e => setEditedName(e.target.value)} /></label>
+          <label>Permission du rôle modifié<select className="gb-input" value={editedLevel} onChange={e => setEditedLevel(e.target.value as PermissionLevel)}>{levels.map(l => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}</select></label>
+          <p className="muted">La nouvelle permission s’applique à toutes les personnes ayant ce rôle.</p>
+          <button className="gb-btn" disabled={!editedName.trim()} onClick={async () => { const r = await s.updateRole(b.id, editing, editedName, editedLevel); report(r, 'Rôle modifié.'); if (r.ok) setEditing(null); }}>Enregistrer le rôle</button>
+        </div>}
+      </section>}
       {can(me, 'createRoles') && <section className="stack" style={{ gap: 10 }}>
         <h2 className="h2">Créer un rôle</h2>
         <input className="gb-input" placeholder="Nom du rôle (Caissier, Gérant, DG, Comptable…)" aria-label="Nom du rôle" value={roleName} onChange={(e) => setRoleName(e.target.value)} />

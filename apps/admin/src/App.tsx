@@ -1,4 +1,4 @@
-import { PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
+import { PartnerRoleChange, PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
 import { formatFcfa, nextPayoutDate, toDayKey, type CountryCode } from '@gobilan/domain';
 import { ApiError, createClient, Logo } from '@gobilan/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -86,6 +86,7 @@ function PartnersView() {
           ))}</tbody></table>{rows.length === 0 && <p className="muted">Aucun partenaire.</p>}</div>
       </div>
       <ReferralExclusions />
+      <PartnerRoleChange />
     </div>
   );
 }

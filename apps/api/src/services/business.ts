@@ -2,6 +2,7 @@ import {
   can,
   canGrantLevel,
   canManageMember,
+  employeeBlockedMessage,
   subscriptionStatus,
   toDayKey,
   trialEndsAtFrom,
@@ -73,7 +74,7 @@ export class BusinessService {
         const already = await t.query('select 1 from referrals r join businesses b on b.id = r.business_id where b.owner_id = $1 limit 1', [user.id]);
         const partner = (
           await t.query<{ id: string; role: 'agent' | 'influencer' | 'manager'; manager_id: string | null }>(
-            `select id, role, manager_id from partners where promo_code = $1 and status = 'active' and role in ('agent','influencer')`,
+            `select id, role, manager_id from partners where promo_code = $1 and status = 'active' and role in ('agent','influencer') for update`,
             [refCode.referral_partner_code],
           )
         ).rows[0];
@@ -151,10 +152,29 @@ export class BusinessService {
     return { id: row.id };
   }
 
+  async updateRole(actor: SessionUser, businessId: string, roleId: string, input: z.infer<typeof createRoleSchema>) {
+    const { access } = await requireAccess(this.deps.db, actor.id, businessId);
+    if (!can(access, 'createRoles')) throw forbidden();
+    const r = await this.deps.db.query('update roles set name=$3,level=$4 where id=$1 and business_id=$2 and archived_at is null returning id', [roleId, businessId, input.name, input.level]);
+    if (!r.rows.length) throw notFound('Rôle introuvable.');
+  }
+
+  async archiveRole(actor: SessionUser, businessId: string, roleId: string) {
+    await this.deps.db.tx(async t => {
+      const { access } = await requireAccess(t, actor.id, businessId, { forUpdate: true });
+      if (!can(access, 'createRoles')) throw forbidden();
+      const role = (await t.query('select id from roles where id=$1 and business_id=$2 and archived_at is null for update', [roleId, businessId])).rows[0];
+      if (!role) throw notFound('Rôle introuvable.');
+      const used = await t.query("select 1 from members where business_id=$1 and role_id=$2 and status='active' union all select 1 from invitations where business_id=$1 and role_id=$2 and status='pending'", [businessId, roleId]);
+      if (used.rows.length) throw new AppError('conflict', 'Ce rôle est attribué ou proposé dans une invitation. Retirez ces affectations avant de l’archiver.');
+      await t.query('update roles set archived_at=$3 where id=$1 and business_id=$2', [roleId, businessId, iso(this.now)]);
+    });
+  }
+
   async listRoles(actor: SessionUser, businessId: string) {
     const { access } = await requireAccess(this.deps.db, actor.id, businessId);
     if (!can(access, 'viewTeam')) throw forbidden();
-    return (await this.deps.db.query<{ id: string; name: string; level: PermissionLevel }>('select id, name, level from roles where business_id = $1 order by name', [businessId])).rows;
+    return (await this.deps.db.query<{ id: string; name: string; level: PermissionLevel }>('select id, name, level from roles where business_id = $1 and archived_at is null order by name', [businessId])).rows;
   }
 
   async listMembers(actor: SessionUser, businessId: string) {
@@ -171,17 +191,18 @@ export class BusinessService {
   }
 
   async invite(actor: SessionUser, businessId: string, input: z.infer<typeof inviteMemberSchema>) {
-    const { access } = await requireAccess(this.deps.db, actor.id, businessId);
+    return this.deps.db.tx(async t => {
+    const { access } = await requireAccess(t, actor.id, businessId, { forUpdate: true });
     if (!can(access, 'manageTeam')) throw forbidden();
-    const role = (await this.deps.db.query<{ id: string; level: PermissionLevel }>('select id, level from roles where id = $1 and business_id = $2', [input.roleId, businessId])).rows[0];
+    const role = (await t.query<{ id: string; level: PermissionLevel }>('select id, level from roles where id = $1 and business_id = $2 and archived_at is null', [input.roleId, businessId])).rows[0];
     if (!role) throw notFound('Rôle introuvable.');
     // On n'attribue qu'un niveau strictement inférieur au sien (§5.3, §5.4).
     if (!canGrantLevel(access, role.level)) throw forbidden('Vous ne pouvez pas attribuer ce niveau.');
-    const existing = await this.deps.db.query('select 1 from members m join users u on u.id = m.user_id where m.business_id = $1 and u.phone = $2 and m.status = \'active\'', [businessId, input.phone]);
+    const existing = await t.query('select 1 from members m join users u on u.id = m.user_id where m.business_id = $1 and u.phone = $2 and m.status = \'active\'', [businessId, input.phone]);
     if (existing.rows.length > 0) throw new AppError('conflict', 'Cette personne fait déjà partie du business.');
     try {
       const row = (
-        await this.deps.db.query<{ id: string }>(
+        await t.query<{ id: string }>(
           `insert into invitations(business_id, phone, role_id, invited_by, created_at) values ($1,$2,$3,$4,$5) returning id`,
           [businessId, input.phone, role.id, actor.id, iso(this.now)],
         )
@@ -191,6 +212,7 @@ export class BusinessService {
       if (String((e as Error).message).includes('one_pending_invitation')) throw new AppError('conflict', 'Une invitation est déjà en attente pour ce numéro.');
       throw e;
     }
+    });
   }
 
   /** Invitations visibles par l'utilisateur : celles adressées à SON numéro, y compris posées avant l'inscription (§4.5). */
@@ -260,6 +282,7 @@ export class BusinessService {
   async addStockItem(actor: SessionUser, businessId: string, input: z.infer<typeof stockItemSchema>) {
     const { access, business } = await requireAccess(this.deps.db, actor.id, businessId);
     if (!can(access, 'manageStock')) throw forbidden();
+    if (subscriptionStatus(subscriptionOf(business), this.now) === 'blocked') throw new AppError('subscription_blocked', access.isOwner ? 'Renouvelez votre abonnement pour modifier le stock.' : employeeBlockedMessage(business.name));
     if (!business.stock_enabled) throw new AppError('conflict', 'Le module Stock n\'est pas activé.');
     const row = (await this.deps.db.query<{ id: string }>('insert into stock_items(business_id, name, initial_quantity) values ($1,$2,$3) returning id', [businessId, input.name, input.initialQuantity])).rows[0]!;
     return { id: row.id };

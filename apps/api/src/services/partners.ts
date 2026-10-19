@@ -78,15 +78,19 @@ export class PartnerService {
     if (!input.promoCode.startsWith(expectedPrefix.replace(/\d+$/, '')) || !/\d{3}\d*$/.test(input.promoCode)) {
       throw new AppError('validation', `Le code promo d'un agent suit le format ${expectedPrefix}.`);
     }
-    const id = await this.insertPartner({ email: input.email, name: input.name, country: manager.country, role: 'agent', managerId: manager.id, promoCode: input.promoCode });
+    const id = await this.deps.db.tx(async t => {
+      const current = (await t.query<{ role: string; status: string }>('select role,status from partners where id=$1 for update', [manager.id])).rows[0];
+      if (!current || current.role !== 'manager' || current.status !== 'active') throw forbidden('Le rôle de votre compte a changé. Reconnectez-vous.');
+      return this.insertPartner({ email: input.email, name: input.name, country: manager.country, role: 'agent', managerId: manager.id, promoCode: input.promoCode }, t);
+    });
     await this.sendActivation(id);
     return { id };
   }
 
-  private async insertPartner(p: { email: string; name: string; country: CountryCode; role: PartnerRole; managerId: string | null; promoCode: string | null }): Promise<string> {
+  private async insertPartner(p: { email: string; name: string; country: CountryCode; role: PartnerRole; managerId: string | null; promoCode: string | null }, db: Deps['db'] = this.deps.db): Promise<string> {
     try {
       const row = (
-        await this.deps.db.query<{ id: string }>(
+        await db.query<{ id: string }>(
           `insert into partners(email, name, country, role, manager_id, promo_code, created_at) values ($1,$2,$3,$4,$5,$6,$7) returning id`,
           [p.email.toLowerCase(), p.name, p.country, p.role, p.managerId, p.promoCode, iso(this.now)],
         )
@@ -188,7 +192,7 @@ export class PartnerService {
   }
 
   private async hasAcceptedCurrent(db: Deps['db'], partnerId: string): Promise<boolean> {
-    return (await db.query('select 1 from agreement_acceptances where partner_id = $1 and version = $2 limit 1', [partnerId, AGREEMENT_VERSION])).rows.length > 0;
+    return (await db.query('select 1 from agreement_acceptances a join partners p on p.id=a.partner_id where a.partner_id = $1 and a.version = $2 and a.role=p.role and not p.agreement_renewal_required limit 1', [partnerId, AGREEMENT_VERSION])).rows.length > 0;
   }
 
   private async toSession(p: PartnerRow, accepted: boolean): Promise<PartnerSession> {
@@ -213,7 +217,12 @@ export class PartnerService {
   /** Nouvelle version d'accord : à ré-accepter, sans effet sur les parrainages en cours (§10.3). */
   async acceptAgreement(partner: PartnerSession, version: string, ip: string | null): Promise<void> {
     if (version !== AGREEMENT_VERSION) throw new AppError('validation', "Version d'accord inconnue.");
-    await this.deps.db.query('insert into agreement_acceptances(partner_id, role, version, accepted_at, ip) values ($1,$2,$3,$4,$5)', [partner.id, partner.role, version, iso(this.now), ip]);
+    await this.deps.db.tx(async t => {
+      const current = (await t.query<{ role: PartnerRole }>('select role from partners where id=$1 for update', [partner.id])).rows[0];
+      if (!current || current.role !== partner.role) throw new AppError('conflict', 'Votre rôle a changé. Reconnectez-vous.');
+      await t.query('insert into agreement_acceptances(partner_id, role, version, accepted_at, ip) values ($1,$2,$3,$4,$5)', [partner.id, partner.role, version, iso(this.now), ip]);
+      await t.query('update partners set agreement_renewal_required=false where id=$1', [partner.id]);
+    });
   }
 
   // --- Mot de passe oublié : mêmes limites que l'OTP (§10.1) -----------------------------------

@@ -2,7 +2,7 @@ import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
-  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
+  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
   loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
@@ -182,6 +182,14 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
   app.get('/v1/businesses/:businessId/roles', async (req) => ({ roles: await biz.listRoles((await user(req)).user, bizParam.parse(req.params).businessId) }));
   app.post('/v1/businesses/:businessId/roles', async (req) => biz.createRole((await user(req)).user, bizParam.parse(req.params).businessId, createRoleSchema.parse(req.body)));
+  app.put('/v1/businesses/:businessId/roles/:id', async req => {
+    const p = z.object({ businessId: z.string().uuid(), id: z.string().uuid() }).parse(req.params);
+    await biz.updateRole((await user(req)).user, p.businessId, p.id, createRoleSchema.parse(req.body)); return { ok: true };
+  });
+  app.delete('/v1/businesses/:businessId/roles/:id', async req => {
+    const p = z.object({ businessId: z.string().uuid(), id: z.string().uuid() }).parse(req.params);
+    await biz.archiveRole((await user(req)).user, p.businessId, p.id); return { ok: true };
+  });
   app.get('/v1/businesses/:businessId/members', async (req) => ({ members: await biz.listMembers((await user(req)).user, bizParam.parse(req.params).businessId) }));
   app.post('/v1/businesses/:businessId/invitations', async (req) => biz.invite((await user(req)).user, bizParam.parse(req.params).businessId, inviteMemberSchema.parse(req.body)));
   app.delete('/v1/businesses/:businessId/members/:id', async (req) => {
@@ -314,6 +322,9 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     const b = z.object({ status: z.enum(['active', 'suspended', 'removed']) }).parse(req.body);
     await admin.setPartnerStatus(a.admin, idParam.parse(req.params).id, b.status);
     return { ok: true };
+  });
+  app.put('/v1/admin/partners/:id/role', async req => {
+    await admin.changePartnerRole((await adminSession(req)).admin, idParam.parse(req.params).id, changePartnerRoleSchema.parse(req.body)); return { ok: true };
   });
   app.post('/v1/admin/referrals/exclude', async (req) => admin.excludeReferral((await adminSession(req)).admin, excludeReferralSchema.parse(req.body)));
   app.get('/v1/admin/payouts/calendar', async (req) => {

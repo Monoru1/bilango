@@ -41,7 +41,7 @@ describe('PWA workspace integration and isolation', () => {
     expect((await ws.load(guest.user, team.businessId)).members[0]?.userId).toBe(guest.user.id);
   });
   it('blocked owner receives subscription access without leaking reports or cash', async () => {
-    const team = await mkTeam(ctx); const { reports } = services(ctx);
+    const team = await mkTeam(ctx, { stock: true }); const { reports } = services(ctx);
     const r = await reports.submit(team.owner.user, team.businessId, reportInput(12345, { openingCash: 700 }));
     ctx.clock.advance(11 * DAY_MS);
     const w = await new WorkspaceService(ctx.deps).load(team.owner.user, team.businessId);
@@ -49,6 +49,7 @@ describe('PWA workspace integration and isolation', () => {
     expect(w.subscription.trialEndsAt).not.toBeNull();
     await expectCode(reports.list(team.owner.user, team.businessId), 'subscription_blocked');
     await expectCode(reports.get(team.owner.user, r.id), 'subscription_blocked');
+    await expectCode(services(ctx).biz.addStockItem(team.owner.user, team.businessId, { name: 'Interdit après blocage', initialQuantity: 100 }), 'subscription_blocked');
   });
   it('does not truncate accounting to 60 reports or 400 days', async () => {
     const team = await mkTeam(ctx); const { reports } = services(ctx);
