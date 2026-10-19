@@ -6,5 +6,5 @@ if (!url) {
   process.exit(1);
 }
 const db = await createPgDb(url);
-console.log('Migrations appliquées :', (await migrate(db)).join(', ') || 'aucune (déjà à jour)');
+process.stdout.write(`Migrations appliquées : ${(await migrate(db)).join(', ') || 'aucune (déjà à jour)'}\n`);
 await db.close();

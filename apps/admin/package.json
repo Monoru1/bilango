@@ -1,0 +1,15 @@
+{
+  "name": "@gobilan/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Administration GoBilan — plateforme distincte du portail partenaires (liste blanche d’e-mails, double authentification)",
+  "scripts": {
+    "dev": "vite --port 5175",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": { "@gobilan/domain": "*", "@gobilan/ui": "*", "react": "^19.0.0", "react-dom": "^19.0.0", "react-router-dom": "^7.0.0" },
+  "devDependencies": { "@testing-library/react": "^16.0.0", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "@vitejs/plugin-react": "^5.0.0", "jsdom": "^26.0.0", "vite": "^7.0.0" }
+}

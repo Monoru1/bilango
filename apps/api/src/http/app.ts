@@ -207,6 +207,10 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
 
   // ================= Partenaires =================
+  app.get('/v1/partner/activation', authLimit, async (req) => {
+    const q = z.object({ token: z.string().min(16).max(256) }).parse(req.query);
+    return partners.previewActivation(q.token);
+  });
   app.post('/v1/partner/activate', authLimit, async (req, reply) => {
     csrf(req, 'partner');
     const b = partnerActivateSchema.parse(req.body);

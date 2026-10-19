@@ -101,6 +101,19 @@ describe('comptes partenaires (§10.1–10.4)', () => {
     await expect(partners.activate(tok, 'motdepasse-solide', '1.0', null)).rejects.toThrow();
   });
 
+  it("l'aperçu du lien d'activation révèle le rôle sans consommer le jeton, et refuse un jeton inconnu ou expiré", async () => {
+    const { partners } = partnerServices(ctx);
+    const { activationToken } = await import('./helpers');
+    await partners.createByAdmin('admin@novadis.test', { name: 'Inf', country: 'CI', email: 'i2@ex.test', role: 'influencer', promoCode: 'INF2' });
+    const tok = activationToken(ctx, 'i2@ex.test');
+    expect(await partners.previewActivation(tok)).toMatchObject({ role: 'influencer', agreementVersion: '1.0' });
+    expect(await partners.previewActivation(tok)).toMatchObject({ role: 'influencer' }); // pas consommé
+    await expectCode(partners.previewActivation('x'.repeat(30)), 'unauthenticated');
+    ctx.clock.advance(8 * DAY_MS);
+    await expectCode(partners.previewActivation(tok), 'unauthenticated');
+    await expectCode(partners.activate(tok, 'motdepasse-solide', '1.0', null), 'unauthenticated');
+  });
+
   it('verrouille après des échecs répétés, message identique pour compte inconnu et mauvais mot de passe', async () => {
     const { partners } = partnerServices(ctx);
     await mkPartner(ctx, { role: 'manager' }, 'm@ex.test');

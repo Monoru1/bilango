@@ -112,6 +112,19 @@ export class PartnerService {
     await this.deps.providers.messages.sendEmail(p.email, { subject: 'Activez votre accès partenaire GoBilan', text: lines.join('\n') });
   }
 
+  /** Aperçu du lien d'activation SANS le consommer : la page doit savoir quel accord afficher (§10.3). */
+  async previewActivation(token: string): Promise<{ name: string; role: PartnerRole; agreementVersion: string }> {
+    const row = (
+      await this.deps.db.query<{ name: string; role: PartnerRole }>(
+        `select p.name, p.role from partner_activation_tokens t join partners p on p.id = t.partner_id
+          where t.token_hash = $1 and t.consumed_at is null and t.expires_at > $2 and p.status in ('invited','active')`,
+        [sha256(token), iso(this.now)],
+      )
+    ).rows[0];
+    if (!row) throw new AppError('unauthenticated', 'Lien invalide ou expiré. Demandez un nouveau lien à votre contact GoBilan.');
+    return { name: row.name, role: row.role, agreementVersion: AGREEMENT_VERSION };
+  }
+
   /** Activation : mot de passe (≥ 8) + acceptation de l'accord (date, heure, version, identifiant). */
   async activate(token: string, password: string, acceptedVersion: string, ip: string | null): Promise<{ token: string; partner: PartnerSession }> {
     if (!isValidPartnerPassword(password)) throw new AppError('validation', 'Le mot de passe doit contenir au moins 8 caractères.');
