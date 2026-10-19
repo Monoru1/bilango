@@ -1,4 +1,4 @@
-# Matrice V1 — après intégration Codex (19 octobre 2026)
+# Matrice V1 — intégration et recette locale (19 octobre 2026)
 
 Référence : CDC du 19 octobre 2026. « Conforme » signifie validé dans le périmètre indiqué, pas homologué en production. Les fournisseurs Dev ne constituent pas des services externes opérationnels.
 
@@ -19,7 +19,7 @@ Référence : CDC du 19 octobre 2026. « Conforme » signifie validé dans le p�
 | R13 | FedaPay externe sandbox / live | simulé / bloqué | DevGateway, signatures, identité exacte transaction, re-vérification, idempotence et fixtures testés ; aucune validation du protocole fournisseur externe |
 | R14 | Rapprochement périodique | partiel | Méthode reconcilePending testée ; planification horaire non installée |
 | R15 | Rappels / notifications / pastille | simulé / partiel | Payloads neutres et SW présents ; ni abonnement push serveur réel, ni ordonnanceur rappels |
-| R16 | Portail partenaires e-mail / activation / accords | conforme en Dev intégré | Chromium → API → PostgreSQL ; aucun e-mail réel envoyé |
+| R16 | Portail partenaires e-mail / activation / accords | fonctionnel et testé localement, canal simulé | Chromium Windows : manager, agent et influenceur activés, accord obligatoire, connexion sans 2FA partenaire, bloc Paiement agent persisté ; aucun e-mail réel |
 | R17 | Codes, attribution, commissions, plafonds | conforme aux règles codées | Domaine et API, taux figés ; exclusions manuelles ; hypothèses D-004/D-014/D-018 à valider client |
 | R18 | Versements 1er/15, seuil, frais, annulations | conforme en tests API | Journal append-only, doubles versements refusés ; aucun transfert réel, validation manuelle après virement hors app |
 | R19 | Administration 2FA / allowlist | conforme en Dev intégré | Confirmation e-mail, révocation, minimum deux adresses ; code lié au challenge ; scénario navigateur exécuté |
@@ -27,10 +27,25 @@ Référence : CDC du 19 octobre 2026. « Conforme » signifie validé dans le p�
 | R21 | Isolation et permissions serveur | conforme dans les scénarios exécutés | IDOR et retrait membre refusés ; entrée seule sans équipe, autres bilans ni historique paiements |
 | R22 | Quotas / CSRF / secrets / cookies | partiel pour production | CSRF et Origin, cookies par audience, proxy non fiable refusé ; limites distribuées et infrastructure TLS à configurer |
 | R23 | Réseau / erreurs / chargement | conforme parcours testés | Perte de réponse, identifiant d'envoi stable, panne réseau réelle interceptée dans Chromium et bouton Réessayer ; pas d'écriture hors-ligne |
-| R24 | Design et accessibilité | partiel | Références conservées, rendu mobile 390px inspecté ; audit WCAG, appareils modestes et Safari physiques non exécutés |
+| R24 | Design et accessibilité | partiel / écarts ouverts | Dashboard PWA et quatre profils portails à 320/390/768/1440px ; en-têtes et code promo corrigés. Guide iPhone : focus, Tab, Échap, restauration, mouvement réduit exécutés. Contrastes, menus/pop-ups, lecteur d'écran et Safari physiques non homologués |
 | R25 | Pages légales | partiel | Textes fournis conservés ; revue juriste béninois non faite |
 | R26 | CI / tests de persistance / E2E | conforme localement, CI distante à consulter | Check, PostgreSQL réseau et Chromium exécutés ; jobs dédiés ajoutés, aucun statut GitHub inventé |
 | R27 | Sauvegardes, restauration, exploitation | absent / bloqué | Aucun hébergement de production ni restauration réelle configurés |
 | R28 | V2 | absent volontairement | Anomalies, fonctionnalités offline, multilingue, etc. hors mission V1 |
 
 Les écarts et dépendances restent explicitement ouverts dans DEPLOYMENT_READINESS.md.
+
+## Lecture de la recette Windows
+
+Les résultats antérieurs Linux ne remplacent pas cette recette. Voir `LOCAL_ACCEPTANCE_REPORT.md` et `TEST_REPORT.md` pour les commandes exécutées, ainsi que `LOCAL_SETUP.md` pour reproduire.
+
+| Catégorie demandée | Éléments concernés |
+|---|---|
+| Fonctionnel et testé | PWA HTTP/PostgreSQL, propriétaire/entry/full/readonly, bilans/versions/stock, isolation, export, panne API/réessai, blocage ; activation/connexion des trois rôles partenaires ; 2FA/admin/allowlist/audit/abonnements/calendrier |
+| Fonctionnel mais non testé intégralement dans le navigateur | PIN oublié et réinitialisation partenaire jusqu'au bout (API testée), copie presse-papiers, refus d'invitation, correction/validation financière non nulle par UI, navigation de chaque écran sur chaque largeur |
+| Simulé | OTP WhatsApp, e-mails/2FA/activation, CAPTCHA, passerelle de paiement et push Dev ; signal standalone et user-agent Safari/iPhone dans Chromium ; accords et comptes des fixtures |
+| Non implémenté | Planification des rappels/rapprochement, abonnement push serveur complet, réapprovisionnement stock, captures/mini-vidéo Safari |
+| Bloqué par un service externe | WhatsApp/SMTP/CAPTCHA/FedaPay/Web Push opérationnels, appareils physiques, revue juridique et exploitation de production |
+| Non conforme ou à arbitrer | Guide iOS incomplet ; contraste non homologué ; plusieurs erreurs de lecture des portails absorbées ; états de réinitialisation PIN et libellés UX ; ambiguïté Gestion complète §5.3 / navigation manager §5.5 ; logo officiel à comparer |
+
+Les tableaux financiers des portails ont été consultés avec des états vides. Les commissions, frais, seuils, annulations et journal immuable sont vérifiés en API/SQL avec fournisseurs Dev ; ce n'est pas la preuve d'un paiement ou versement externe. Aucun transfert ni notification réelle n'a eu lieu.

@@ -34,6 +34,8 @@ Les tests PostgreSQL et E2E créent leur propre schéma aléatoire, puis supprim
 
 ## Lancer le développement
 
+Sur le PC de recette déjà préparé : `npm run preview:local` lance les quatre services avec `.env.local` et les builds locaux. `npm run dev:local` active le rechargement à chaud (sans service worker). Voir [LOCAL_SETUP.md](docs/LOCAL_SETUP.md) pour PostgreSQL, les comptes fictifs, les OTP Dev et les commandes PowerShell. Les accès sont générés par `npm run seed:local` dans `.local/accounts.json`, jamais versionnés.
+
 Variables serveur nécessaires : PIN_PEPPER_HEX (au moins 32 octets), PAYOUT_KEY_HEX (32 octets), FEDAPAY_WEBHOOK_SECRET. DATABASE_URL choisit une base PostgreSQL persistante ; sans cette variable, PGlite est éphémère et les données disparaissent au redémarrage.
 
 Exemple PowerShell dans le terminal de l'API :

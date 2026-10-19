@@ -1,10 +1,13 @@
 /** Browser → real API → PostgreSQL. Only fake identities and development providers. */
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
 const { chromium } = require('playwright');
 const { Client } = createRequire(import.meta.url)('pg');
 const apiLog = process.env.API_LOG ?? '/tmp/gobilan-api.log';
+const artifacts = process.env.E2E_ARTIFACTS ?? tmpdir();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const failures = [];
 const contexts = [];
@@ -62,7 +65,7 @@ try {
   check((await db.query('select count(*)::int n from reports where business_id=$1', [businessId])).rows[0].n === 1, 'first report exists in PostgreSQL');
   await owner.reload();
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
-  await owner.screenshot({ path: '/tmp/gobilan-owner-mobile.png', fullPage: true });
+  await owner.screenshot({ path: join(artifacts, 'gobilan-owner-mobile.png'), fullPage: true });
   check((await owner.locator('body').innerText()).includes('1\u202f000'), 'dashboard survives reload and shows server revenue');
   await owner.goto(`http://localhost:5173/b/${businessId}/equipe`);
   await owner.getByLabel('Nom du rôle').fill('Caissier');
@@ -82,11 +85,12 @@ try {
   await guest.getByRole('button', { name: 'Rejoindre un business', exact: true }).click();
   await guest.getByRole('button', { name: 'Accepter', exact: true }).click();
   await guest.getByRole('heading', { name: /Bonjour, Employé/ }).waitFor();
+  await guest.screenshot({ path: join(artifacts, 'gobilan-employee-mobile.png'), fullPage: true });
   check(!(await guest.locator('body').innerText()).includes('MODE DEMO'), 'real employee session, demo controls absent');
   await guest.goto(`http://localhost:5173/b/${businessId}/bilan`);
   await fillReport(guest, 400, null, 1);
   await guest.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await guest.getByRole('link', { name: /Voir le détail|octobre/ }).first().click();
+  await guest.locator('main a[href*="/bilans/"]').first().click();
   await guest.getByRole('link', { name: 'Modifier (24 h maximum)' }).click();
   await guest.locator('#f-revenue').fill('600');
   await guest.getByRole('button', { name: 'Enregistrer la modification' }).click();
@@ -98,12 +102,42 @@ try {
   await owner.goto(`http://localhost:5173/b/${businessId}`);
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   check((await owner.locator('body').innerText()).includes('1\u202f600'), 'dashboard aggregates owner and employee reports after edit');
+  for (const [name, level] of [['Gérant Test', 'full'], ['Comptable Test', 'readonly']]) {
+    const phone = national();
+    await owner.goto(`http://localhost:5173/b/${businessId}/equipe`);
+    await owner.getByLabel('Nom du rôle', { exact: true }).fill(name);
+    await owner.getByLabel('Niveau de permission').selectOption(level);
+    await owner.getByRole('button', { name: 'Créer le rôle', exact: true }).click();
+    await owner.getByText('Rôle créé.', { exact: true }).waitFor();
+    await owner.getByLabel('Rôle', { exact: true }).selectOption({ label: `${name} — ${level === 'full' ? 'Gestion complète' : 'Lecture seule'}` });
+    await owner.getByLabel('Numéro WhatsApp de la personne').fill(phone);
+    await owner.getByRole('button', { name: 'Inviter', exact: true }).click();
+    await owner.getByText('Invitation enregistrée', { exact: false }).waitFor();
+    const member = await context(); await signup(member, phone, name);
+    await member.getByRole('button', { name: 'Rejoindre un business', exact: true }).click();
+    await member.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await member.getByRole('heading', { name: new RegExp(`Bonjour, ${name.split(' ')[0]}`) }).waitFor();
+    await member.screenshot({ path: join(artifacts, `gobilan-pwa-${level}-mobile.png`), fullPage: true });
+    const workspace = await member.evaluate(async bid => (await fetch(`/v1/businesses/${bid}/workspace`)).json(), businessId);
+    check(workspace.reports.length === 2, `${level} receives full authorized report history`);
+    await member.goto(`http://localhost:5173/b/${businessId}/bilan`);
+    if (level === 'readonly') {
+      await member.getByText('Bilan introuvable ou modification non autorisée.', { exact: true }).waitFor();
+      check(await member.getByRole('button', { name: /Envoyer le bilan/ }).count() === 0, 'readonly profile cannot submit');
+    } else await member.getByRole('heading', { name: 'Bilan du jour', exact: true }).waitFor();
+  }
+  await owner.goto(`http://localhost:5173/b/${businessId}`);
+  for (const width of [320, 390, 768, 1440]) {
+    await owner.setViewportSize({ width, height: 900 });
+    check(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `PWA dashboard fits ${width}px`);
+  }
+  await owner.setViewportSize({ width: 390, height: 844 });
   await owner.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await owner.getByRole('link', { name: /octobre/ }).first().click();
+  await owner.locator('main a[href*="/bilans/"]').first().click();
   const downloading = owner.waitForEvent('download');
   await owner.getByRole('button', { name: 'Télécharger le bilan' }).click();
-  const download = await downloading; await download.saveAs('/tmp/gobilan-export.pdf');
-  check(readFileSync('/tmp/gobilan-export.pdf').subarray(0, 5).toString() === '%PDF-', 'text PDF generated in browser with updated jsPDF');
+  const download = await downloading; await download.saveAs(join(artifacts, 'gobilan-export.pdf'));
+  check(readFileSync(join(artifacts, 'gobilan-export.pdf')).subarray(0, 5).toString() === '%PDF-', 'text PDF generated in browser with updated jsPDF');
   await owner.route('**/v1/**', route => route.abort('failed'));
   await owner.reload(); await owner.getByRole('button', { name: 'Réessayer', exact: true }).waitFor();
   check(!(await owner.locator('body').innerText()).includes('1\u202f600'), 'network failure clears financial screen and offers retry');

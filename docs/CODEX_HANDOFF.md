@@ -1,5 +1,9 @@
 # Reprise GoBilan — intégration Codex, 19 octobre 2026
 
+## Reprise après recette Windows
+
+La branche `test/gobilan-local-acceptance` part du merge `b228617d95fc26fdf39c640fff7df54eacd61164`. La livraison de recette et les accès locaux sont décrits dans `LOCAL_SETUP.md`, `LOCAL_ACCEPTANCE_REPORT.md` et `CLAUDE_UI_HANDOFF.md`. Les commandes `npm run preview:local`, `npm run dev:local` et `npm run seed:local` utilisent les secrets locaux ignorés par Git. Consulter `TEST_REPORT.md` pour distinguer les nouvelles exécutions Windows de l'historique Linux ci-dessous. Pas de merge ni de déploiement.
+
 ## Branche et point de départ
 
 - Dépôt : https://github.com/Monoru1/bilango

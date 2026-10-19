@@ -9,9 +9,9 @@
     "start": "node --import tsx src/server.ts",
     "migrate": "node --import tsx src/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2 --hookTimeout=30000",
     "build": "tsc --noEmit",
-    "test:postgres": "node --input-type=module -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL requis')\" && vitest run"
+    "test:postgres": "node --input-type=module -e \"if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL requis')\" && vitest run --maxWorkers=2 --hookTimeout=30000"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.0",
