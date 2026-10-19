@@ -13,6 +13,7 @@ import {
 } from '../subscription';
 
 const T0 = Date.parse('2026-10-09T10:00:00.000Z');
+const msg = (p: { kind: string }) => ('message' in p ? String(p.message) : '');
 const iso = (ms: number) => new Date(ms).toISOString();
 const paid = (end: number) => ({ paidUntil: iso(end), trialEndsAt: null });
 
@@ -82,9 +83,9 @@ describe('pop-ups d\'abonnement (§8.3)', () => {
     expect(p1).toMatchObject({ daysLeft: 1, message: 'Votre abonnement se termine dans 1 jour.' });
   });
   it('reprend les trois messages de grâce du cahier', () => {
-    expect(subscriptionPopup(sub, T0).message).toBe('Votre abonnement a expiré.');
-    expect(subscriptionPopup(sub, T0 + DAY_MS).message).toBe('Votre abonnement a expiré il y a 2 jours.');
-    expect(subscriptionPopup(sub, T0 + 2 * DAY_MS).message).toBe('Votre abonnement a expiré il y a 3 jours. Veuillez renouveler.');
+    expect(msg(subscriptionPopup(sub, T0))).toBe('Votre abonnement a expiré.');
+    expect(msg(subscriptionPopup(sub, T0 + DAY_MS))).toBe('Votre abonnement a expiré il y a 2 jours.');
+    expect(msg(subscriptionPopup(sub, T0 + 2 * DAY_MS))).toBe('Votre abonnement a expiré il y a 3 jours. Veuillez renouveler.');
     expect(subscriptionPopup(sub, T0 + DAY_MS)).toMatchObject({ kind: 'grace', dismissible: true });
   });
   it('supprime le bouton OK à partir du 4e jour', () => {

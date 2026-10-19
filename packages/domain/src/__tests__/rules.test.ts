@@ -67,7 +67,7 @@ describe('dates', () => {
 
 describe('montants et téléphone', () => {
   it('formate les FCFA avec séparateur de milliers', () => {
-    expect(formatFcfa(125000)).toBe('125 000 FCFA');
+    expect(formatFcfa(125000)).toBe('125\u202f000\u00a0FCFA');
   });
 
   it('parse la saisie utilisateur', () => {
@@ -196,13 +196,14 @@ describe('caisse théorique', () => {
   });
 
   it('répercute une modification sur tous les jours suivants', () => {
-    const base = [report('2026-10-07', content(50000, 10000)), report('2026-10-08', content(30000))];
-    const before = theoreticalCash(business, base, '2026-10-09')!.closing;
+    const first = report('2026-10-07', content(50000, 10000));
+    const second = report('2026-10-08', content(30000));
+    const before = theoreticalCash(business, [first, second], '2026-10-09')!.closing;
     const edited: Report = {
-      ...base[0],
-      versions: [...base[0].versions, { content: content(60000, 10000), savedAt: beninInstant('2026-10-07', '22:00') }],
+      ...first,
+      versions: [...first.versions, { content: content(60000, 10000), savedAt: beninInstant('2026-10-07', '22:00') }],
     };
-    const after = theoreticalCash(business, [edited, base[1]], '2026-10-09')!.closing;
+    const after = theoreticalCash(business, [edited, second], '2026-10-09')!.closing;
     expect(after - before).toBe(10000);
   });
 

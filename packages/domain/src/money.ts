@@ -1,7 +1,8 @@
 /** Les montants sont des entiers en FCFA (pas de décimales). */
 import { COUNTRIES, type CountryCode } from './countries';
 
-const NNBSP = ' ';
+const NNBSP = '\u202f'; // espace fine insécable (milliers)
+const NBSP = '\u00a0'; // espace insécable avant l'unité
 
 export function groupThousands(value: number): string {
   const sign = value < 0 ? '-' : '';
@@ -10,7 +11,7 @@ export function groupThousands(value: number): string {
 }
 
 export function formatFcfa(value: number): string {
-  return `${groupThousands(value)}${' '}FCFA`;
+  return `${groupThousands(value)}${NBSP}FCFA`;
 }
 
 /** Montant signé pour les variations : "+1 200 FCFA" / "-500 FCFA". */
@@ -23,7 +24,7 @@ export function formatSignedFcfa(value: number): string {
  * refuse négatifs, décimales et texte. Chaîne vide -> `null`.
  */
 export function parseAmount(input: string): number | null {
-  const cleaned = input.replace(/[\s  ]/g, '');
+  const cleaned = input.replace(/[\s\u00a0\u202f]/g, '');
   if (cleaned === '') return null;
   if (!/^\d{1,12}$/.test(cleaned)) return Number.NaN;
   return Number(cleaned);
