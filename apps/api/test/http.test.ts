@@ -28,6 +28,12 @@ async function signup(phone = '0102030405') {
 }
 
 describe('HTTP — sécurité transverse', () => {
+  it('does not trust a client supplied X-Forwarded-For and does not enable credentialed cross-origin reads', async () => {
+    await app.inject({ method: 'POST', url: '/v1/auth/otp/request', remoteAddress: '10.0.0.9', headers: { ...H, 'x-forwarded-for': '203.0.113.1' }, payload: { country: 'BJ', phone: '0197000022', purpose: 'signup', device, captchaToken: 'ok' } });
+    expect((await ctx.db.query<{ ip: string }>('select ip from otp_codes')).rows[0]?.ip).toBe('10.0.0.9');
+    const r = await app.inject({ method: 'GET', url: '/v1/me', headers: { origin: 'https://evil.example' } });
+    expect(r.headers['access-control-allow-origin']).toBeUndefined();
+  });
   it('refuse les requêtes mutantes sans en-tête CSRF ou depuis une origine non autorisée', async () => {
     const noHeader = await app.inject({ method: 'POST', url: '/v1/auth/logout', headers: { origin: 'http://localhost:5173' } });
     expect(noHeader.statusCode).toBe(403);

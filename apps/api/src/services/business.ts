@@ -50,6 +50,9 @@ export class BusinessService {
     const now = this.now;
     return this.deps.db.tx(async (t) => {
       const deviceKey = (await t.query<{ device_key: string }>('select device_key from devices where id = $1 and user_id = $2', [deviceRowId, user.id])).rows[0]?.device_key ?? null;
+      for (const key of [`trial-user:${user.id}`, ...(deviceKey ? [`trial-device:${deviceKey}`] : [])].sort()) {
+        await t.query('select pg_advisory_xact_lock(hashtext($1))', [key]);
+      }
       const prior = await t.query(
         `select 1 from businesses where trial_ends_at is not null and (owner_id = $1 or ($2::text is not null and created_device_key = $2)) limit 1`,
         [user.id, deviceKey],

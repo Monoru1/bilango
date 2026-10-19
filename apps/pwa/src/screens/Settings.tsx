@@ -5,6 +5,7 @@ import { useStore } from '../app/useStore';
 /** Outils de démonstration (horloge simulée). Absents d'un build de production. */
 export function DemoControls({ compact = false }: { compact?: boolean }) {
   const s = useStore();
+  if (s.mode !== 'demo') return null;
   return (
     <div className="demo-note" style={{ margin: compact ? 16 : 0 }}>
       <strong>DEMO</strong> — horloge simulée : <strong>+{s.state.clockOffsetDays} j</strong>
@@ -48,12 +49,12 @@ export function ProfileScreen() {
           <section className="stack" style={{ gap: 8 }}>
             <h2 className="h2">Rappel de bilan</h2>
             <input className="gb-input" type="time" value={time} onChange={(e) => { setTime(e.target.value); setSaved(false); }} aria-label="Heure du rappel" />
-            <button className="gb-btn gb-btn--ghost" onClick={() => setSaved(s.setReminder(owned[0]?.id ?? bid ?? '', time).ok)}>Enregistrer l’heure</button>
+            <button className="gb-btn gb-btn--ghost" onClick={async () => setSaved((await s.setReminder(owned[0]?.id ?? bid ?? '', time)).ok)}>Enregistrer l’heure</button>
             {saved && <span className="muted" style={{ fontSize: 14 }}>Rappel réglé à {time}.</span>}
           </section>
         )}
         <DemoControls />
-        <button className="gb-btn" onClick={() => { s.logout(); nav('/'); }}>Se déconnecter</button>
+        <button className="gb-btn" onClick={async () => { const r = await s.logout(); if (s.mode === 'demo' || r?.ok) nav('/'); }}>Se déconnecter</button>
       </main>
     </div>
   );
@@ -76,7 +77,7 @@ export function InvitationsScreen() {
           <section key={i.id} className="stack" style={{ gap: 8, border: '1px solid var(--sep)', borderRadius: 16, padding: 18 }}>
             <strong>{i.businessName}</strong>
             <span className="muted">Rôle proposé : {i.roleName}</span>
-            <div className="row"><button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => s.respondInvitation(i.id, false)}>Refuser</button><button className="gb-btn" style={{ minHeight: 48 }} onClick={() => { const r = s.respondInvitation(i.id, true); if (!r.ok) setErr(r.error); else nav(`/b/${i.businessId}`); }}>Accepter</button></div>
+            <div className="row"><button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => s.respondInvitation(i.id, false)}>Refuser</button><button className="gb-btn" style={{ minHeight: 48 }} onClick={async () => { const r = await s.respondInvitation(i.id, true); if (!r.ok) setErr(r.error); else nav(`/b/${i.businessId}`); }}>Accepter</button></div>
           </section>
         ))}
         {err && <p className="gb-error">{err}</p>}

@@ -23,7 +23,7 @@ export function SubscriptionScreen() {
       <h1 className="h1">Mon abonnement</h1>
       <div><div className="gb-label">Statut</div><p className="h2" style={{ marginTop: 8 }}>{text}</p><p className="muted" style={{ margin: 0 }}>{Math.max(0, daysRemaining(sub, now))} jour{daysRemaining(sub, now) > 1 ? 's' : ''} restant{daysRemaining(sub, now) > 1 ? 's' : ''}</p></div>
       <p className="muted" style={{ margin: 0, fontSize: 14 }}>{formatFcfa(SUBSCRIPTION_PRICE_FCFA)} pour 30 jours. Pas de prélèvement automatique ; les 30 jours s’ajoutent aux jours restants.</p>
-      <button className="gb-btn" onClick={() => setConfirm(true)}>Renouveler</button>
+      {s.mode === 'demo' ? <button className="gb-btn" onClick={() => setConfirm(true)}>Renouveler</button> : <p role="status">Paiement indisponible dans cet environnement de développement. Aucun paiement réel n’est actif.</p>}
       <section>
         <h2 className="h2">Historique des paiements</h2>
         {sub.payments.length === 0 ? <p className="muted">Aucun paiement.</p> : (
@@ -34,7 +34,7 @@ export function SubscriptionScreen() {
         <Dialog label="Renouveler" onClose={() => setConfirm(false)}>
           <p className="h2">Renouveler pour 30 jours</p>
           <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : le paiement FedaPay est simulé, aucun argent ne circule. En production, le serveur crée la transaction et seul le webhook signé prolonge l’abonnement.</p>
-          <div className="btns"><button className="gb-btn gb-btn--ghost" onClick={() => setConfirm(false)}>Annuler</button><button className="gb-btn" onClick={() => { s.simulatePayment(b.id); setConfirm(false); }}>Payer (simulé)</button></div>
+          <div className="btns"><button className="gb-btn gb-btn--ghost" onClick={() => setConfirm(false)}>Annuler</button><button className="gb-btn" onClick={() => { if (s.mode === 'demo') s.simulatePayment(b.id); setConfirm(false); }}>Payer (simulé)</button></div>
         </Dialog>
       )}
     </main>

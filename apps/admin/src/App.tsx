@@ -1,3 +1,4 @@
+import { PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
 import { formatFcfa, nextPayoutDate, toDayKey, type CountryCode } from '@gobilan/domain';
 import { ApiError, createClient, Logo } from '@gobilan/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -84,6 +85,7 @@ function PartnersView() {
               <td>{p.status === 'active' ? <button className="link" onClick={() => void setStatus(p.id, 'suspended')}>Suspendre</button> : p.status === 'suspended' ? <button className="link" onClick={() => void setStatus(p.id, 'active')}>Réactiver</button> : null}</td></tr>
           ))}</tbody></table>{rows.length === 0 && <p className="muted">Aucun partenaire.</p>}</div>
       </div>
+      <ReferralExclusions />
     </div>
   );
 }
@@ -125,6 +127,7 @@ function PayoutsView() {
         <input className="gb-input" placeholder="Motif" aria-label="Motif" value={rev.reason} onChange={(e) => setRev({ ...rev, reason: e.target.value })} />
         <button className="gb-btn gb-btn--ghost btn-sm" style={{ alignSelf: 'flex-start' }} disabled={!rev.payoutId || rev.reason.length < 3} onClick={() => api('/v1/admin/payouts/reverse', { method: 'POST', body: rev }).then(() => { setMsg({ ok: true, text: 'Versement annulé.' }); load(); }, (e) => setMsg({ ok: false, text: errText(e) }))}>Annuler le versement</button>
       </div>
+      <PayoutCorrection />
     </div>
   );
 }
@@ -138,11 +141,39 @@ function AuditView() {
   );
 }
 
-type Tab = 'stats' | 'partners' | 'payouts' | 'audit';
+function AllowlistView() {
+  const [rows, setRows] = useState<{ email: string; active: boolean }[]>([]);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [action, setAction] = useState<'add' | 'remove'>('add');
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [message, setMessage] = useState('');
+  const load = useCallback(() => { void api<{ admins: typeof rows }>('/v1/admin/allowlist').then(r => setRows(r.admins), e => setMessage(errText(e))); }, []);
+  useEffect(load, [load]);
+  return <section className="card stack">
+    <h2 className="h2">Administrateurs autorisés</h2>
+    <p>Conservez une adresse principale et une adresse de secours. Chaque modification exige un code envoyé à votre adresse.</p>
+    <ul>{rows.map(r => <li key={r.email}>{r.email} — {r.active ? 'Actif' : 'Révoqué'}</li>)}</ul>
+    {!requestId ? <>
+      <label>Action<select className="gb-input" value={action} onChange={e => setAction(e.target.value as 'add' | 'remove')}><option value="add">Ajouter</option><option value="remove">Retirer</option></select></label>
+      <label>Adresse administrateur<input className="gb-input" type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
+      {action === 'add' && <label>Mot de passe initial<input className="gb-input" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} /><span className="muted">12 caractères minimum. Il ne sera pas envoyé par e-mail.</span></label>}
+      <button className="gb-btn" disabled={!email || (action === 'add' && password.length < 12)} onClick={() => void api<{ requestId: string }>('/v1/admin/allowlist/request', { method: 'POST', body: { email, action, ...(action === 'add' ? { password } : {}) } }).then(r => { setRequestId(r.requestId); setPassword(''); setMessage('Code de confirmation envoyé à votre adresse.'); }, e => setMessage(errText(e)))}>Demander la modification</button>
+    </> : <>
+      <label>Code de confirmation<input className="gb-input" inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} /></label>
+      <button className="gb-btn" disabled={code.length !== 6} onClick={() => void api('/v1/admin/allowlist/confirm', { method: 'POST', body: { requestId, code } }).then(() => { setRequestId(null); setCode(''); setMessage('Modification confirmée.'); load(); }, e => setMessage(errText(e)))}>Confirmer la modification</button>
+      <button className="link" onClick={() => { setRequestId(null); setCode(''); }}>Abandonner</button>
+    </>}
+    {message && <p role="status">{message}</p>}
+  </section>;
+}
+
+type Tab = 'stats' | 'partners' | 'payouts' | 'audit' | 'allowlist' | 'subscriptions';
 function Shell({ email, onLogout }: { email: string; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('stats');
-  const tabs: [Tab, string][] = [['stats', 'Statistiques'], ['partners', 'Partenaires'], ['payouts', 'Versements'], ['audit', 'Audit']];
-  const body: Record<Tab, ReactNode> = { stats: <StatsView />, partners: <PartnersView />, payouts: <PayoutsView />, audit: <AuditView /> };
+  const tabs: [Tab, string][] = [['stats', 'Statistiques'], ['partners', 'Partenaires'], ['payouts', 'Versements'], ['audit', 'Audit'], ['allowlist', 'Administrateurs'], ['subscriptions', 'Abonnements']];
+  const body: Record<Tab, ReactNode> = { stats: <StatsView />, partners: <PartnersView />, payouts: <PayoutsView />, audit: <AuditView />, allowlist: <AllowlistView />, subscriptions: <SubscriptionsView /> };
   return (
     <>
       <header className="topbar"><div className="wrap"><Logo size={34} /><strong style={{ flex: 1 }}>GoBilan · Administration</strong><span className="muted" style={{ fontSize: 14 }}>{email}</span><button className="link" onClick={onLogout}>Se déconnecter</button></div></header>

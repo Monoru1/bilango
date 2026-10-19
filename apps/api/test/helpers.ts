@@ -1,13 +1,30 @@
+import { afterEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { randomBytes } from 'node:crypto';
 import { FakeClock } from '../src/clock';
-import { createPgliteDb, migrate, type Db } from '../src/db';
+import { createPgDb, createPgliteDb, migrate, type Db } from '../src/db';
 import { defaultConfig, type Deps } from '../src/deps';
 import { createDevProviders } from '../src/providers';
 
 export const T0 = Date.parse('2026-10-19T10:00:00.000Z');
 
+const cleanup: (() => Promise<void>)[] = [];
+afterEach(async () => { for (const close of cleanup.splice(0)) await close(); });
+
 export async function makeDeps(over: Partial<Deps> = {}) {
-  const db: Db = await createPgliteDb();
+  let db: Db;
+  if (over.db) db = over.db;
+  else if (process.env.TEST_DATABASE_URL) {
+    // Each test gets its own schema. Never truncate or migrate an existing application schema.
+    const schema = `gobilan_test_${randomUUID().replaceAll('-', '')}`;
+    const admin = await createPgDb(process.env.TEST_DATABASE_URL);
+    await admin.query(`create schema ${schema}`);
+    const url = new URL(process.env.TEST_DATABASE_URL);
+    url.searchParams.set('options', `-c search_path=${schema}`);
+    const pg = await createPgDb(url.toString());
+    db = pg;
+    cleanup.push(async () => { await pg.close(); await admin.exec(`drop schema ${schema} cascade`); await admin.close(); });
+  } else db = await createPgliteDb();
   await migrate(db);
   const clock = new FakeClock(T0);
   const providers = createDevProviders();

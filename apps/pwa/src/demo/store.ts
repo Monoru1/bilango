@@ -5,11 +5,14 @@
  * notifications push, anti-abus d'essai, parrainage.
  * L'intégration avec l'API réelle (packages/contracts) reste à brancher : voir docs/CODEX_HANDOFF.md.
  */
+import { StoreView } from '../app/StoreView';
+import type { Result } from '@gobilan/contracts';
+export type { Result } from '@gobilan/contracts';
 import {
   COUNTRIES, DAY_MS, INITIAL_PIN_STATE, OTP_MAX_ATTEMPTS, OTP_TTL_MS, PIN_LENGTH, SUBSCRIPTION_DAYS, SUBSCRIPTION_PRICE_FCFA, can, canEditReport, canManageMember,
   evaluateOtpIssue, extendedPaidUntil, finalizeContent, isPinLocked, normalizePhone, pinRetryAfterMs, registerPinFailure, registerPinSuccess, remainingStockExcluding,
-  stockLevels, toDayKey, trialEndsAtFrom, validateDraft,
-  type Access, type Business, type CountryCode, type DraftValidation, type Id, type Invitation, type Member, type PermissionLevel, type PinState, type Report,
+  toDayKey, trialEndsAtFrom, validateDraft,
+  type Business, type CountryCode, type DraftValidation, type Id, type Invitation, type Member, type PermissionLevel, type PinState, type Report,
   type ReportContent, type Role, type Sector, type StockItem, type Subscription, type User,
 } from '@gobilan/domain';
 
@@ -89,37 +92,20 @@ function seedState(now: number): DemoState {
   };
 }
 
-export type Result<T = void> = ({ ok: true } & (T extends void ? object : { value: T })) | { ok: false; error: string; retryAfterMs?: number; locked?: boolean; exhausted?: boolean };
 const fail = (error: string, extra: Partial<{ retryAfterMs: number; locked: boolean; exhausted: boolean }> = {}) => ({ ok: false as const, error, ...extra });
 
-export class DemoStore {
-  state: DemoState;
-  private listeners = new Set<() => void>();
-  private version = 0;
+export class DemoStore extends StoreView<DemoState> {
+  readonly mode = 'demo' as const;
   /** Dernier code « envoyé » : affiché à l'écran en mode démo, aucune vraie livraison WhatsApp. */
   lastDemoOtp: string | null = null;
 
   constructor(private readonly realNow: () => number = Date.now) {
-    this.state = seedState(this.realNow());
+    super(seedState(realNow()));
   }
 
-  now(): number {
+  override now(): number {
     return this.realNow() + this.state.clockOffsetDays * DAY_MS;
   }
-  subscribe = (l: () => void) => {
-    this.listeners.add(l);
-    return () => this.listeners.delete(l);
-  };
-  getVersion = () => this.version;
-  private emit() {
-    this.version++;
-    this.listeners.forEach((l) => l());
-  }
-  private set(fn: (s: DemoState) => void) {
-    fn(this.state);
-    this.emit();
-  }
-
   reset() {
     seq = 0;
     this.state = seedState(this.realNow());
@@ -131,51 +117,6 @@ export class DemoStore {
     this.set((s) => {
       s.clockOffsetDays += days;
     });
-  }
-
-  // --- Accès ---------------------------------------------------------------------------------
-  get user(): DemoUser | null {
-    return this.state.users.find((u) => u.id === this.state.sessionUserId) ?? null;
-  }
-  userById(id: Id) {
-    return this.state.users.find((u) => u.id === id) ?? null;
-  }
-  businessesOfUser(userId: Id): Business[] {
-    const ids = new Set(this.state.members.filter((m) => m.userId === userId && m.status === 'active').map((m) => m.businessId));
-    return this.state.businesses.filter((b) => ids.has(b.id));
-  }
-  accessOf(userId: Id, businessId: Id): Access | null {
-    const m = this.state.members.find((x) => x.userId === userId && x.businessId === businessId && x.status === 'active');
-    if (!m) return null;
-    const role = m.roleId ? this.state.roles.find((r) => r.id === m.roleId) ?? null : null;
-    return { businessId, userId, isOwner: m.roleId === null, role };
-  }
-  business(id: Id) {
-    return this.state.businesses.find((b) => b.id === id) ?? null;
-  }
-  offsetOf(b: Business) {
-    return cfg(b.country).utcOffsetMinutes;
-  }
-  todayOf(b: Business) {
-    return toDayKey(this.now(), this.offsetOf(b));
-  }
-  subOf(businessId: Id): Subscription {
-    return this.state.subs.find((s) => s.businessId === businessId) ?? { businessId, trialEndsAt: null, paidUntil: null, payments: [] };
-  }
-  reportsOf(businessId: Id) {
-    return this.state.reports.filter((r) => r.businessId === businessId);
-  }
-  rolesOf(businessId: Id) {
-    return this.state.roles.filter((r) => r.businessId === businessId);
-  }
-  stockOf(businessId: Id) {
-    return this.state.stock.filter((s) => s.businessId === businessId);
-  }
-  membersOf(businessId: Id) {
-    return this.state.members.filter((m) => m.businessId === businessId && m.status === 'active');
-  }
-  stockLevelsOf(businessId: Id) {
-    return stockLevels(this.stockOf(businessId), this.reportsOf(businessId), businessId);
   }
 
   // --- Connexion démo ---------------------------------------------------------------------------

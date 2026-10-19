@@ -151,6 +151,7 @@ export class PartnerService {
     type Outcome = { ok: true; token: string; partner: PartnerSession } | { ok: false; error: AppError };
     // Résultat retourné puis levé APRÈS commit : lever dans la transaction effacerait le compteur d'échecs.
     const out = await this.deps.db.tx<Outcome>(async (t) => {
+      await t.query('select pg_advisory_xact_lock(hashtext($1))', [`partner-login:${e}`]);
       const st = (await t.query<{ failed_attempts: number; locked_until: Date | null }>('select * from partner_login_state where email = $1 for update', [e])).rows[0];
       if (st?.locked_until && st.locked_until.getTime() > now) {
         return { ok: false, error: new AppError('locked', 'Trop de tentatives. Réessayez plus tard.', Math.ceil((st.locked_until.getTime() - now) / 1000)) };
@@ -241,14 +242,12 @@ export class PartnerService {
 
   async setPayoutBlock(partner: PartnerSession, block: z.infer<typeof payoutBlockSchema>): Promise<void> {
     if (!COUNTRIES[partner.country].networks.includes(block.network)) throw new AppError('validation', "Ce réseau n'est pas disponible dans votre pays.");
-    const old = (await this.deps.db.query<{ payout_network: string | null }>('select payout_network from partners where id = $1', [partner.id])).rows[0];
-    await this.deps.db.query('update partners set payout_phone_enc = $2, payout_network = $3, payout_name_enc = $4 where id = $1', [
-      partner.id,
-      encryptField(block.phone, this.deps.secrets.payoutKey),
-      block.network,
-      encryptField(block.displayName, this.deps.secrets.payoutKey),
-    ]);
-    await this.audit(partner.email, 'partner.payout_block.change', partner.id, { network: old?.payout_network ?? null }, { network: block.network });
+    await this.deps.db.tx(async t => {
+      const old = (await t.query<{ payout_phone_enc: string | null; payout_network: string | null; payout_name_enc: string | null }>('select payout_phone_enc,payout_network,payout_name_enc from partners where id=$1 for update', [partner.id])).rows[0];
+      const next = { payout_phone_enc: encryptField(block.phone, this.deps.secrets.payoutKey), payout_network: block.network, payout_name_enc: encryptField(block.displayName, this.deps.secrets.payoutKey) };
+      await t.query('update partners set payout_phone_enc=$2,payout_network=$3,payout_name_enc=$4 where id=$1', [partner.id, next.payout_phone_enc, next.payout_network, next.payout_name_enc]);
+      await t.query('insert into audit_log(at,actor,action,target,old_value,new_value) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [iso(this.now), partner.email, 'partner.payout_block.change', partner.id, JSON.stringify(old ?? null), JSON.stringify(next)]);
+    });
   }
 
   async getPayoutBlock(partner: Pick<PartnerSession, 'id'>): Promise<{ phone: string; network: string; displayName: string } | null> {

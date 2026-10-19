@@ -1,4 +1,4 @@
-import { currentVersion, emptyContent, formatFcfa, parseAmount, sumLines, type ReportAmount, type ReportContent } from '@gobilan/domain';
+import { can, canEditReport, currentVersion, emptyContent, formatFcfa, parseAmount, sumLines, type ReportAmount, type ReportContent } from '@gobilan/domain';
 import { useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useStore } from '../app/useStore';
@@ -41,14 +41,16 @@ export function ReportForm() {
     stockSales: Object.entries(qty).map(([itemId, q]) => ({ itemId, quantity: Number.parseInt(q || '0', 10) || 0 })), note,
   });
 
-  const submit = () => {
+  const submit = async () => {
     const content = build();
-    const r = editing ? s.editReport(editing.id, content) : s.submitReport(b.id, content, needsOpening ? parseAmount(opening) : null);
+    const r = await (editing ? s.editReport(editing.id, content) : s.submitReport(b.id, content, needsOpening ? parseAmount(opening) : null));
     if (!r.ok) return setErr(r.error);
     nav(base, { replace: true, state: { sent: true } });
   };
   const set = (k: Key, patch: Partial<FieldState>) => setF((p) => ({ ...p, [k]: { ...p[k], ...patch } }));
   const total = toAmount('revenue').total;
+  const access = s.user && s.accessOf(s.user.id, b.id);
+  if (!access || !can(access, 'submitReport') || (reportId && (!editing || !canEditReport(access, editing, s.user!.id, s.now())))) return <main className="pad"><p role="alert">Bilan introuvable ou modification non autorisée.</p><Link to={base}>Retour</Link></main>;
 
   return (
     <main className="pad stack" style={{ flex: 1, paddingTop: 16, paddingBottom: 24, gap: 18 }}>

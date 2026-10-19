@@ -34,12 +34,12 @@ export async function issueEmailCode(deps: Deps, subject: string, purpose: strin
 }
 
 /** Vérifie un code e-mail : comptage atomique des saisies, usage unique, expiration. */
-export async function verifyEmailCode(db: Db, deps: Deps, subject: string, purpose: string, code: string): Promise<void> {
+export async function verifyEmailCode(db: Db, deps: Deps, subject: string, purpose: string, code: string, expectedCodeId?: string): Promise<void> {
   const now = deps.clock.now();
   const latest = (
     await db.query<{ id: string; code_hash: string; issued_at: Date; attempts: number; consumed_at: Date | null }>(
-      'select id, code_hash, issued_at, attempts, consumed_at from otp_codes where subject = $1 and purpose = $2 order by issued_at desc limit 1',
-      [subject, purpose],
+      'select id, code_hash, issued_at, attempts, consumed_at from otp_codes where subject = $1 and purpose = $2 and ($3::uuid is null or id=$3) order by issued_at desc limit 1',
+      [subject, purpose, expectedCodeId ?? null],
     )
   ).rows[0];
   if (!latest) throw new AppError('otp_invalid', 'Code incorrect ou expiré.');

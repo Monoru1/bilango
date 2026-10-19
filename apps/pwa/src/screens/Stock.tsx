@@ -26,7 +26,7 @@ export function StockScreen() {
           <input className="gb-input" placeholder="Nom de l’article" value={name} onChange={(e) => setName(e.target.value)} aria-label="Nom de l’article" />
           <input className="gb-input" inputMode="numeric" placeholder="Quantité de départ" value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ''))} aria-label="Quantité de départ" />
           {err && <p className="gb-error" role="alert" style={{ margin: 0 }}>{err}</p>}
-          <button className="gb-btn" onClick={() => { const r = s.addStockItem(b.id, name, Number.parseInt(qty || '-1', 10)); if (!r.ok) return setErr(r.error); setErr(null); setName(''); setQty(''); }}>Ajouter</button>
+          <button className="gb-btn" onClick={async () => { const r = await s.addStockItem(b.id, name, Number.parseInt(qty || '-1', 10)); if (!r.ok) return setErr(r.error); setErr(null); setName(''); setQty(''); }}>Ajouter</button>
         </section>
       )}
     </main>

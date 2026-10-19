@@ -1,8 +1,8 @@
-import { computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
+import { COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
-import type { excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
+import type { adminAllowlistChangeSchema, payoutBlockSchema, excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
-import { decryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
+import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
 import type { Deps } from '../deps';
 import { AppError, notFound } from '../errors';
@@ -33,6 +33,7 @@ export class AdminService {
     const now = this.now;
     type Outcome = { ok: true; challengeId: string } | { ok: false; error: AppError };
     const out = await this.deps.db.tx<Outcome>(async (t) => {
+      await t.query('select pg_advisory_xact_lock(hashtext($1))', [`admin-login:${e}`]);
       const st = (await t.query<{ failed_attempts: number; locked_until: Date | null }>('select * from admin_login_state where email = $1 for update', [e])).rows[0];
       if (st?.locked_until && st.locked_until.getTime() > now) {
         return { ok: false, error: new AppError('locked', 'Trop de tentatives. Réessayez plus tard.', Math.ceil((st.locked_until.getTime() - now) / 1000)) };
@@ -65,7 +66,10 @@ export class AdminService {
     if (!/^[0-9a-f-]{36}$/i.test(challengeId)) throw new AppError('unauthenticated', 'Code incorrect ou expiré.');
     const ch = (await this.deps.db.query<{ email: string; consumed_at: Date | null }>('select email, consumed_at from admin_challenges where id = $1', [challengeId])).rows[0];
     if (!ch) throw new AppError('unauthenticated', 'Code incorrect ou expiré.');
-    await verifyEmailCode(this.deps.db, this.deps, ch.email, 'admin_login', code);
+    if (ch.consumed_at) throw new AppError('otp_invalid', 'Ce code a déjà été utilisé.');
+    await verifyEmailCode(this.deps.db, this.deps, ch.email, 'admin_login', code, challengeId);
+    const allowed = await this.deps.db.query('select 1 from admin_users where email=$1 and active', [ch.email]);
+    if (!allowed.rows.length) throw new AppError('unauthenticated', 'Accès administrateur révoqué.');
     await this.deps.db.query('update admin_challenges set consumed_at = $2 where id = $1', [challengeId, iso(this.now)]);
     const token = randomToken();
     await this.deps.db.query('insert into admin_sessions(email, token_hash, created_at, expires_at) values ($1,$2,$3,$4)', [
@@ -109,6 +113,42 @@ export class AdminService {
     await this.deps.providers.messages.sendEmail(email.toLowerCase(), { subject: 'Mot de passe administrateur modifié', text: 'Le mot de passe de votre compte administrateur GoBilan vient d\'être modifié.' });
   }
 
+  async listAllowlist() {
+    return (await this.deps.db.query<{ email: string; active: boolean; created_at: Date }>('select email, active, created_at from admin_users order by email')).rows.map(r => ({ email: r.email, active: r.active, createdAt: r.created_at.toISOString() }));
+  }
+
+  async requestAllowlistChange(actor: AdminSession, input: z.infer<typeof adminAllowlistChangeSchema>) {
+    const { id, code } = await issueEmailCode(this.deps, actor.email, 'admin_allowlist', { enforceQuota: true });
+    const passwordHash = input.action === 'add' ? await hashSecret(input.password, this.deps.secrets.pepper) : null;
+    await this.deps.db.query('insert into admin_allowlist_changes(id, requested_by, target_email, action, password_hash, expires_at) values ($1,$2,$3,$4,$5,$6)', [id, actor.email, input.email, input.action, passwordHash, iso(this.now + 10 * MIN)]);
+    await this.deps.providers.messages.sendEmail(actor.email, { subject: 'Confirmer la modification des administrateurs GoBilan', text: `Action : ${input.action} — ${input.email}\nCode de confirmation : ${code}\nValable 10 minutes. Aucune modification sans confirmation.` });
+    return { requestId: id };
+  }
+
+  async confirmAllowlistChange(actor: AdminSession, requestId: string, code: string) {
+    const pending = (await this.deps.db.query<{ requested_by: string; consumed_at: Date | null; expires_at: Date }>('select requested_by, consumed_at, expires_at from admin_allowlist_changes where id=$1', [requestId])).rows[0];
+    if (!pending || pending.requested_by !== actor.email || pending.consumed_at || pending.expires_at.getTime() <= this.now) throw new AppError('unauthenticated', 'Confirmation incorrecte ou expirée.');
+    await verifyEmailCode(this.deps.db, this.deps, actor.email, 'admin_allowlist', code, requestId);
+    await this.deps.db.tx(async t => {
+      await t.query("select pg_advisory_xact_lock(hashtext('admin-allowlist'))");
+      if (!(await t.query('select 1 from admin_users where email=$1 and active', [actor.email])).rows.length) throw new AppError('unauthenticated', 'Accès administrateur révoqué.');
+      const r = (await t.query<{ target_email: string; action: 'add' | 'remove'; password_hash: string | null }>('update admin_allowlist_changes set consumed_at=$3 where id=$1 and requested_by=$2 and consumed_at is null and expires_at>$3 returning target_email, action, password_hash', [requestId, actor.email, iso(this.now)])).rows[0];
+      if (!r) throw new AppError('conflict', 'Confirmation déjà utilisée.');
+      const old = (await t.query<{ active: boolean }>('select active from admin_users where email=$1', [r.target_email])).rows[0];
+      if (r.action === 'remove') {
+        if (!old?.active) throw notFound('Administrateur actif introuvable.');
+        const count = Number((await t.query<{ n: string }>('select count(*) n from admin_users where active')).rows[0]!.n);
+        if (count <= 2) throw new AppError('conflict', 'Conservez au moins deux administrateurs actifs, dont une adresse de secours.');
+        await t.query('update admin_users set active=false where email=$1', [r.target_email]);
+      } else {
+        if (old?.active) throw new AppError('conflict', 'Cette adresse est déjà autorisée.');
+        await t.query('insert into admin_users(email,password_hash,active,created_at) values($1,$2,true,$3) on conflict(email) do update set password_hash=excluded.password_hash, active=true', [r.target_email, r.password_hash, iso(this.now)]);
+      }
+      await t.query('update admin_sessions set revoked_at=$2 where email=$1 and revoked_at is null', [r.target_email, iso(this.now)]);
+      await t.query('insert into audit_log(at,actor,action,target,old_value,new_value) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [iso(this.now), actor.email, 'admin.allowlist.' + r.action, r.target_email, JSON.stringify({ active: old?.active ?? false }), JSON.stringify({ active: r.action === 'add' })]);
+    });
+  }
+
   // --- Partenaires ----------------------------------------------------------------------------
 
   async listPartners(filter: { country?: string; from?: string; to?: string } = {}) {
@@ -149,6 +189,27 @@ export class AdminService {
         iso(this.now), admin.email, 'referral.exclude', input.referralId, JSON.stringify({ excluded_reason: ref.excluded_reason }), JSON.stringify({ excluded_reason: input.reason, reversed }),
       ]);
       return { reversed };
+    });
+  }
+
+  async listReferrals() {
+    return (await this.deps.db.query<{ id: string; business_name: string; partner_name: string; excluded_reason: string | null }>('select r.id,b.name as business_name,p.name as partner_name,r.excluded_reason from referrals r join businesses b on b.id=r.business_id join partners p on p.id=r.partner_id order by r.registered_at desc')).rows.map(r => ({ id: r.id, businessName: r.business_name, partnerName: r.partner_name, excludedReason: r.excluded_reason }));
+  }
+
+  async listSubscriptions(offset: number, limit: number) {
+    const rows = (await this.deps.db.query<{ id: string; name: string; country: string; owner_name: string; trial_ends_at: Date | null; paid_until: Date | null }>('select b.id,b.name,b.country,u.name as owner_name,b.trial_ends_at,b.paid_until from businesses b join users u on u.id=b.owner_id order by b.created_at desc,b.id limit $1 offset $2', [limit, offset])).rows;
+    return rows.map(b => ({ id: b.id, name: b.name, country: b.country, ownerName: b.owner_name, status: subscriptionStatus(subscriptionOf(b), this.now), ...subscriptionOf(b) }));
+  }
+
+  async updatePayoutBlock(actor: AdminSession, partnerId: string, input: z.infer<typeof payoutBlockSchema>) {
+    await this.deps.db.tx(async t => {
+      const old = (await t.query<{ country: keyof typeof COUNTRIES; payout_phone_enc: string | null; payout_network: string | null; payout_name_enc: string | null }>('select country,payout_phone_enc,payout_network,payout_name_enc from partners where id=$1 for update', [partnerId])).rows[0];
+      if (!old) throw notFound();
+      if (!COUNTRIES[old.country].networks.includes(input.network)) throw new AppError('validation', 'Réseau indisponible dans le pays du partenaire.');
+      const next = { payout_phone_enc: encryptField(input.phone, this.deps.secrets.payoutKey), payout_network: input.network, payout_name_enc: encryptField(input.displayName, this.deps.secrets.payoutKey) };
+      await t.query('update partners set payout_phone_enc=$2,payout_network=$3,payout_name_enc=$4 where id=$1', [partnerId, next.payout_phone_enc, next.payout_network, next.payout_name_enc]);
+      const previous = { payout_phone_enc: old.payout_phone_enc, payout_network: old.payout_network, payout_name_enc: old.payout_name_enc };
+      await t.query('insert into audit_log(at,actor,action,target,old_value,new_value) values($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [iso(this.now), actor.email, 'admin.payout_block.change', partnerId, JSON.stringify(previous), JSON.stringify(next)]);
     });
   }
 

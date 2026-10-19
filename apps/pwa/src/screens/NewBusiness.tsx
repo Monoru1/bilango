@@ -22,7 +22,7 @@ export function NewBusiness() {
         <label className="row" style={{ justifyContent: 'flex-start', gap: 12 }}><input type="checkbox" checked={stock} onChange={(e) => setStock(e.target.checked)} /> Activer le module Stock</label>
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>L’essai de 7 jours est accordé une seule fois par numéro ; un business supplémentaire démarre sans essai.</p>
         {err && <p className="gb-error" role="alert">{err}</p>}
-        <button className="gb-btn" disabled={!name.trim()} onClick={() => { const r = s.createBusiness(name, sector, stock); if (!r.ok) return setErr(r.error); nav(`/b/${r.value.id}`); }}>Créer</button>
+        <button className="gb-btn" disabled={!name.trim()} onClick={async () => { const r = await s.createBusiness(name, sector, stock); if (!r.ok) return setErr(r.error); nav(`/b/${r.value.id}`); }}>Créer</button>
       </main>
     </div>
   );

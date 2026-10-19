@@ -88,6 +88,10 @@ export class AuthService {
     const now = this.now;
 
     const row = await this.deps.db.tx(async (t) => {
+      // Lock shared device/IP quota buckets as well as phone; sorted to avoid deadlocks.
+      for (const key of [`otp-device:${input.device.deviceId}`, ...(ip ? [`otp-ip:${ip}`] : []), `otp:${phone}`].sort()) {
+        await t.query('select pg_advisory_xact_lock(hashtext($1))', [key]);
+      }
       // Sérialise les demandes d'un même numéro (course : 3 demandes simultanées pour 2 codes).
       await t.query('select pg_advisory_xact_lock(hashtext($1))', [`otp:${phone}`]);
       const issued = (await t.query<{ issued_at: Date }>('select issued_at from otp_codes where subject = $1 and issued_at > $2', [phone, iso(now - DAY)])).rows.map((r) => r.issued_at.getTime());

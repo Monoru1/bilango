@@ -13,4 +13,8 @@ export const reversePayoutSchema = z.object({ payoutId: idSchema, reason: z.stri
 
 export const excludeReferralSchema = z.object({ referralId: idSchema, reason: z.string().trim().min(3).max(300) });
 
-export const adminAllowlistChangeSchema = z.object({ email: z.string().email(), action: z.enum(['add', 'remove']) });
+export const adminAllowlistChangeSchema = z.discriminatedUnion('action', [
+  z.object({ email: z.string().email().transform(s => s.toLowerCase()), action: z.literal('add'), password: z.string().min(12).max(256) }),
+  z.object({ email: z.string().email().transform(s => s.toLowerCase()), action: z.literal('remove') }),
+]);
+export const adminAllowlistConfirmSchema = z.object({ requestId: idSchema, code: z.string().regex(/^\d{6}$/) });

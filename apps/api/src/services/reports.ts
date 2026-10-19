@@ -15,7 +15,6 @@ import {
   totalsOfPeriod,
   toDayKey,
   validateDraft,
-  addDays,
   type Report,
   type ReportContent,
   type StockItem,
@@ -92,6 +91,12 @@ export class ReportService {
     if (!canSubmitReports(status)) {
       const msg = ctx.access.isOwner ? 'Votre abonnement a expiré. Renouvelez pour reprendre la saisie.' : employeeBlockedMessage(ctx.business.name);
       throw new AppError('subscription_blocked', msg);
+    }
+  }
+
+  private assertCanRead(ctx: AccessContext): void {
+    if (ctx.access.isOwner && subscriptionStatus(subscriptionOf(ctx.business), this.now) === 'blocked') {
+      throw new AppError('subscription_blocked', 'Renouvelez votre abonnement pour consulter les bilans.');
     }
   }
 
@@ -196,14 +201,18 @@ export class ReportService {
     return finalizeContent(content);
   }
 
+  /** Internal stock aggregation only: never routed directly to a client. */
+  async listForStock(businessId: string): Promise<Report[]> { return loadReports(this.deps.db, businessId); }
+
   /** Historique : tout pour « Gestion complète » / lecture seule / propriétaire, ses propres bilans pour « Saisie seule » (§6.5). */
   async list(actor: SessionUser, businessId: string, limit = 60): Promise<Report[]> {
     const ctx = await requireAccess(this.deps.db, actor.id, businessId);
-    const all = await loadReports(this.deps.db, businessId, 'and r.day >= $2', [addDays(toDayKey(this.now, COUNTRIES[ctx.business.country].utcOffsetMinutes), -400)]);
+    this.assertCanRead(ctx);
+    const all = await loadReports(this.deps.db, businessId, '', []);
     return all
       .filter((r) => canViewReport(ctx.access, r, actor.id))
       .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-      .slice(0, Math.min(limit, 200));
+      .slice(0, limit);
   }
 
   async get(actor: SessionUser, reportId: string): Promise<Report> {
@@ -211,6 +220,7 @@ export class ReportService {
     const row = (await this.deps.db.query<{ business_id: string }>('select business_id from reports where id = $1', [reportId])).rows[0];
     if (!row) throw notFound();
     const ctx = await requireAccess(this.deps.db, actor.id, row.business_id);
+    this.assertCanRead(ctx);
     const report = (await loadReports(this.deps.db, row.business_id, 'and r.id = $2', [reportId]))[0];
     if (!report || !canViewReport(ctx.access, report, actor.id)) throw notFound();
     return report;

@@ -29,7 +29,7 @@ describe('isolation entre business (IDOR, cahier §13.1)', () => {
       subs.view(intruder.user, a.businessId),
       subs.createCheckout(intruder.user, a.businessId),
     ];
-    for (const p of attempts) await expectCode(p, 'not_found');
+    await Promise.all(attempts.map(p => expectCode(p, 'not_found')));
 
     // Et rien n'a fuité ni changé.
     expect((await biz.listMine(intruder.user)).map((x) => x.id)).toEqual([b.id]);

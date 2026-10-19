@@ -2,7 +2,10 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { store } from '../app/useStore';
+import { store as currentStore } from '../app/useStore';
+import type { DemoStore } from '../demo/store';
+vi.mock('../app/useStore', async () => { const { DemoStore } = await import('../demo/store'); const { useSyncExternalStore } = await import('react'); const store = new DemoStore(); return { store, useStore: () => { useSyncExternalStore(store.subscribe, store.getVersion); return store; } }; });
+const store = currentStore as DemoStore;
 import { DEMO_PERSONAS as P } from '../demo/store';
 import type { Env } from '../lib/env';
 import { BusinessShell } from './BusinessShell';

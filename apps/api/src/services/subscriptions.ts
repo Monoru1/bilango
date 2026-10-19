@@ -118,12 +118,14 @@ export class SubscriptionService {
       )
     ).rows[0];
     if (!payment) return this.finish(event.id, 'ignored');
+    // A signed event must still refer to the exact transaction created for this payment.
+    if (!payment.fedapay_transaction_id || payment.fedapay_transaction_id !== event.entity.id) return this.finish(event.id, 'ignored');
 
     if (event.name === 'transaction.approved') {
       if (event.entity.custom_metadata?.business_id !== payment.business_id) return this.finish(event.id, 'ignored');
       const remote = await this.deps.providers.gateway.getTransaction(event.entity.id);
       if (!remote) throw new AppError('internal', 'Vérification passerelle indisponible : réessayez.'); // FedaPay renverra l'évènement
-      if (remote.status !== 'approved' || remote.merchantReference !== reference || remote.amount !== Number(payment.amount)) {
+      if (remote.transactionId !== payment.fedapay_transaction_id || remote.status !== 'approved' || remote.merchantReference !== reference || remote.amount !== Number(payment.amount)) {
         return this.finish(event.id, 'ignored');
       }
       return this.finish(event.id, await this.confirm(payment.id, event.entity.id, remote.provider));

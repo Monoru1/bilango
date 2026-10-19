@@ -1,7 +1,8 @@
+import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
-  checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
+  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
   loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
@@ -40,7 +41,7 @@ const idParam = z.object({ id: z.string().uuid() });
 const bizParam = z.object({ businessId: z.string().uuid() });
 
 export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, rateLimit: true }): FastifyInstance {
-  const app = Fastify({ logger: false, trustProxy: true, bodyLimit: 256 * 1024 });
+  const app = Fastify({ logger: false, trustProxy: false, bodyLimit: 256 * 1024 });
   const auth = new AuthService(deps);
   const biz = new BusinessService(deps);
   const reports = new ReportService(deps);
@@ -161,6 +162,13 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     return { ok: true };
   });
 
+  app.post('/v1/auth/devices/logout-others', async (req) => {
+    const u = await user(req);
+    return { revoked: await auth.logoutOtherDevices(u.user.id, u.deviceId) };
+  });
+  app.get('/v1/businesses/:businessId/workspace', async (req) => new WorkspaceService(deps).load((await user(req)).user, bizParam.parse(req.params).businessId));
+  app.get('/v1/me/invitations', async (req) => ({ invitations: await new WorkspaceService(deps).invitations('i.phone=$1', (await user(req)).user.phone) }));
+
   // ================= Business =================
   app.get('/v1/businesses', async (req) => ({ businesses: await biz.listMine((await user(req)).user) }));
   app.post('/v1/businesses', async (req) => {
@@ -278,7 +286,19 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     return { ok: true };
   });
   app.get('/v1/admin/me', async (req) => ({ admin: (await adminSession(req)).admin }));
+  app.get('/v1/admin/allowlist', async (req) => { await adminSession(req); return { admins: await admin.listAllowlist() }; });
+  app.post('/v1/admin/allowlist/request', authLimit, async (req) => admin.requestAllowlistChange((await adminSession(req)).admin, adminAllowlistChangeSchema.parse(req.body)));
+  app.post('/v1/admin/allowlist/confirm', authLimit, async (req) => {
+    const actor = await adminSession(req); const input = adminAllowlistConfirmSchema.parse(req.body);
+    await admin.confirmAllowlistChange(actor.admin, input.requestId, input.code); return { ok: true };
+  });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
+  app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });
+  app.get('/v1/admin/subscriptions', async req => {
+    await adminSession(req); const q = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
+    return { subscriptions: await admin.listSubscriptions(q.offset, q.limit) };
+  });
+  app.put('/v1/admin/partners/:id/payout-block', async req => { await admin.updatePayoutBlock((await adminSession(req)).admin, idParam.parse(req.params).id, payoutBlockSchema.parse(req.body)); return { ok: true }; });
   app.get('/v1/admin/audit', async (req) => (await adminSession(req), { entries: await admin.auditLog() }));
   app.get('/v1/admin/partners', async (req) => {
     await adminSession(req);

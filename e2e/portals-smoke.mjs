@@ -6,7 +6,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ?? '/home/claude/.npm-global/lib/node_modules/@playwright/mcp/');
+const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
 const { chromium } = require('playwright');
 const LOG = process.env.API_LOG ?? '/tmp/api.log';
 const TAG = Date.now().toString(36).toUpperCase().replace(/[^A-Z]/g, 'X').slice(-5);
@@ -17,7 +17,7 @@ const log = () => readFileSync(LOG, 'utf8');
 const lastMatch = (re) => { const m = [...log().matchAll(re)]; return m.length ? m[m.length - 1] : null; };
 const check = (cond, msg) => { if (!cond) throw new Error('ÉCHEC : ' + msg); console.log('OK   ' + msg); };
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM ?? '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
 const errors = [];
 // Contextes séparés : en production admin et partenaires sont sur des hôtes distincts (cookies « host-only »).
@@ -74,6 +74,20 @@ check(true, 'agent enregistré par son manager (code ' + CODE + ')');
 // --- Séparation des sessions : le cookie partenaire n'ouvre pas l'admin ---------------------
 const res = await par.evaluate(async () => (await fetch('/v1/admin/stats', { credentials: 'include' })).status);
 check(res === 401, 'session partenaire refusée sur l’API admin (401)');
+await adm.getByRole('tab', { name: 'Administrateurs', exact: true }).click();
+await adm.getByLabel('Adresse administrateur').fill('backup@novadis.test');
+await adm.getByLabel('Mot de passe initial').fill('backup-test-password-123');
+await adm.getByRole('button', { name: 'Demander la modification' }).click();
+await adm.getByLabel('Code de confirmation').waitFor();
+const confirmation = lastMatch(/Code de confirmation : (\d{6})/g)?.[1];
+check(!!confirmation, 'confirmation allowlist reçue par e-mail simulé');
+await adm.getByLabel('Code de confirmation').fill(confirmation);
+await adm.getByRole('button', { name: 'Confirmer la modification' }).click();
+await adm.getByText('Modification confirmée.', { exact: true }).waitFor();
+check(true, 'administrateur de secours ajouté après confirmation');
+await adm.getByRole('tab', { name: 'Audit', exact: true }).click();
+await adm.getByText('admin.allowlist.add', { exact: true }).waitFor();
+check(true, 'action allowlist visible dans le journal admin');
 check(errors.length === 0, 'aucune erreur JavaScript dans les pages (' + errors.length + ')');
 await browser.close();
 console.log('\nSMOKE E2E : tout est OK');

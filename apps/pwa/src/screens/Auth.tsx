@@ -2,10 +2,13 @@ import { COUNTRIES, COUNTRY_CODES, countryOfPhone, type CountryCode, type Sector
 import { Logo } from '@gobilan/ui';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { RemoteWelcome } from './RemoteWelcome';
 import { DEMO_PERSONAS } from '../demo/store';
 import { useStore } from '../app/useStore';
 
 function DemoTag() {
+  const s = useStore();
+  if (s.mode !== 'demo') return <p className="demo-note">ENVIRONNEMENT DE DÉVELOPPEMENT — WhatsApp et CAPTCHA de test. Les codes sont disponibles dans la console du serveur.</p>;
   return <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : données simulées, aucun envoi réel (WhatsApp, paiement, notifications).</p>;
 }
 
@@ -15,6 +18,7 @@ export function Welcome({ onStart }: { onStart: () => void }) {
   const nav = useNavigate();
   const [pinFor, setPinFor] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  if (s.mode === 'api') return <RemoteWelcome onStart={onStart} />;
   if (pinFor && resetting) return <ResetPin userId={pinFor} onBack={() => setResetting(false)} onDone={() => nav('/')} />;
   if (pinFor) return <PinLogin userId={pinFor} onBack={() => setPinFor(null)} onDone={() => nav('/')} onForgot={() => setResetting(true)} />;
   return (
@@ -51,7 +55,7 @@ function Keypad({ onDigit, onBack }: { onDigit: (d: string) => void; onBack: () 
   );
 }
 
-function Countdown({ ms }: { ms: number }) {
+export function Countdown({ ms }: { ms: number }) {
   const [left, setLeft] = useState(ms);
   useEffect(() => {
     setLeft(ms);
@@ -71,12 +75,12 @@ export function PinLogin({ userId, onBack, onDone, onForgot }: { userId: string;
   const [lock, setLock] = useState<number | null>(null);
   const user = s.userById(userId);
 
-  const press = (d: string) => {
+  const press = async (d: string) => {
     if (lock !== null) return;
     const next = (pin + d).slice(0, 4);
     setPin(next);
     if (next.length === 4) {
-      const r = s.loginPin(userId, next);
+      const r = await s.loginPin(userId, next);
       if (r.ok) return onDone();
       setPin('');
       setMsg(r.error);
@@ -119,7 +123,7 @@ export function PinLogin({ userId, onBack, onDone, onForgot }: { userId: string;
 type Step = 'country' | 'phone' | 'otp' | 'pin' | 'referral' | 'name' | 'role' | 'business';
 
 /** Onboarding : un écran, une action (§4.1). */
-export function Onboarding({ onCancel }: { onCancel: () => void }) {
+export function Onboarding({ onCancel, purpose = 'signup' }: { onCancel: () => void; purpose?: 'signup' | 'pin_reset' }) {
   const s = useStore();
   const nav = useNavigate();
   const [step, setStep] = useState<Step>('country');
@@ -139,16 +143,16 @@ export function Onboarding({ onCancel }: { onCancel: () => void }) {
   const goError = (e: string) => setErr(e);
   const back = () => (step === 'country' ? onCancel() : setStep(({ phone: 'country', otp: 'phone', pin: 'otp', referral: 'pin', name: 'referral', role: 'name', business: 'role' } as Record<Step, Step>)[step]));
 
-  const sendCode = () => {
+  const sendCode = async () => {
     setErr(null);
-    const r = s.startOtp(country, local, 'signup');
+    const r = await s.startOtp(country, local, purpose);
     if (!r.ok) return goError(r.error);
     setCode('');
     setExhausted(false);
     setStep('otp');
   };
-  const checkCode = (c: string) => {
-    const r = s.verifyOtp(c);
+  const checkCode = async (c: string) => {
+    const r = await s.verifyOtp(c);
     if (!r.ok) {
       setErr(r.error);
       if (r.exhausted) setExhausted(true);
@@ -159,12 +163,12 @@ export function Onboarding({ onCancel }: { onCancel: () => void }) {
     if (r.value.next === 'logged_in') return nav('/');
     setStep('pin');
   };
-  const pressPin = (d: string) => {
+  const pressPin = async (d: string) => {
     const next = (pin + d).slice(0, 4);
     setPin(next);
     if (next.length === 4) {
-      const r = s.createPin(next);
-      if (!r.ok) return goError(r.error);
+      const r = await s.createPin(next);
+      if (!r.ok) { setPin(''); return goError(r.error); }
       setErr(null);
       setStep('referral');
     }
@@ -205,7 +209,7 @@ export function Onboarding({ onCancel }: { onCancel: () => void }) {
           <>
             <h1 className="h1">Entrez le code à 4 chiffres reçu par WhatsApp</h1>
             <input className="gb-input otp" inputMode="numeric" maxLength={4} autoFocus value={code} aria-label="Code à 4 chiffres" onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 4); setCode(v); if (v.length === 4 && !exhausted) checkCode(v); }} disabled={exhausted} />
-            <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucun message WhatsApp n’est envoyé. Votre code : <strong>{s.lastDemoOtp}</strong></p>
+            {s.mode === 'demo' && <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucun message WhatsApp n’est envoyé. Votre code : <strong>{s.mode === 'demo' ? s.lastDemoOtp : ''}</strong></p>}
             {err && <p className="gb-error" role="alert" style={{ margin: 0 }}>{err}</p>}
             {exhausted && <button className="link" onClick={sendCode}>Mot de passe oublié ? Recevoir un nouveau code</button>}
           </>
@@ -230,7 +234,7 @@ export function Onboarding({ onCancel }: { onCancel: () => void }) {
             <h1 className="h1">Entrez votre nom</h1>
             <input className="gb-input" autoFocus autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} aria-label="Votre nom" />
             {err && <p className="gb-error" role="alert" style={{ margin: 0 }}>{err}</p>}
-            <button className="gb-btn" disabled={!name.trim()} onClick={() => { const r = s.setProfile(name, ref); if (!r.ok) return goError(r.error); setErr(null); setStep('role'); }}>Continuer</button>
+            <button className="gb-btn" disabled={!name.trim()} onClick={async () => { const r = await s.setProfile(name, ref); if (!r.ok) return goError(r.error); setErr(null); setStep('role'); }}>Continuer</button>
           </>
         )}
         {step === 'role' && (
@@ -258,7 +262,7 @@ export function Onboarding({ onCancel }: { onCancel: () => void }) {
             </label>
             {err && <p className="gb-error" role="alert" style={{ margin: 0 }}>{err}</p>}
             <p className="muted" style={{ margin: 0, fontSize: 14 }}>La validation lance votre période d’essai de 7 jours, sans paiement.</p>
-            <button className="gb-btn" disabled={!bizName.trim()} onClick={() => { const r = s.createBusiness(bizName, sector, stock); if (!r.ok) return goError(r.error); nav(`/b/${r.value.id}`); }}>Commencer l’essai de 7 jours</button>
+            <button className="gb-btn" disabled={!bizName.trim()} onClick={async () => { const r = await s.createBusiness(bizName, sector, stock); if (!r.ok) return goError(r.error); nav(`/b/${r.value.id}`); }}>Commencer l’essai de 7 jours</button>
           </>
         )}
       </div>
@@ -274,14 +278,17 @@ function ResetPin({ userId, onBack, onDone }: { userId: string; onBack: () => vo
   const [stage, setStage] = useState<'otp' | 'pin'>('otp');
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
-  const [err, setErr] = useState<string | null>(() => {
+  const [err, setErr] = useState<string | null>(null);
+  const [requested, setRequested] = useState(false);
+  const request = async () => {
     const c = user ? countryOfPhone(user.phone) : null;
-    if (!user || !c) return 'Compte introuvable.';
-    const r = s.startOtp(c, user.phone.slice(COUNTRIES[c].dialCode.length), 'pin_reset');
-    return r.ok ? null : r.error;
-  });
-  const check = (v: string) => {
-    const r = s.verifyOtp(v);
+    if (!user || !c) return setErr('Compte introuvable.');
+    const r = await s.startOtp(c, user.phone.slice(COUNTRIES[c].dialCode.length), 'pin_reset');
+    if (!r.ok) return setErr(r.error);
+    setRequested(true);
+  };
+  const check = async (v: string) => {
+    const r = await s.verifyOtp(v);
     if (!r.ok) {
       setErr(r.error);
       return setCode('');
@@ -289,11 +296,11 @@ function ResetPin({ userId, onBack, onDone }: { userId: string; onBack: () => vo
     setErr(null);
     setStage('pin');
   };
-  const press = (d: string) => {
+  const press = async (d: string) => {
     const next = (pin + d).slice(0, 4);
     setPin(next);
     if (next.length === 4) {
-      const r = s.createPin(next);
+      const r = await s.createPin(next);
       if (r.ok) return onDone();
       setErr(r.error);
       setPin('');
@@ -303,11 +310,11 @@ function ResetPin({ userId, onBack, onDone }: { userId: string; onBack: () => vo
     <div className="screen">
       <div className="pad stack" style={{ paddingTop: 24, flex: 1, gap: 20 }}>
         <button className="link" style={{ alignSelf: 'flex-start' }} onClick={onBack}>← Retour</button>
-        {stage === 'otp' ? (
+        {stage === 'otp' && !requested ? <button className="gb-btn" onClick={request}>Recevoir le code de réinitialisation</button> : stage === 'otp' ? (
           <>
             <h1 className="h1">Entrez le code à 4 chiffres reçu par WhatsApp</h1>
             <input className="gb-input otp" inputMode="numeric" maxLength={4} autoFocus value={code} aria-label="Code à 4 chiffres" onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 4); setCode(v); if (v.length === 4) check(v); }} />
-            <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucun message WhatsApp n’est envoyé. Votre code : <strong>{s.lastDemoOtp}</strong></p>
+            {s.mode === 'demo' && <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucun message WhatsApp n’est envoyé. Votre code : <strong>{s.mode === 'demo' ? s.lastDemoOtp : ''}</strong></p>}
           </>
         ) : (
           <>

@@ -1,6 +1,6 @@
 import { COUNTRIES, can, canViewOwnerDashboard, subscriptionPopup, subscriptionStatus, formatFcfa, totalsOfDay, type Business } from '@gobilan/domain';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, Outlet, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useStore } from '../app/useStore';
 import { BottomNav } from '../components/BottomNav';
 import { Header } from '../components/Header';
@@ -17,6 +17,7 @@ export interface BizCtx {
 export function BusinessShell() {
   const s = useStore();
   const { bid = '' } = useParams();
+  const location = useLocation();
   const nav = useNavigate();
   const [menu, setMenu] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -39,8 +40,8 @@ export function BusinessShell() {
   return (
     <div className="screen">
       <Header title={business.name} userName={user.name || '?'} left="menu" onMenu={() => setMenu(true)} onAvatar={() => nav('/profil')} />
-      <div className="demo-banner gb-demo-banner">MODE DEMO — données simulées</div>
-      {blockedOwner ? <BlockedOwner base={base} /> : <Outlet context={{ business, base, isOwner: owner } satisfies BizCtx} />}
+      {s.mode === 'demo' && <div className="demo-banner gb-demo-banner">MODE DEMO — données simulées</div>}
+      {blockedOwner && !location.pathname.endsWith('/abonnement') ? <BlockedOwner base={base} /> : <Outlet context={{ business, base, isOwner: owner } satisfies BizCtx} />}
       {!blockedOwner && <BottomNav base={base} variant={owner ? 'owner' : 'manager'} />}
       {menu && <Drawer onClose={() => setMenu(false)} bid={bid} />}
       {popup.kind !== 'none' && !dismissed && !blockedOwner && (
@@ -107,7 +108,7 @@ function Drawer({ onClose, bid }: { onClose: () => void; bid: string }) {
         </div>
         <div style={{ marginTop: 'auto', padding: 20 }}>
           <button className="link" onClick={() => go('/legal')}>Mentions légales & Politiques de confidentialité</button>
-          <div className="faint" style={{ fontSize: 12 }}>{COUNTRIES[user.country].name} · GoBilan (DEMO)</div>
+          <div className="faint" style={{ fontSize: 12 }}>{COUNTRIES[user.country].name} · GoBilan {s.mode === 'demo' ? '(DEMO)' : ''}</div>
         </div>
         <DemoControls compact />
       </aside>

@@ -1,4 +1,4 @@
-import { LEVEL_DESCRIPTIONS, LEVEL_LABELS, canManageMember, grantableLevels, roleLabel, type PermissionLevel } from '@gobilan/domain';
+import { can, LEVEL_DESCRIPTIONS, LEVEL_LABELS, canManageMember, grantableLevels, roleLabel, type PermissionLevel } from '@gobilan/domain';
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useStore } from '../app/useStore';
@@ -16,7 +16,7 @@ export function TeamScreen() {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   if (!user) return null;
   const me = s.accessOf(user.id, b.id);
-  if (!me) return null;
+  if (!me || !can(me, 'viewTeam')) return <main className="pad"><p role="alert">Accès réservé à la gestion de l’équipe.</p></main>;
   const roles = s.rolesOf(b.id);
   const members = s.membersOf(b.id);
   const levels = grantableLevels(me);
@@ -37,7 +37,7 @@ export function TeamScreen() {
             return (
               <li key={m.id}>
                 <span><strong>{u?.name || 'Sans nom'}</strong><br /><span className="faint" style={{ fontSize: 13 }}>{a ? roleLabel(a) : ''}{a?.role ? ` · ${LEVEL_LABELS[a.role.level]}` : ''}</span></span>
-                {removable && <button className="link" onClick={() => report(s.removeMember(b.id, m.id), 'Membre retiré. Ses bilans restent conservés avec son nom.')}>Retirer</button>}
+                {removable && <button className="link" onClick={async () => report(await s.removeMember(b.id, m.id), 'Membre retiré. Ses bilans restent conservés avec son nom.')}>Retirer</button>}
               </li>
             );
           })}
@@ -51,17 +51,17 @@ export function TeamScreen() {
           {roles.filter((r) => levels.includes(r.level)).map((r) => <option key={r.id} value={r.id}>{r.name} — {LEVEL_LABELS[r.level]}</option>)}
         </select>
         <input className="gb-input" inputMode="numeric" placeholder="Numéro WhatsApp de la personne" aria-label="Numéro WhatsApp de la personne" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <button className="gb-btn" disabled={!roleId || !phone} onClick={() => { const r = s.invite(b.id, phone, roleId); report(r, 'Invitation enregistrée (statut « En attente » jusqu’à acceptation).'); if (r.ok) setPhone(''); }}>Inviter</button>
+        <button className="gb-btn" disabled={!roleId || !phone} onClick={async () => { const r = await s.invite(b.id, phone, roleId); report(r, 'Invitation enregistrée (statut « En attente » jusqu’à acceptation).'); if (r.ok) setPhone(''); }}>Inviter</button>
       </section>
-      <section className="stack" style={{ gap: 10 }}>
+      {can(me, 'createRoles') && <section className="stack" style={{ gap: 10 }}>
         <h2 className="h2">Créer un rôle</h2>
         <input className="gb-input" placeholder="Nom du rôle (Caissier, Gérant, DG, Comptable…)" aria-label="Nom du rôle" value={roleName} onChange={(e) => setRoleName(e.target.value)} />
         <select className="gb-input" aria-label="Niveau de permission" value={level} onChange={(e) => setLevel(e.target.value as PermissionLevel)}>
           {levels.map((l) => <option key={l} value={l}>{LEVEL_LABELS[l]}</option>)}
         </select>
         <p className="faint" style={{ margin: 0, fontSize: 13 }}>{LEVEL_DESCRIPTIONS[level]}</p>
-        <button className="gb-btn gb-btn--ghost" disabled={!roleName.trim()} onClick={() => { const r = s.createRole(b.id, roleName, level); report(r, 'Rôle créé.'); if (r.ok) setRoleName(''); }}>Créer le rôle</button>
-      </section>
+        <button className="gb-btn gb-btn--ghost" disabled={!roleName.trim()} onClick={async () => { const r = await s.createRole(b.id, roleName, level); report(r, 'Rôle créé.'); if (r.ok) setRoleName(''); }}>Créer le rôle</button>
+      </section>}
     </main>
   );
 }

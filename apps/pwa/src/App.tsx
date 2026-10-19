@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Logo } from '@gobilan/ui';
-import { store, useStore } from './app/useStore';
+import { demoEnabled, store, useStore } from './app/useStore';
 import { currentEnv } from './lib/env';
 import { BusinessShell } from './screens/BusinessShell';
 import { HelpScreen } from './screens/Help';
@@ -22,15 +22,7 @@ import { TeamScreen } from './screens/Team';
  * Désactivé en construisant avec VITE_ALLOW_DEMO_BYPASS=0. La page d'installation reste une règle
  * d'affichage ; la vraie protection est côté serveur (CDC §3, §13).
  */
-function demoBypass(): boolean {
-  if (import.meta.env.VITE_ALLOW_DEMO_BYPASS === '0') return false;
-  try {
-    if (new URLSearchParams(window.location.search).get('demo') === '1') sessionStorage.setItem('gb-demo', '1');
-    return sessionStorage.getItem('gb-demo') === '1';
-  } catch {
-    return new URLSearchParams(window.location.search).get('demo') === '1';
-  }
-}
+const demoBypass = demoEnabled;
 
 function Splash() {
   return <div className="screen center" style={{ justifyContent: 'center', minHeight: '100dvh' }}><div className="splash"><Logo size={88} /></div></div>;
@@ -40,7 +32,7 @@ function Landing() {
   const s = useStore();
   const nav = useNavigate();
   const u = s.user;
-  if (!u) return <AuthGate />;
+  if (!u || !u.name) return <AuthGate />;
   const list = s.businessesOfUser(u.id);
   const first = list[0];
   if (first) return <Navigate to={`/b/${first.id}`} replace />;
@@ -71,10 +63,22 @@ export function App() {
     (navigator as Navigator & { clearAppBadge?: () => Promise<void> }).clearAppBadge?.().catch(() => undefined);
     return () => clearTimeout(t);
   }, []);
-  if (!ready) return <Splash />;
+  useEffect(() => {
+    if (s.mode !== 'api') return;
+    void s.initialize();
+    const update = () => { if (document.visibilityState === 'visible' && s.user) void s.refreshIfIdle(); };
+    window.addEventListener('focus', update);
+    const timer = setInterval(update, 30000);
+    return () => { window.removeEventListener('focus', update); clearInterval(timer); };
+  }, [s]);
+  if (!ready || (s.mode === 'api' && !s.initialized)) return <Splash />;
+  if (s.mode === 'api' && s.loadError && !s.user) return <main className="pad stack"><p role="alert">{s.error}</p><button className="gb-btn" onClick={() => void s.refresh()}>Réessayer</button></main>;
   const installed = env.standalone || bypass;
   return (
     <BrowserRouter>
+      {s.mode === 'api' && (s.loading || s.busy) && <p role="status">Chargement…</p>}
+      {s.mode === 'api' && s.error && s.user && <p role="alert">{s.error}</p>}
+      {s.mode === 'api' && s.otherDevices.length > 0 && <aside className="pad"><p>Vous êtes connecté sur un nouvel appareil.</p><button className="gb-btn" onClick={() => void s.logoutOtherDevices()}>Déconnecter les anciens appareils</button></aside>}
       <Routes>
         <Route path="/legal" element={<LegalScreen />} />
         {!installed ? (
