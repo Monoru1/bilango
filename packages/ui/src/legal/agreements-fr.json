@@ -1,0 +1,101 @@
+{
+ "version": "1.0",
+ "common": [
+  {
+   "title": "Article 1 : Objet",
+   "text": "Le présent accord définit la rémunération du partenaire pour les abonnements GoBilan qu'il génère dans le cadre du programme partenaires de la société Novadis Digital."
+  },
+  {
+   "title": "Article 2 : Parrainage et conditions",
+   "text": "Le parrainage est l'inscription d'une personne avec le code promo du partenaire. Un parrainage seul ne donne droit à aucune commission. La commission n'est due que si la personne parrainée paie son premier abonnement dans les 30 jours suivant son inscription, après sa période d'essai de 7 jours, et que ce paiement est encaissé par GoBilan via FedaPay. Aucune commission n'est due sur les périodes d'essai, ni sur les paiements annulés, remboursés ou contestés, ni sur un abonnement payé par le partenaire lui-même, un membre de sa famille, ou un commerce dont il est propriétaire ou gérant."
+  },
+  {
+   "title": "Article 3 : Calcul, frais de transaction et seuil",
+   "text": "Le montant versé correspond au montant brut moins les frais de transaction facturés par l'opérateur pour effectuer le versement. Chaque versement est accompagné d'un relevé indiquant le montant brut, les frais et le montant net. Un versement n'est effectué qu'à partir de 2 000 FCFA cumulés ; en dessous, le solde est reporté au cycle suivant."
+  },
+  {
+   "title": "Article 4 : Calendrier",
+   "text": "Les versements sont effectués les 1er et 15 de chaque mois, jours fériés et week-ends compris. Un paiement client confirmé du 1er au 14 du mois est versé le 15 du même mois. Un paiement confirmé du 15 au dernier jour du mois est versé le 1er du mois suivant."
+  },
+  {
+   "title": "Article 5 : Annulation et régularisation",
+   "text": "Si un paiement est remboursé, annulé ou contesté, la commission correspondante est annulée. Si elle a déjà été versée, son montant est déduit des versements suivants."
+  },
+  {
+   "title": "Article 6 : Vérifications",
+   "text": "Avant tout versement, GoBilan peut vérifier la validité d'un paiement et suspendre le versement correspondant le temps de la vérification. Le partenaire en est informé."
+  },
+  {
+   "title": "Article 7 : Confidentialité",
+   "text": "Le partenaire ne connaît que sa propre rémunération. Les conditions des autres partenaires sont confidentielles."
+  },
+  {
+   "title": "Article 8 : Stabilité des montants",
+   "text": "Les montants du présent accord sont fixés pour un an à compter de sa signature et ne peuvent pas être modifiés pendant cette période. Chaque personne parrainée est rémunérée selon les montants en vigueur à la date de son parrainage, pendant 12 mois au maximum à partir de son premier paiement, même si l'accord arrive à échéance. Un nouvel accord ne concerne que les personnes parrainées après son entrée en vigueur."
+  },
+  {
+   "title": "Article 9 : Acceptation",
+   "text": "L'accès au tableau de bord du partenaire est conditionné à l'acceptation du présent accord. GoBilan conserve la date, l'heure, la version et l'identifiant de chaque acceptation."
+  },
+  {
+   "title": "Article 10 : Durée et résiliation",
+   "text": "Le présent accord est conclu pour un an à compter de sa signature. Il peut être résilié par l'une ou l'autre partie, par écrit, avec un préavis de 30 jours. La résiliation ne remet pas en cause les commissions dues pour les parrainages effectués avant la fin du préavis. À son terme, l'accord cesse de produire effet, sauf acceptation d'une nouvelle version."
+  },
+  {
+   "title": "Article 11 : Droit applicable et litiges",
+   "text": "Le présent accord est soumis au droit de la République du Bénin. Tout litige est soumis, après une tentative de règlement amiable, aux tribunaux de Cotonou."
+  }
+ ],
+ "agent": [
+  {
+   "title": "Article A1 : Rémunération",
+   "text": "Tu touches 1 000 FCFA pour le premier paiement d'un abonnement que tu as généré, validé par GoBilan. Tu touches 500 FCFA pour chacun des 11 renouvellements suivants de ce même abonnement, tant que le client renouvelle. La rémunération est limitée à 12 mois par abonnement. Si le client cesse de renouveler, aucune commission n'est due pour les mois suivants."
+  },
+  {
+   "title": "Article A2 : Obligations",
+   "text": "Tu ne reçois jamais d'argent des commerçants : tous les paiements passent par FedaPay. Tu déclares chaque prospect avant de le démarcher, pour éviter les doublons. Tu ne fais aucune promesse de gains ou de résultats qui ne figure pas dans la documentation GoBilan. Tu n'utilises pas ton code pour toi-même ni pour un proche."
+  },
+  {
+   "title": "Article A3 : Tableau de bord",
+   "text": "Tu vois tes parrainages : nom du business, date d'inscription, statut et jours restants avant expiration. Tu ne vois aucun numéro de téléphone, ni les rémunérations d'autres partenaires."
+  }
+ ],
+ "manager": [
+  {
+   "title": "Article M1 : Rémunération",
+   "text": "Tu touches 800 FCFA pour le premier paiement d'un abonnement généré par un agent de ton équipe, validé par GoBilan. Tu touches 500 FCFA pour chacun des 11 renouvellements suivants de ce même abonnement, tant que le client renouvelle. La rémunération est limitée à 12 mois par abonnement. Si le client cesse de renouveler, aucune commission n'est due pour les mois suivants."
+  },
+  {
+   "title": "Article M2 : Périmètre",
+   "text": "Tu ne perçois rien sur les abonnements que tu n'as pas générés via un agent de ton équipe. Tu n'as pas de code promo personnel : tu attribues des codes uniquement à tes agents. Si tu souhaites un code personnel, un compte influenceur distinct, avec sa propre adresse e-mail et son propre accord, est nécessaire."
+  },
+  {
+   "title": "Article M3 : Responsabilité",
+   "text": "Tu veilles à ce que les agents de ton équipe respectent l'article A2. GoBilan peut suspendre la rémunération liée à un agent qui ne le respecte pas, après en avoir informé le manager."
+  },
+  {
+   "title": "Article M4 : Tableau de bord",
+   "text": "Tu vois les agents de ton équipe, le statut de leurs parrainages et les gains liés à ton équipe. Tu ne vois aucun numéro de téléphone de commerçant."
+  }
+ ],
+ "influencer": [
+  {
+   "title": "Article I1 : Rémunération",
+   "text": "Tu touches 1 800 FCFA pour le premier mois d'abonnement d'une personne inscrite avec ton code promo, validé par GoBilan. Tu touches ensuite 1 000 FCFA pour chacun des 11 mois suivants, tant que cette personne reste abonnée et renouvelle. La rémunération est limitée à 12 mois par abonné. Les montants sont nets des frais de transaction (article 3 de la partie commune)."
+  },
+  {
+   "title": "Article I2 : Obligations",
+   "text": "Tu ne reçois jamais d'argent des commerçants : tous les paiements passent par FedaPay. Tu ne fais aucune promesse de gains ou de résultats qui ne figure pas dans la documentation GoBilan. Tu indiques clairement que tu es partenaire de GoBilan dans tes publications. Tu n'utilises pas ton code pour toi-même ni pour un proche. Tu ne diffuses aucune publicité trompeuse."
+  },
+  {
+   "title": "Article I3 : Tableau de bord",
+   "text": "Pour chaque abonné, tu vois le nom du business, le mois en cours (de 1 à 12), le gain du mois et le total cumulé. Tu ne vois aucun numéro de téléphone de commerçant."
+  }
+ ],
+ "closing": "Ces textes sont rédigés pour servir de base de travail. Leur validité juridique doit être confirmée par un juriste avant toute signature.",
+ "acceptance": {
+  "agent": "J'ai lu et j'accepte l'accord agent de terrain, version 1.0.",
+  "manager": "J'ai lu et j'accepte l'accord manager, version 1.0.",
+  "influencer": "J'ai lu et j'accepte l'accord influenceur, version 1.0."
+ }
+}

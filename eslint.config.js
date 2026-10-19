@@ -1,19 +1,19 @@
-const { defineConfig } = require('eslint/config');
-const expoConfig = require('eslint-config-expo/flat');
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-module.exports = defineConfig([
-  expoConfig,
+export default tseslint.config(
+  { ignores: ['**/node_modules/**', '**/dist/**', 'legacy/**', '**/*.tsbuildinfo', '**/coverage/**', 'apps/*/public/**'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    ignores: ['dist/*', '.expo/*'],
-  },
-  {
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {
-      // Désactivée volontairement : l'interface est en français et le texte JSX contient des
-      // apostrophes (« l'activité », « n'est »). En React Native le texte est rendu tel quel
-      // dans <Text> : il n'existe pas d'analyse HTML à protéger, et échapper chaque apostrophe
-      // en &apos; dégraderait la lisibilité et les relectures de texte. Toutes les autres
-      // règles de la config Expo restent actives.
-      'react/no-unescaped-entities': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      '@typescript-eslint/consistent-type-imports': 'error',
+      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
-]);
+  // Scripts de test manuel : la sortie console est leur interface.
+  { files: ['e2e/**'], rules: { 'no-console': 'off' } },
+);

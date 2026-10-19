@@ -1,0 +1,10 @@
+{
+  "name": "@gobilan/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contrats API GoBilan : schémas Zod partagés entre la PWA, les portails et l'API",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": { "@gobilan/domain": "*", "zod": "^3.25.0" }
+}

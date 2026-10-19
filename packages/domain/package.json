@@ -1,0 +1,12 @@
+{
+  "name": "@gobilan/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Règles métier pures GoBilan — aucune dépendance UI, serveur ou réseau",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}

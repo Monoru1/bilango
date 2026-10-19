@@ -1,0 +1,42 @@
+@import '@fontsource-variable/inter/wght.css';
+
+/* Design fintech B2B sobre — CDC 19/10/2026 §11 : beaucoup de blanc, une couleur presque absente. */
+:root {
+  --bg: #ffffff;
+  --text: #14181a;
+  --text-2: #6b7280;
+  --text-3: #9aa09c;
+  --accent: #0f6e56; /* logo, soulignement d'onglet, sparkline UNIQUEMENT */
+  --active: #25d366; /* onglet actif de la barre du bas */
+  --neg: #b54b3a;
+  --neg-bg: #fbedea;
+  --pos: #0f6e56;
+  --pos-bg: #e8f3ef;
+  --sep: #f0f0ee;
+  --chip: #f0f0ee;
+  --radius: 12px;
+  --font: 'Inter Variable', Inter, 'Helvetica Neue', -apple-system, system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.4; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: inherit; }
+
+.gb-label { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.gb-amount { font-weight: 700; font-size: 48px; line-height: 1.05; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.gb-amount--md { font-size: 28px; letter-spacing: -0.5px; }
+.gb-unit { font-weight: 400; color: var(--text-3); font-size: 0.5em; margin-left: 8px; letter-spacing: 0; }
+.gb-sep { height: 1px; background: var(--sep); border: 0; margin: 0; }
+.gb-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 56px; border: 0; border-radius: var(--radius); background: var(--text); color: #fff; font-weight: 600; font-size: 17px; cursor: pointer; }
+.gb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.gb-btn--ghost { background: transparent; color: var(--text); border: 1px solid var(--sep); }
+.gb-chip { display: inline-block; background: var(--chip); color: var(--text-2); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; }
+.gb-pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; }
+.gb-pill--neg { background: var(--neg-bg); color: var(--neg); }
+.gb-pill--pos { background: var(--pos-bg); color: var(--pos); }
+.gb-error { background: var(--neg-bg); color: var(--neg); border-radius: var(--radius); padding: 12px 14px; font-size: 14px; }
+.gb-input { width: 100%; min-height: 56px; border: 1px solid #e3e3e0; border-radius: var(--radius); padding: 0 16px; font-size: 17px; background: #fff; }
+.gb-input:focus { outline: 2px solid var(--text); outline-offset: 0; border-color: var(--text); }
+.gb-demo-banner { background: #14181a; color: #fff; font-size: 12px; text-align: center; padding: 6px 10px; letter-spacing: 0.4px; }

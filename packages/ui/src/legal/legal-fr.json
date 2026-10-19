@@ -1,0 +1,294 @@
+[
+ {
+  "t": "h",
+  "text": "Section 1 : Conditions générales d'utilisation (CGU) et mentions légales"
+ },
+ {
+  "t": "h",
+  "text": "PRÉAMBULE"
+ },
+ {
+  "t": "p",
+  "text": "Les présentes Conditions Générales d'Utilisation (ci-après dénommées « CGU ») soumettent à un cadre légal strict l'accès, la consultation et l'utilisation de la Progressive Web App (ci-après dénommée « GoBilan » ou « la PWA ») éditée par la société désignée aux Mentions Légales. Tout utilisateur, qu'il agisse en qualité de Propriétaire de Business (ci-après « le Patron ») ou d'utilisateur invité (ci-après « l'Employé » ou « le Gérant »), reconnaît sans réserve avoir pris connaissance, compris et accepté l'intégralité des présentes clauses."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 1 : MENTIONS LÉGALES ET PROPRIÉTÉ ÉDITORIALE"
+ },
+ {
+  "t": "p",
+  "text": "L'infrastructure logicielle, le site web et la marque GoBilan sont exploités de manière exclusive par la société Novadis Digital, entreprise en cours d'immatriculation officielle au Registre du Commerce et du Crédit Mobilier (RCCM), dont le siège social est situé à Cotonou, République du Bénin."
+ },
+ {
+  "t": "p",
+  "text": "Directeur de la publication : Le Représentant Légal de la société Novadis Digital."
+ },
+ {
+  "t": "p",
+  "text": "Contact d'assistance officiel : contact@gobilan.com"
+ },
+ {
+  "t": "p",
+  "text": "Hébergement des infrastructures : L'ensemble des serveurs applicatifs, bases de données relationnelles et systèmes de stockage chiffrés sont hébergés sur les infrastructures de serveurs cloud sécurisés sélectionnés par l'éditeur, garantissant un taux de disponibilité technique optimal et une protection maximale contre les intrusions."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 2 : DÉFINITIONS ET ARCHITECTURE DU SERVICE"
+ },
+ {
+  "t": "p",
+  "text": "Pour l'exécution des présentes, les termes suivants s'entendent comme suit :"
+ },
+ {
+  "t": "ul",
+  "items": [
+   "GoBilan (Progressive Web App) : solution applicative web mobile déployable directement sur l'écran d'accueil des terminaux mobiles, sans passer par un magasin d'applications natif tiers.",
+   "Espace Business : environnement virtuel cloisonné et privé représentant l'entité commerciale du Patron.",
+   "Bilan Journalier : rapport financier et d'état des stocks consolidé, saisi manuellement par l'Employé à des fins de consultation exclusive par le Patron."
+  ]
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 3 : ACCÈS AU SERVICE ET CONFIGURATION DES COMPTES"
+ },
+ {
+  "t": "p",
+  "text": "L'accès à GoBilan nécessite une connexion internet et l'utilisation d'un navigateur mobile moderne supportant les technologies de Service Workers."
+ },
+ {
+  "t": "p",
+  "text": "Exactitude des identifiants : lors du processus d'onboarding, l'utilisateur s'engage à fournir des données d'identification rigoureusement exactes. Le numéro WhatsApp fourni fait office d'identifiant unique vérifié."
+ },
+ {
+  "t": "p",
+  "text": "Sécurité des accès : chaque compte est strictement personnel. Le Patron et l'Employé sont seuls responsables de la confidentialité de leur code PIN et des codes de vérification reçus par WhatsApp. Toute action effectuée depuis un compte utilisateur est légalement réputée avoir été accomplie par le titulaire de ce compte."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 4 : PROPRIÉTÉ INTELLECTUELLE ET DROITS DE LICENCE"
+ },
+ {
+  "t": "p",
+  "text": "L'architecture technique, le code source, le design graphique, les algorithmes de calcul de trésorerie, la charte visuelle et les logos de la PWA GoBilan sont la propriété intellectuelle exclusive de la société Novadis Digital. Il est concédé à l'utilisateur une licence d'utilisation personnelle, temporaire, révocable et non transférable. Toute tentative de rétro-ingénierie, de copie du code ou de reproduction des interfaces sans accord écrit préalable exposera le contrevenant à des poursuites judiciaires immédiates."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 5 : PROPRIÉTÉ DES DONNÉES ET CONFIDENTIALITÉ DES CHIFFRES"
+ },
+ {
+  "t": "p",
+  "text": "Garantie de non-exploitation : la société Novadis Digital affirme de manière absolue que l'intégralité des données commerciales (chiffres d'affaires, flux de trésorerie, inventaires de stocks) reste la propriété exclusive du Patron."
+ },
+ {
+  "t": "p",
+  "text": "Secret commercial : aucune donnée relative à la santé financière d'un commerce ne sera exploitée, vendue, analysée à des fins marketing ou divulguée à des tiers, y compris à des entités concurrentes."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 6 : CLAUSE DE LIMITATION DE RESPONSABILITÉ ET EXONÉRATION JURIDIQUE"
+ },
+ {
+  "t": "p",
+  "text": "La société Novadis Digital agit exclusivement en qualité de prestataire technique de fournitures logicielles. En conséquence, sa responsabilité ne saurait être engagée dans les cas suivants :"
+ },
+ {
+  "t": "ol",
+  "items": [
+   "Erreurs de saisie humaine : dysfonctionnements, incohérences ou erreurs manifestes dans les calculs découlant d'une mauvaise saisie ou d'une omission volontaire ou involontaire de l'Employé ou du Gérant.",
+   "Actes malveillants internes (coulage de caisse) : vols physiques, détournements de fonds, fraudes sur les stocks réels ou manipulations frauduleuses commis au sein de l'établissement du Patron. GoBilan est un outil de constatation numérique et ne se substitue pas à la surveillance physique et légale du chef d'entreprise.",
+   "Pannes de réseaux télécoms : interruptions temporaires d'accès découlant des défaillances des opérateurs de réseaux mobiles ou de connexions internet locales (MTN, Moov, Orange, Wave, Telecel, TMoney, etc.).",
+   "Cas de force majeure : pertes de données ou indisponibilité du service résultant de catastrophes naturelles, coupures électriques nationales, cyberattaques d'envergure internationale ou instabilités géopolitiques."
+  ]
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 7 : SUSPENSION ET RÉSILIATION DU COMPTE"
+ },
+ {
+  "t": "p",
+  "text": "Le Patron conserve le droit de mettre fin à l'utilisation du service à tout moment. En cas de non-respect manifeste des présentes CGU ou d'activité suspecte s'apparentant à du piratage informatique, la société Novadis Digital se réserve le droit de suspendre ou de clôturer le compte de l'utilisateur de plein droit, sans préavis ni indemnité."
+ },
+ {
+  "t": "h",
+  "text": "Section 2 : Politique de confidentialité et de traitement des données personnelles"
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 1 : CADRE JURIDIQUE ET CONFORMITÉ RÉGIONALE"
+ },
+ {
+  "t": "p",
+  "text": "La présente Politique de Confidentialité décrit de manière exhaustive les protocoles de collecte, de traitement, de stockage et de sécurisation des données à caractère personnel mis en œuvre par la société Novadis Digital. Ce document est rédigé et exécuté en stricte conformité avec les réglementations nationales et communautaires africaines les plus rigoureuses, notamment :"
+ },
+ {
+  "t": "ul",
+  "items": [
+   "la loi n° 2017-20 portant code du numérique en République du Bénin (encadrée par l'APDP) ;",
+   "la loi n° 2013-450 relative à la protection des données à caractère personnel en Côte d'Ivoire (encadrée par l'ARTCI) ; la loi n° 2019-014 relative à la protection des données à caractère personnel en République Togolaise (encadrée par l'IPDCP) ; l'acte additionnel A/SA.1/01/10 relatif à la protection des données à caractère personnel dans l'espace CEDEAO."
+  ]
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 2 : NATURE DES DONNÉES COLLECTÉES ET FINALITÉS"
+ },
+ {
+  "t": "p",
+  "text": "La collecte des données est strictement limitée aux éléments nécessaires à la fourniture, à l'amélioration et à la sécurisation des services applicatifs :"
+ },
+ {
+  "t": "ol",
+  "items": [
+   "Données d'identité de l'administrateur (le Patron) : nom, prénoms, numéro de téléphone mobile actif, dénomination commerciale du ou des business gérés.",
+   "Données d'identité des tiers invités (les Employés) : nom, prénom, numéro WhatsApp d'invitation.",
+   "Données d'exploitation technique : adresse IP de connexion, logs d'horodatage des validations de clôture de caisse, cookies techniques de session, métadonnées du terminal mobile utilisé, identifiant d'abonnement aux notifications push.",
+   "Données des partenaires (agents de terrain, managers, influenceurs) : nom, adresse e-mail, numéro, réseau et nom affiché pour les versements de commissions, historique des parrainages et des commissions."
+  ]
+ },
+ {
+  "t": "p",
+  "text": "Finalités exclusives : ces informations ont pour but unique l'authentification des accès, la prévention des fraudes informatiques, l'envoi des notifications d'alerte, le calcul transparent des indicateurs de gestion financière et le paiement des commissions aux partenaires."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 3 : PROTOCOLES DE SÉCURITÉ ET CHIFFREMENT"
+ },
+ {
+  "t": "p",
+  "text": "La société Novadis Digital déploie des standards de sécurité renforcés pour préserver l'intégrité des informations confidentielles."
+ },
+ {
+  "t": "p",
+  "text": "Chiffrement des liaisons : tous les échanges de flux entre le terminal mobile de l'utilisateur et nos infrastructures d'hébergement sont protégés par des protocoles de chiffrement SSL/TLS (HTTPS) de niveau industriel."
+ },
+ {
+  "t": "p",
+  "text": "Cloisonnement des bases de données : les architectures de nos bases de données appliquent des règles de sécurité strictes empêchant toute fuite de données inter-entreprises. Chaque Espace Business possède son propre token d'isolation numérique unique."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 4 : CLAUSE DE COOPÉRATION ET DE RÉQUISITION JUDICIAIRE (BLINDAGE ÉTAT/POLICE)"
+ },
+ {
+  "t": "p",
+  "text": "Par dérogation expresse aux principes de confidentialité et de secret commercial énoncés dans les présentes, la société Novadis Digital se réserve le droit de communiquer l'intégralité des données collectées (historiques de caisse, écritures comptables, mouvements de stocks, données d'identification) dans les conditions strictes définies ci-après :"
+ },
+ {
+  "t": "ol",
+  "items": [
+   "Injonction légale et judiciaire : en cas de réception d'une réquisition judiciaire formelle, d'un mandat d'amener, d'une ordonnance d'un juge d'instruction, ou de toute injonction écrite et signée émanant d'une autorité étatique, judiciaire, policière ou fiscale compétente et assermontée (Police Républicaine au Bénin, Gendarmerie ou Brigades Économiques et Financières en Côte d'Ivoire ou au Togo).",
+   "Exonération de responsabilité vis-à-vis du client : le transfert des données comptables et personnelles effectué dans le cadre d'une réquisition légale ne pourra en aucun cas engager la responsabilité civile ou pénale de la société Novadis Digital. Le client renonce expressément à toute poursuite ou demande d'indemnisation découlant de cette divulgation légale.",
+   "Refus des demandes informelles : la société s'engage à rejeter systématiquement toute demande d'accès aux chiffres formulée de manière verbale, informelle ou dénuée de base légale écrite et dûment authentifiée par un magistrat ou un officier de police judiciaire."
+  ]
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 5 : CLAUSE DE TRANSFERT TRANSFRONTALIER DE DONNÉES"
+ },
+ {
+  "t": "p",
+  "text": "L'application GoBilan étant déployée simultanément dans plusieurs pays de l'espace UEMOA (Bénin, Côte d'Ivoire, Togo), l'utilisateur est expressément informé et accepte que ses données techniques et financières puissent transiter par des infrastructures serveurs centralisées. Ce transfert transfrontalier s'effectue sous le contrôle de l'éditeur, dans le strict respect des accords de coopération de la CEDEAO sur la libre circulation des données numériques sécurisées."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 6 : CLOISONNEMENT ET ANONYMISATION DU RÉSEAU DE DISTRIBUTION (AGENTS ET MANAGERS)"
+ },
+ {
+  "t": "p",
+  "text": "Dans le cadre du déploiement opérationnel de notre réseau d'apport d'affaires et de parrainage sur le terrain :"
+ },
+ {
+  "t": "ul",
+  "items": [
+   "Protection des identités : les informations nominatives sensibles concernant les entreprises clientes (numéros de téléphone complets des patrons, identités civiles exactes des employés) sont strictement anonymisées, tronquées et masquées sur les tableaux de bord des Agents de terrain et des Managers. Les agents ne voient ni numéro de téléphone ni identité civile des commerçants : seuls le nom du business, la date et le statut sont affichés.",
+   "Visibilité restreinte : seuls les indicateurs indispensables au calcul des commissions (statut d'essai, validation du paiement de l'abonnement, date d'activation) sont visibles pour les partenaires concernés."
+  ]
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 7 : DURÉE DE CONSERVATION ET DROITS DES UTILISATEURS"
+ },
+ {
+  "t": "p",
+  "text": "Les données d'exploitation financière sont conservées aussi longtemps que le compte utilisateur demeure actif."
+ },
+ {
+  "t": "p",
+  "text": "Droit d'accès et de rectification : en conformité avec les réglementations de l'espace CEDEAO/UEMOA, chaque utilisateur dispose d'un droit d'accès, de rectification, de limitation et d'effacement des données le concernant."
+ },
+ {
+  "t": "p",
+  "text": "Exercice des droits : pour exercer ces droits, l'utilisateur adresse une demande écrite motivée à l'adresse électronique : contact@gobilan.com."
+ },
+ {
+  "t": "h",
+  "text": "Section 3 : Conditions générales de vente (CGV)"
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 1 : CHAMP D'APPLICATION ET MODÈLE ÉCONOMIQUE"
+ },
+ {
+  "t": "p",
+  "text": "Les présentes Conditions Générales de Vente (ci-après « CGV ») définissent les termes commerciaux applicables à la fourniture de la licence d'exploitation technique de la PWA GoBilan par la société Novadis Digital à ses clients professionnels. L'application s'adresse exclusivement à un public de professionnels, commerçants, artisans ou chefs d'entreprise, agissant dans le cadre de leurs activités économiques."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 2 : TARIF ET STRUCTURE DES REDEVANCES"
+ },
+ {
+  "t": "p",
+  "text": "L'accès aux serveurs de calcul et au tableau de bord de monitoring de GoBilan est soumis au paiement d'une redevance forfaitaire, fixée à la somme de 2 000 FCFA (deux mille francs CFA) toutes taxes comprises pour une période de 30 jours, par point de vente enregistré, et non fractionnable. La société Novadis Digital se réserve le droit de réviser sa grille tarifaire à tout moment, sous réserve d'en informer les utilisateurs avec un préavis minimal de trente (30) jours. Cette règle ne s'applique pas aux montants de commission des partenaires, qui sont fixés par leur accord."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 3 : MODALITÉS DE LA PÉRIODE D'ÉVALUATION INITIALE"
+ },
+ {
+  "t": "p",
+  "text": "Chaque entité commerciale nouvellement créée sur la plateforme bénéficie de plein droit d'une période d'essai d'une durée stricte de sept (7) jours consécutifs. Cette période est exempte de toute facturation : aucun paiement n'est demandé pendant sa durée. Elle a pour but de valider l'adéquation des fonctionnalités du logiciel avec les exigences réelles du commerce du client."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 4 : SYSTÈME DE FACTURATION ET EXPÉDITION DES PAIEMENTS"
+ },
+ {
+  "t": "p",
+  "text": "L'application étant éditée sous la forme technologique d'une Progressive Web App (PWA) indépendante des stores tiers, les transactions financières sont opérées en ligne de manière sécurisée."
+ },
+ {
+  "t": "p",
+  "text": "Passerelle technique sécurisée : les flux de paiement sont administrés via l'infrastructure technique de la fintech FedaPay."
+ },
+ {
+  "t": "p",
+  "text": "Moyens de paiement acceptés : le règlement s'effectue exclusivement par le biais des comptes de monnaie électronique locaux (Mobile Money) incluant MTN Mobile Money, Moov Money, Orange Money, Wave, TMoney, ou par carte bancaire internationale selon la disponibilité géographique du pays sélectionné."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 5 : FRÉQUENCE DE RENOUVELLEMENT, DÉLAI DE GRÂCE ET PROTOCOLE DE SUSPENSION"
+ },
+ {
+  "t": "p",
+  "text": "Mécanisme de renouvellement : le contrat ne fait l'objet d'aucun prélèvement automatique ou récurrent. Le renouvellement s'effectue par l'action de paiement volontaire et manuelle du client toutes les périodes de 30 jours."
+ },
+ {
+  "t": "p",
+  "text": "Octroi du délai de grâce : à l'expiration de la période valide (période d'essai ou mois payé), la société Novadis Digital accorde une tolérance technique commerciale d'une durée maximale de trois (3) jours francs. Durant ce sursis, les fonctionnalités de saisie des bilans journaliers et de consultation restent pleinement opérationnelles."
+ },
+ {
+  "t": "p",
+  "text": "Mise en pause automatique : au quatrième (4ème) jour d'impayé, si le versement des 2 000 FCFA n'a pas été comptabilisé sur les comptes de la société, l'accès aux interfaces de contrôle et aux fonctionnalités applicatives est automatiquement suspendu. Les données historiques accumulées restent stockées et figées en toute sécurité le temps de la régularisation manuelle complète de l'échéance due auprès de notre service client."
+ },
+ {
+  "t": "p",
+  "text": "Absence de saisie rétroactive : après régularisation d'un abonnement suspendu, la saisie des bilans correspondant à la période de suspension n'est pas possible."
+ },
+ {
+  "t": "h",
+  "text": "ARTICLE 6 : NON-REMBOURSEMENT"
+ },
+ {
+  "t": "p",
+  "text": "En raison de la nature purement numérique du service fourni et de son exécution immédiate dès réception des fonds, les redevances versées au titre du renouvellement de la licence d'utilisation sont fermes et définitives. Aucun remboursement, prorata ou note de crédit ne sera accordé au client en cas d'arrêt d'activité ou de désinstallation en cours de période."
+ }
+]

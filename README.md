@@ -1,108 +1,69 @@
-# BilanGo
+# GoBilan — monorepo PWA
 
-Application Android native (Expo, React Native, TypeScript, Expo Router) de **suivi à distance pour propriétaires de business** : l'équipe sur place envoie un bilan simple en fin de journée, le propriétaire consulte chiffre d'affaires, dépenses et caisse théorique depuis son téléphone. Éditeur : Novadis Digital.
+PWA utilisateurs, portail partenaires, administration et API partagée pour le CDC du 19 octobre 2026.
 
-Référence fonctionnelle : [docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md).
+| Package | Rôle |
+|---|---|
+| apps/pwa | PWA propriétaire/employé ; client HTTP par défaut, démo explicite |
+| apps/partners | Portail partenaires, API réelle |
+| apps/admin | Administration, API réelle, 2FA et confirmations de l'allowlist |
+| apps/api | Fastify + PostgreSQL ; PGlite optionnel en développement |
+| packages/domain | Règles métier pures |
+| packages/contracts | Contrats et validation Zod |
+| packages/ui | Tokens, composants et textes légaux |
+| legacy/expo-app | Ancien prototype Expo, conservé en référence |
 
-> **État : démonstration client sur données fictives.** Tout fonctionne sur un backend simulé en mémoire. Rien n'est envoyé nulle part (ni WhatsApp, ni push, ni paiement) et le mock **n'offre aucune sécurité** : il reproduit les règles de permission pour que l'interface soit écrite contre le bon contrat, il ne protège aucune donnée. Voir [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) pour la suite.
->
-> **Non testé sur appareil Android** : la validation automatisée (tests, TypeScript, lint, export du bundle) est faite ; aucun essai sur téléphone ou émulateur n'a encore été réalisé. Suivre la procédure ci-dessous pour le faire.
+## Installation et validation
 
-Android uniquement : pas de WebView, pas de site emballé, pas de cible web ni iOS.
+Node.js 22 ou plus récent, npm et, pour les validations SQL/E2E, une base PostgreSQL de développement dédiée.
 
-## Tester sur un téléphone Android
-
-1. Installer **Expo Go** depuis le Play Store sur le téléphone.
-2. Sur l'ordinateur (Node 22.13+), à la racine du dépôt :
-   ```bash
-   npm ci
-   npm start
-   ```
-3. Téléphone et ordinateur sur le **même réseau Wi-Fi** ; scanner le QR code affiché avec Expo Go. Si le réseau bloque la connexion (Wi-Fi d'entreprise, pare-feu Windows), autoriser Node dans le pare-feu ou lancer `npx expo start --tunnel`.
-4. Alternative : émulateur Android (Android Studio + AVD), puis touche `a` dans le terminal.
-
-Les données sont régénérées à chaque lancement, relatives à la date du jour. Seuls la session et le PIN sont conservés sur l'appareil (SecureStore). Pour repartir de zéro : « Se déconnecter » puis « PIN oublié ou autre numéro », ou vider les données d'Expo Go.
-
-### Comptes de démonstration
-
-Écran de saisie du numéro → touchez un compte pour pré-remplir. **Code OTP : `123456`**, PIN de 4 chiffres au choix à la première connexion.
-
-| Numéro | Profil |
-| --- | --- |
-| 01 97 00 00 01 | **Koffi** : propriétaire de *Boutique Étoile* et de *Chez Maman Bar* (stock activé), et livreur chez *E-Shop Cotonou* (multi-business) |
-| 01 97 00 00 02 | **Rodrigue** : caissier (Saisie seule) chez Chez Maman Bar, avec une invitation en attente de *Boutique Étoile* |
-| 01 97 00 00 03 | **Fatou** : gérante (Gestion complète) |
-| 01 97 00 00 04 | **Yacine** : comptable (Lecture seule) |
-| 01 97 00 00 06 | Nouveau numéro **déjà invité** (demande son nom, puis arrive sur l'invitation) |
-| 01 97 00 00 99 | Nouveau numéro **sans business** (arrive sur « Créer mon business ») |
-
-### Scénario de démonstration conseillé (10 minutes)
-
-1. **Koffi** : connexion OTP + création du PIN → dashboard de *Boutique Étoile* (bilan du jour déjà reçu, modifiable 24 h). Menu latéral : trois business, CA du jour de chacun, jours d'abonnement.
-2. Passer à *Chez Maman Bar* : pas de bilan aujourd'hui → dernier bilan daté + badge « En attente du bilan ». Toucher le CA : détail par contributeur, décomposition de la caisse théorique. Onglet Bilans : un bilan marqué « Modifié » avec ses deux versions.
-3. Onglet Équipe : membres, rôles, invitation en attente, ancien membre retiré (ses bilans sont conservés). Inviter un numéro ; créer un rôle.
-4. **Rodrigue** (changer de numéro via « Se déconnecter » → « PIN oublié ou autre numéro ») : accueil manager, caisse théorique en évidence, « Faire le bilan du jour » avec détail optionnel et stock ; envoyer, puis « Modifier » (heure limite affichée). Menu → Invitations → accepter.
-5. **Yacine** (lecture seule) et **Fatou** (gestion complète) : mêmes données, droits différents.
-6. **Numéro 99** : « Créer mon business » → état vide rassurant → premier bilan avec déclaration de la caisse de départ.
-
-Le scénario automatisé dans `src/__tests__/consolidation.test.tsx` conserve une seule base fictive : nouveau propriétaire → business → invitation → acceptation par le manager → bilan de 40 000 FCFA avec caisse initiale 15 000 et dépenses 5 000 → consultation propriétaire, caisse **50 000 FCFA**.
-
-Procédure détaillée et journal de résultats : [ANDROID_ACCEPTANCE.md](docs/ANDROID_ACCEPTANCE.md). Audit fonctionnel et gravités : [ARCHITECTURE.md §10](docs/ARCHITECTURE.md#10-audit-fonctionnel--mission-04-2026-10-09).
-
-## Écrans fonctionnels
-
-| Zone | Écrans |
-| --- | --- |
-| Connexion | Accueil, saisie du numéro (démo : comptes pré-remplis), code OTP (renvoi après 30 s), nom (première connexion), création du PIN, verrouillage par PIN (5 essais) |
-| Propriétaire / gestion / lecture | Tableau de bord (Aujourd'hui / 7 j / 30 j, comparaison avec la veille, caisse théorique, état vide), détail du jour, historique groupé par jour, détail d'un bilan avec versions |
-| Manager (Saisie seule) | Accueil (caisse, bilan du jour, modification 24 h), formulaire de bilan (CA, dépenses, ajout à la caisse, détail optionnel, stock, note, caisse de départ au premier bilan), mes bilans |
-| Multi-business | Menu latéral, ajout d'un business (secteur, stock, rappel), compte sans business |
-| Équipe | Membres, rôles personnalisés, invitations (envoyées / reçues), changement de rôle, retrait (soft delete), heure de rappel |
-| Autres | Stock facultatif (liste, ajout d'article), abonnement en lecture seule (propriétaire), aide par rôle |
-
-## Simulations (ce qui n'est PAS réel)
-
-| Fonction | Simulation actuelle |
-| --- | --- |
-| OTP WhatsApp | Code fixe `123456` ; le rate limiting (30 s, 5/24 h) est simulé en mémoire |
-| Données et permissions | Mock en mémoire, régénéré à chaque lancement ; aucune sécurité |
-| PIN et session | Stockés dans le SecureStore de l'appareil ; le PIN n'est pas haché dans cette version |
-| Notifications push | Aucune ; l'heure de rappel est seulement enregistrée et affichée |
-| Abonnement | État fictif en lecture seule ; aucun paiement, aucun lien de paiement |
-| PDF « Télécharger le bilan » | Non implémenté |
-
-## Limites connues
-
-- Aucun essai sur appareil Android réel ni émulateur à ce jour.
-- Icône, adaptive, monochrome et splash : assets BilanGo préparés ; rendu à vérifier sur un binaire release. Voir [BRANDING_ASSETS.md](docs/BRANDING_ASSETS.md).
-- L'historique charge tous les bilans (pas de pagination) ; adapté à la démonstration.
-- Les trois interprétations du cahier à valider (numéro invité, bilan unique par auteur et par jour, nom demandé à l'inscription) sont listées dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §7 et [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
-- Contrastes contrôlés automatiquement, libellés TalkBack, police plafonnée à 1,8, confirmation avant abandon du bilan et adaptation clavier préparés ; recette native encore nécessaire.
-- Les nouveaux comptes de démo et leurs business disparaissent au rechargement de la base en mémoire ; seul le stockage local de session/PIN persiste.
-
-## Commandes
-
-| Commande | Rôle |
-| --- | --- |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint (config Expo) |
-| `npm test` | Jest : règles métier, services mock, session, brouillon de bilan, parcours de navigation sur le vrai arbre de routes |
-| `npm run check` | les trois ci-dessus |
-| `npx expo-doctor` | Compatibilité et configuration Expo |
-| `npm run bundle:android` | `expo export` : vérifie que tout le bundle Android compile |
-
-## Structure
-
-```
-src/
-  app/        routes Expo Router (auth, unlock, onboarding, (app)/(tabs)…)
-  domain/     modèle et règles métier pures (permissions, caisse, bilans, abonnement)
-  services/   contrat typé des services + implémentation mock (remplaçable)
-  state/      session/PIN, business courant, injection des services, hook useQuery
-  features/   composants métier (dashboard, formulaire de bilan, menu latéral…)
-  ui/         design system (tokens, composants, logo, pavé PIN)
-  test-utils/ helpers des tests de navigation
-docs/         cahier des charges, architecture, plan d'implémentation
+```bash
+npm ci
+npm run check
 ```
 
-Détails dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Consignes pour les agents et contributeurs dans [AGENTS.md](AGENTS.md).
+`check` vérifie TypeScript, ESLint, tests rapides et builds. Les scénarios de concurrence SQL sont réservés au vrai PostgreSQL :
+
+```bash
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/gobilan_test npm run test:postgres -w @gobilan/api
+npx playwright install chromium
+E2E_DATABASE_URL=postgresql://user:password@localhost:5432/gobilan_e2e npm run test:e2e
+```
+
+Les tests PostgreSQL et E2E créent leur propre schéma aléatoire, puis suppriment uniquement ce schéma. Le compte doit pouvoir créer des schémas. Utiliser une base de test, jamais une base de production. Les E2E lancent eux-mêmes les quatre applications, génèrent les secrets de test, exécutent les parcours et arrêtent les processus. Ports 5173, 5174, 5175 et 8787 requis libres. CHROMIUM permet de fournir un exécutable local si nécessaire.
+
+## Lancer le développement
+
+Variables serveur nécessaires : PIN_PEPPER_HEX (au moins 32 octets), PAYOUT_KEY_HEX (32 octets), FEDAPAY_WEBHOOK_SECRET. DATABASE_URL choisit une base PostgreSQL persistante ; sans cette variable, PGlite est éphémère et les données disparaissent au redémarrage.
+
+Exemple PowerShell dans le terminal de l'API :
+
+```powershell
+$env:PIN_PEPPER_HEX = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+$env:PAYOUT_KEY_HEX = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+$env:FEDAPAY_WEBHOOK_SECRET = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+$env:DATABASE_URL = 'postgresql://user:password@localhost:5432/gobilan_dev'
+npm run dev:api
+```
+
+Pour conserver une base de développement, conserver aussi les mêmes secrets hors dépôt : les changer invalide les hachages/chiffrements existants. Le serveur applique les migrations non encore présentes dans cette base de développement. La CLI migrate applique aussi les migrations ; ne pas la lancer sur une base réelle sans revue.
+
+Dans trois autres terminaux :
+
+```bash
+npm run dev:pwa
+npm run dev:partners
+npm run dev:admin
+```
+
+PWA : http://localhost:5173 ; partenaires : http://localhost:5174 ; admin : http://localhost:5175. L'installation standalone est exigée pour la PWA ; les E2E émulent uniquement ce signal d'affichage, pas une installation physique.
+
+Pour amorcer un administrateur Dev, renseigner DEV_SEED_ADMIN_EMAIL et DEV_SEED_ADMIN_PASSWORD au démarrage. Ajouter ensuite une seconde adresse depuis l'onglet Administrateurs, avec le code de confirmation e-mail Dev.
+
+## Démo et fournisseurs
+
+`?demo=1` ouvre les données locales clairement marquées DÉMO. `?demo=0` revient au client HTTP. Construire avec VITE_ALLOW_DEMO_BYPASS=0 supprime cet accès démo. Aucune panne réseau ne bascule automatiquement en démo.
+
+Les fournisseurs externes restent **simulés** : OTP WhatsApp et e-mails dans la console API, CAPTCHA Dev, DevGateway et push de test. Le mode HTTP ne propose pas de faux bouton de paiement réel. Le serveur refuse NODE_ENV=production.
+
+Voir docs/TEST_REPORT.md pour les validations exécutées, docs/REQUIREMENTS_MATRIX.md pour les écarts, docs/DEPLOYMENT_READINESS.md pour les blocages de lancement, et docs/CODEX_HANDOFF.md pour la reprise.
