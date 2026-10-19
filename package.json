@@ -1,0 +1,28 @@
+{
+  "name": "gobilan",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GoBilan (Novadis Digital) — monorepo PWA, portail partenaires, administration, API",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "dev:pwa": "npm run dev -w @gobilan/pwa",
+    "dev:partners": "npm run dev -w @gobilan/partners",
+    "dev:admin": "npm run dev -w @gobilan/admin",
+    "dev:api": "npm run dev -w @gobilan/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "globals": "^16.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.40.0",
+    "vitest": "^3.2.0"
+  }
+}
