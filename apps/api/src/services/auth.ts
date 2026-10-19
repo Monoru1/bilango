@@ -324,8 +324,18 @@ export class AuthService {
     return r.rows.length;
   }
 
-  async updateProfile(userId: string, name: string): Promise<void> {
-    await this.deps.db.query('update users set name = $2 where id = $1', [userId, name]);
+  /**
+   * Étape « Identité » (§4.1) + code de parrainage optionnel. Le code doit désigner un agent ou un
+   * influenceur ACTIF ; il est retenu sur le compte et rattaché au premier business créé (D-018).
+   */
+  async updateProfile(userId: string, name: string, referralCode?: string): Promise<void> {
+    let code: string | null = null;
+    if (referralCode) {
+      code = referralCode.trim().toUpperCase();
+      const ok = await this.deps.db.query(`select 1 from partners where promo_code = $1 and status = 'active' and role in ('agent','influencer')`, [code]);
+      if (ok.rows.length === 0) throw new AppError('validation', 'Code de parrainage inconnu.');
+    }
+    await this.deps.db.query('update users set name = $2, referral_partner_code = coalesce(referral_partner_code, $3) where id = $1', [userId, name, code]);
   }
 
   static countryDial(country: CountryCode): string {

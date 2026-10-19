@@ -82,3 +82,66 @@ export async function mkTeam(ctx: Ctx, opts: { country?: CountryCode; stock?: bo
   };
   return { owner, businessId: id, roles: { full: full.id, entry: entry.id, readonly: readonly.id }, addMember };
 }
+
+import { signFedapayWebhook } from '../src/crypto';
+import { AdminService } from '../src/services/admin';
+import { AuthService } from '../src/services/auth';
+import { PartnerService, type PartnerSession } from '../src/services/partners';
+
+export const DAY_MS = 24 * 3600_000;
+
+export function partnerServices(ctx: Ctx) {
+  return { partners: new PartnerService(ctx.deps), admin: new AdminService(ctx.deps), auth: new AuthService(ctx.deps) };
+}
+
+/** Extrait le jeton du lien d'activation du dernier e-mail envoyé à `email`. */
+export function activationToken(ctx: Ctx, email: string): string {
+  const mail = [...ctx.providers.messages.emails].reverse().find((m) => m.to === email.toLowerCase() && m.text.includes('/activer?token='));
+  if (!mail) throw new Error(`Aucun e-mail d'activation pour ${email}`);
+  return /token=([\w-]+)/.exec(mail.text)![1]!;
+}
+
+export async function mkPartner(ctx: Ctx, kind: { role: 'manager' } | { role: 'influencer'; code: string } | { role: 'agent'; manager: PartnerSession; code: string; name?: string }, email: string, name = 'Partenaire', country: 'BJ' | 'CI' | 'TG' = 'CI') {
+  const { partners } = partnerServices(ctx);
+  if (kind.role === 'agent') await partners.registerAgent(kind.manager, { name: kind.name ?? name, email, promoCode: kind.code });
+  else await partners.createByAdmin('admin@novadis.test', { name, country, email, role: kind.role, ...(kind.role === 'influencer' ? { promoCode: kind.code } : {}) });
+  const a = await partners.activate(activationToken(ctx, email), 'motdepasse-solide', '1.0', '10.0.0.1');
+  return a;
+}
+
+/** Simule le paiement d'un abonnement de bout en bout : checkout serveur -> passerelle approuve -> webhook signé. */
+export async function payFor(ctx: Ctx, owner: { user: import('../src/services/auth').SessionUser }, businessId: string, opts: { eventId?: string; mode?: string } = {}) {
+  const { subs } = services(ctx);
+  const checkout = await subs.createCheckout(owner.user, businessId);
+  const created = ctx.providers.gateway.created.find((c) => c.merchantReference === checkout.merchantReference)!;
+  ctx.providers.gateway.states.set(created.transactionId, { transactionId: created.transactionId, merchantReference: checkout.merchantReference, status: 'approved', amount: 2000, provider: 'MTN' });
+  const event = { id: opts.eventId ?? `evt_${Math.random().toString(36).slice(2)}`, name: 'transaction.approved', entity: { id: created.transactionId, status: 'approved', merchant_reference: checkout.merchantReference, amount: 2000, mode: opts.mode ?? 'test', custom_metadata: { business_id: businessId, type: 'renouvellement_abonnement' } } };
+  return { checkout, created, event, send: () => sendWebhook(ctx, event) };
+}
+
+export function sendWebhook(ctx: Ctx, event: object, opts: { secret?: string; timestampSec?: number } = {}) {
+  const raw = JSON.stringify(event);
+  const header = signFedapayWebhook(raw, opts.secret ?? ctx.deps.secrets.fedapayWebhookSecret, opts.timestampSec ?? Math.floor(ctx.clock.now() / 1000));
+  return services(ctx).subs.handleWebhook(raw, header);
+}
+
+/** Parrainage complet : manager -> agent -> commerçant inscrit avec le code de l'agent -> business créé. */
+export async function mkReferred(ctx: Ctx, opts: { via?: 'agent' | 'influencer' } = {}) {
+  const { auth } = partnerServices(ctx);
+  const { biz } = services(ctx);
+  let agentSession: PartnerSession | null = null;
+  let managerSession: PartnerSession | null = null;
+  let code: string;
+  if ((opts.via ?? 'agent') === 'agent') {
+    managerSession = (await mkPartner(ctx, { role: 'manager' }, 'manager@ex.test', 'Marie Manager')).partner;
+    agentSession = (await mkPartner(ctx, { role: 'agent', manager: managerSession, code: 'KOFFI225', name: 'Koffi Agent' }, 'koffi@ex.test')).partner;
+    code = 'KOFFI225';
+  } else {
+    agentSession = (await mkPartner(ctx, { role: 'influencer', code: 'AMINA' }, 'amina@ex.test', 'Amina Influence')).partner;
+    code = 'AMINA';
+  }
+  const owner = await mkUser(ctx, 'Commerçant', 'CI');
+  await auth.updateProfile(owner.user.id, 'Commerçant', code);
+  const { id: businessId } = await biz.createBusiness(owner.user, owner.deviceRowId, { name: 'Boutique Étoile', country: 'CI', sector: 'boutique', stockEnabled: false });
+  return { owner, businessId, agent: agentSession, manager: managerSession, code };
+}

@@ -285,7 +285,7 @@ create trigger payouts_append_only before update or delete on payouts for each r
 
 create table payout_entries (
   payout_id uuid not null references payouts(id),
-  ledger_key text not null unique references commission_ledger(key),  -- une ligne ne peut être versée qu'une fois
+  ledger_key text not null references commission_ledger(key),  -- une ligne ne peut être versée qu'une fois, sauf si son versement a été ANNULÉ (trigger ci-dessous)
   primary key (payout_id, ledger_key)
 );
 -- Un virement échoué se corrige par une annulation, jamais par une modification (§10.9, §13.4).
@@ -297,6 +297,15 @@ create table payout_reversals (
 );
 create trigger payout_reversals_append_only before update or delete on payout_reversals for each row execute function forbid_mutation();
 
+create function forbid_double_payout() returns trigger language plpgsql as $$
+begin
+  if exists (select 1 from payout_entries pe where pe.ledger_key = new.ledger_key
+               and not exists (select 1 from payout_reversals r where r.payout_id = pe.payout_id)) then
+    raise exception 'ledger line % already paid', new.ledger_key using errcode = '23505';
+  end if;
+  return new;
+end $$;
+create trigger payout_entries_no_double before insert on payout_entries for each row execute function forbid_double_payout();
 create trigger payout_entries_append_only before update or delete on payout_entries for each row execute function forbid_mutation();
 
 -- ===== Administration =========================================================================
@@ -310,9 +319,7 @@ create table admin_users (
 create table admin_challenges (
   id uuid primary key default gen_random_uuid(),
   email text not null references admin_users(email),
-  code_hash text not null,
   issued_at timestamptz not null,
-  attempts int not null default 0,
   consumed_at timestamptz
 );
 
