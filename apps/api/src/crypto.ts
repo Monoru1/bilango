@@ -79,14 +79,34 @@ export function decryptField(stored: string, key: Buffer): string {
   return Buffer.concat([decipher.update(Buffer.from(data, 'base64url')), decipher.final()]).toString('utf8');
 }
 
-/** Signature HMAC-SHA256 hexadécimale d'un corps de webhook. */
-export function signWebhook(rawBody: string, secret: string): string {
-  return createHmac('sha256', secret).update(rawBody).digest('hex');
+/**
+ * Webhooks FedaPay. Schéma relevé dans le code source de la bibliothèque officielle `fedapay`
+ * (v1.2.5, src/Webhook.ts) : en-tête `X-FEDAPAY-SIGNATURE: t=<unix>,s=<hex>` ;
+ * s = HMAC-SHA256(secret, "<t>.<corps brut>") ; tolérance par défaut 300 s.
+ * NON VALIDÉ face à un vrai compte FedaPay (bloqué : clés sandbox Novadis Digital absentes).
+ */
+export const WEBHOOK_TOLERANCE_SEC = 300;
+
+export function signFedapayWebhook(rawBody: string, secret: string, timestampSec: number): string {
+  const s = createHmac('sha256', secret).update(`${timestampSec}.${rawBody}`, 'utf8').digest('hex');
+  return `t=${timestampSec},s=${s}`;
 }
 
-export function verifyWebhookSignature(rawBody: string, signature: string, secret: string): boolean {
-  const expected = signWebhook(rawBody, secret);
-  const a = Buffer.from(expected);
-  const b = Buffer.from(signature.trim().toLowerCase());
-  return a.length === b.length && timingSafeEqual(a, b);
+export function verifyFedapaySignature(rawBody: string, header: string | undefined, secret: string, nowMs: number, toleranceSec = WEBHOOK_TOLERANCE_SEC): boolean {
+  if (!header || !secret) return false;
+  let timestamp = -1;
+  const signatures: string[] = [];
+  for (const part of header.split(',')) {
+    const [k, v] = part.split('=');
+    if (k === 't' && v !== undefined) timestamp = Number.parseInt(v, 10);
+    if (k === 's' && v !== undefined) signatures.push(v.trim().toLowerCase());
+  }
+  if (!Number.isFinite(timestamp) || timestamp < 0 || signatures.length === 0) return false;
+  const expected = createHmac('sha256', secret).update(`${timestamp}.${rawBody}`, 'utf8').digest();
+  const matches = signatures.some((sig) => {
+    const given = Buffer.from(sig, 'hex');
+    return given.length === expected.length && timingSafeEqual(given, expected);
+  });
+  // Tolérance dans les deux sens : un horodatage futur est aussi suspect qu'un horodatage ancien (anti-rejeu).
+  return matches && Math.abs(Math.floor(nowMs / 1000) - timestamp) <= toleranceSec;
 }
