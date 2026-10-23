@@ -155,4 +155,54 @@ describe('HTTP — partenaires et administration', () => {
     const asAdmin = await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: cookieOf(pl, 'gb_partner')! } });
     expect(asAdmin.statusCode).toBe(401);
   });
+
+  it('§13.3 — la réinitialisation du mot de passe partenaire coupe TOUTES les sessions, code à usage unique', async () => {
+    await mkPartner(ctx, { role: 'manager' }, 'm@ex.test', 'Marie');
+    const login = () => app.inject({ method: 'POST', url: '/v1/partner/login', headers: PH, payload: { email: 'm@ex.test', password: 'motdepasse-solide' } });
+    const a = cookieOf(await login(), 'gb_partner')!;
+    const b = cookieOf(await login(), 'gb_partner')!;
+    const me = (c: string) => app.inject({ method: 'GET', url: '/v1/partner/me', cookies: { gb_partner: c } });
+    expect((await me(a)).statusCode).toBe(200);
+    expect((await me(b)).statusCode).toBe(200);
+
+    const forgot = await app.inject({ method: 'POST', url: '/v1/partner/forgot', headers: PH, payload: { email: 'm@ex.test' } });
+    expect(forgot.statusCode).toBe(200);
+    const code = /\b(\d{6})\b/.exec(ctx.providers.messages.emails.at(-1)!.text)![1]!;
+    const reset = await app.inject({ method: 'POST', url: '/v1/partner/reset', headers: PH, payload: { email: 'm@ex.test', code, password: 'nouveau-mot-de-passe' } });
+    expect(reset.statusCode).toBe(200);
+
+    expect((await me(a)).statusCode).toBe(401);
+    expect((await me(b)).statusCode).toBe(401);
+    const reuse = await app.inject({ method: 'POST', url: '/v1/partner/reset', headers: PH, payload: { email: 'm@ex.test', code, password: 'autre-mot-de-passe-1' } });
+    expect(reuse.statusCode).toBeGreaterThanOrEqual(400);
+    expect((await app.inject({ method: 'POST', url: '/v1/partner/login', headers: PH, payload: { email: 'm@ex.test', password: 'motdepasse-solide' } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/v1/partner/login', headers: PH, payload: { email: 'm@ex.test', password: 'nouveau-mot-de-passe' } })).statusCode).toBe(200);
+  });
+
+  it('§13.3 — « mot de passe oublié » ne révèle pas si l’adresse existe', async () => {
+    await mkPartner(ctx, { role: 'manager' }, 'm@ex.test', 'Marie');
+    const known = await app.inject({ method: 'POST', url: '/v1/partner/forgot', headers: PH, payload: { email: 'm@ex.test' } });
+    const unknown = await app.inject({ method: 'POST', url: '/v1/partner/forgot', headers: PH, payload: { email: 'inconnu@ex.test' } });
+    expect(unknown.statusCode).toBe(known.statusCode);
+    expect(unknown.json()).toEqual(known.json());
+    expect(ctx.providers.messages.emails.filter((e) => e.to === 'inconnu@ex.test')).toHaveLength(0);
+  });
+
+  it('§13.4 — alerte e-mail à chaque connexion admin et à chaque changement de mot de passe, sessions coupées', async () => {
+    const { admin } = partnerServices(ctx);
+    await admin.upsertAdmin('admin@novadis.test', 'admin-mot-de-passe-long');
+    const mails = () => ctx.providers.messages.emails.filter((e) => e.to === 'admin@novadis.test').map((e) => e.subject);
+    expect(mails()).toContain('Mot de passe administrateur modifié');
+
+    const s1 = await app.inject({ method: 'POST', url: '/v1/admin/login', headers: AH, payload: { email: 'admin@novadis.test', password: 'admin-mot-de-passe-long' } });
+    const code = /\b(\d{6})\b/.exec(ctx.providers.messages.emails.at(-1)!.text)![1]!;
+    const s2 = await app.inject({ method: 'POST', url: '/v1/admin/login/verify', headers: AH, payload: { challengeId: (s1.json() as { challengeId: string }).challengeId, code } });
+    const session = cookieOf(s2, 'gb_admin')!;
+    expect(mails()).toContain('Nouvelle connexion administrateur GoBilan');
+    expect((await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: session } })).statusCode).toBe(200);
+
+    await admin.upsertAdmin('admin@novadis.test', 'nouveau-mot-de-passe-admin');
+    expect((await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: session } })).statusCode).toBe(401);
+    expect(mails().filter((m) => m === 'Mot de passe administrateur modifié')).toHaveLength(2);
+  });
 });
