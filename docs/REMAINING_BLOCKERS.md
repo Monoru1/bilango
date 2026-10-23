@@ -12,3 +12,5 @@ Mis à jour : 23 octobre 2026. Rien ci-dessous n'est simulé comme réussi : cha
 | 6 | Validation juridique (CGU, confidentialité, §12) | Revue par un juriste au Bénin | Relecture ; aucun texte juridique modifié ici |
 | 7 | Validation client des interprétations | D-004, D-014, D-018, D-020 à D-025 | Confirmer ou corriger |
 | 8 | Déploiement | Interdit sans accord ; le serveur refuse NODE_ENV=production | Accord explicite |
+| 9 | Réapprovisionnement du stock | Non décrit dans le CDC (§5.3 : « gère le stock ») | Décision client : le spécifier ou l'écarter de la V1 |
+| 10 | Compression HTTP et en-têtes frontend (CSP, HSTS) | Dépendent de l'hébergeur | Configurer au reverse proxy (voir SECURITY_AUDIT.md) |
