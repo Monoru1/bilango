@@ -46,6 +46,8 @@ $env:DATABASE_URL = 'postgresql://user:password@localhost:5432/gobilan_dev'
 npm run dev:api
 ```
 
+Variables facultatives : VAPID_PUBLIC_KEY (clé publique Web Push ; sans elle, GET /v1/push/config répond enabled=false et la PWA n'abonne personne) et SCHEDULER=0 pour désactiver l'ordonnanceur en processus (rappels quotidiens, expiration J-3..J-1, rapprochement FedaPay horaire). Le transport push du serveur de développement ne contacte aucun service : il journalise seulement le type de notification.
+
 Pour conserver une base de développement, conserver aussi les mêmes secrets hors dépôt : les changer invalide les hachages/chiffrements existants. Le serveur applique les migrations non encore présentes dans cette base de développement. La CLI migrate applique aussi les migrations ; ne pas la lancer sur une base réelle sans revue.
 
 Dans trois autres terminaux :

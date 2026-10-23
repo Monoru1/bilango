@@ -357,6 +357,16 @@ export class DemoStore extends StoreView<DemoState> {
     return { ok: true };
   }
 
+  /** Démo : demande seulement la permission du navigateur ; AUCUN abonnement serveur, aucune notification réelle. */
+  async enablePush(): Promise<'enabled' | 'unconfigured' | 'unsupported' | 'denied' | 'failed'> {
+    if (typeof Notification === 'undefined') return 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    if (Notification.permission === 'default' && (await Notification.requestPermission()) !== 'granted') return 'denied';
+    return 'unconfigured';
+  }
+  async disablePush(): Promise<void> { /* rien à retirer en démo */ }
+  async resyncPush(): Promise<void> { /* rien à synchroniser en démo */ }
+
   setReminder(businessId: Id, hhmm: string): Result {
     const a = this.user && this.accessOf(this.user.id, businessId);
     if (!a?.isOwner || !/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) return fail('Heure invalide.');

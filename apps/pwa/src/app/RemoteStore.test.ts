@@ -60,3 +60,65 @@ describe('HTTP PWA store', () => {
     expect(api).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Web Push (PWA, §9.3)', () => {
+  const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'p'.repeat(20), auth: 'a'.repeat(10) } };
+  function pushSetup(over: Partial<Record<string, unknown>> = {}) {
+    const state = { perm: 'default' as 'default' | 'granted' | 'denied' | 'unsupported', ...over };
+    const bp = {
+      permission: vi.fn(() => state.perm),
+      request: vi.fn(async () => { state.perm = (over.answer as 'granted' | 'denied') ?? 'granted'; return state.perm; }),
+      subscribe: vi.fn(async () => sub),
+      unsubscribe: vi.fn(async () => sub.endpoint as string | null),
+    };
+    const api = vi.fn().mockImplementation(async (path: string) => {
+      if (path === '/v1/push/config') return { enabled: over.enabled ?? true, publicKey: (over.enabled ?? true) ? 'BPUBLIC' : null };
+      if (path === '/v1/me') return { user };
+      if (path === '/v1/businesses') return { businesses: [] };
+      if (path === '/v1/me/invitations') return { invitations: [] };
+      return {};
+    });
+    return { bp, api, store: new RemoteStore(api as unknown as ReturnType<typeof createClient>, device, bp) };
+  }
+  it('asks permission, subscribes with the server VAPID key and registers the subscription', async () => {
+    const { store, bp, api } = pushSetup();
+    expect(await store.enablePush()).toBe('enabled');
+    expect(bp.request).toHaveBeenCalledOnce();
+    expect(bp.subscribe).toHaveBeenCalledWith('BPUBLIC');
+    expect(api).toHaveBeenCalledWith('/v1/push/subscriptions', { method: 'POST', body: sub });
+  });
+  it('never asks permission nor subscribes when the server has no VAPID key (nothing is promised)', async () => {
+    const { store, bp, api } = pushSetup({ enabled: false });
+    expect(await store.enablePush()).toBe('unconfigured');
+    expect(bp.request).not.toHaveBeenCalled(); expect(bp.subscribe).not.toHaveBeenCalled();
+    expect(api).not.toHaveBeenCalledWith('/v1/push/subscriptions', expect.anything());
+  });
+  it('respects a refusal and an unsupported browser without any server call', async () => {
+    const denied = pushSetup({ perm: 'denied' });
+    expect(await denied.store.enablePush()).toBe('denied'); expect(denied.api).not.toHaveBeenCalled();
+    const unsupported = pushSetup({ perm: 'unsupported' });
+    expect(await unsupported.store.enablePush()).toBe('unsupported'); expect(unsupported.api).not.toHaveBeenCalled();
+  });
+  it('reports a user refusal at the prompt without subscribing', async () => {
+    const { store, bp } = pushSetup({ answer: 'denied' });
+    expect(await store.enablePush()).toBe('denied'); expect(bp.subscribe).not.toHaveBeenCalled();
+  });
+  it('turns any failure into "failed" instead of throwing', async () => {
+    const { store, bp } = pushSetup({ perm: 'granted' });
+    bp.subscribe.mockRejectedValueOnce(new Error('boom'));
+    expect(await store.enablePush()).toBe('failed');
+  });
+  it('resyncs silently only when permission is already granted and a session exists; never prompts', async () => {
+    const asked = pushSetup(); await asked.store.resyncPush();
+    expect(asked.bp.request).not.toHaveBeenCalled(); expect(asked.api).not.toHaveBeenCalled();
+    const granted = pushSetup({ perm: 'granted' });
+    await granted.store.resyncPush(); expect(granted.bp.subscribe).not.toHaveBeenCalled(); // pas de session
+    await granted.store.initialize(); await granted.store.resyncPush();
+    expect(granted.bp.subscribe).toHaveBeenCalledOnce(); expect(granted.bp.request).not.toHaveBeenCalled();
+  });
+  it('unsubscribes the browser then tells the server which endpoint to revoke', async () => {
+    const { store, api } = pushSetup({ perm: 'granted' });
+    await store.disablePush();
+    expect(api).toHaveBeenCalledWith('/v1/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
+  });
+});

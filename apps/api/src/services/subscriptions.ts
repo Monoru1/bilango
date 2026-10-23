@@ -151,23 +151,27 @@ export class SubscriptionService {
 
   /** Confirmation idempotente : une seconde confirmation du même paiement ne prolonge PAS deux fois. */
   private async confirm(paymentId: string, transactionId: string, provider: string | null): Promise<WebhookOutcome> {
-    return this.deps.db.tx(async (t) => {
+    const notify: { ownerId: string; businessName: string }[] = [];
+    const outcome = await this.deps.db.tx(async (t) => {
       const p = (
         await t.query<{ id: string; business_id: string; status: string; amount: string }>('select id, business_id, status, amount from payments where id = $1 for update', [paymentId])
       ).rows[0]!;
       if (p.status === 'confirmed') return 'duplicate' as const;
       if (p.status !== 'pending') return 'ignored' as const;
 
-      const biz = (await t.query<{ id: string; trial_ends_at: Date | null; paid_until: Date | null }>('select id, trial_ends_at, paid_until from businesses where id = $1 for update', [p.business_id])).rows[0]!;
+      const biz = (await t.query<{ id: string; owner_id: string; name: string; trial_ends_at: Date | null; paid_until: Date | null }>('select id, owner_id, name, trial_ends_at, paid_until from businesses where id = $1 for update', [p.business_id])).rows[0]!;
       const sub = subscriptionOf(biz);
       const statusBefore = subscriptionStatus(sub, this.now);
       const until = extendedPaidUntil(sub, this.now);
       await t.query(`update businesses set paid_until = $2 where id = $1`, [biz.id, until]);
       await t.query(`update payments set status = 'confirmed', confirmed_at = $2, extended_until = $3, provider = $4, fedapay_transaction_id = coalesce(fedapay_transaction_id, $5) where id = $1`, [p.id, iso(this.now), until, provider, transactionId]);
       await recordCommissionsForPayment(t, { id: p.id, businessId: p.business_id, confirmedAt: this.now, amount: Number(p.amount) }, statusBefore);
-      await this.deps.providers.push.sendToUser((await t.query<{ owner_id: string }>('select owner_id from businesses where id = $1', [biz.id])).rows[0]!.owner_id, { title: 'GoBilan', body: 'Paiement reçu. Merci !' }).catch(() => undefined);
+      notify.push({ ownerId: biz.owner_id, businessName: biz.name });
       return 'confirmed' as const;
     });
+    // Après le commit uniquement : pas de notification pour une transaction annulée, pas d'appel réseau sous verrou SQL.
+    for (const n of notify) await this.deps.providers.push.sendToUser(n.ownerId, { type: 'payment_confirmed', businessName: n.businessName }).catch(() => undefined);
+    return outcome;
   }
 
   /**

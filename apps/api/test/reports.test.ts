@@ -90,8 +90,9 @@ describe('saisie du bilan (§6)', () => {
     await reports.submit(e.user, t.businessId, reportInput(123456, { openingCash: 0 }));
     const sent = ctx.providers.push.sent.filter((p) => p.userId === t.owner.user.id);
     expect(sent).toHaveLength(1);
-    expect(sent[0]!.payload.body).toBe('Nouveau bilan reçu — Boutique Étoile');
-    expect(sent[0]!.payload.body).not.toMatch(/\d{3}/);
+    expect(sent[0]!.payload).toEqual({ type: 'report_sent', businessName: 'Boutique Étoile', badge: true });
+    // Aucun montant nulle part dans la charge utile sérialisée (écran verrouillé).
+    expect(JSON.stringify(sent[0]!.payload)).not.toContain('123456');
   });
 });
 
@@ -120,7 +121,7 @@ describe('modification sous 24 h et versions (§6.6)', () => {
     const { reports, t, emp, r } = await setup();
     ctx.clock.advance(HOUR);
     await reports.edit(emp.user, r.id, { content: reportInput(60000).content });
-    expect(ctx.providers.push.sent.some((p) => p.userId === t.owner.user.id && p.payload.body.startsWith('Bilan modifié'))).toBe(true);
+    expect(ctx.providers.push.sent.some((p) => p.userId === t.owner.user.id && p.payload.type === 'report_edited')).toBe(true);
   });
 
   it('recalcule la caisse théorique de ce jour et des suivants', async () => {

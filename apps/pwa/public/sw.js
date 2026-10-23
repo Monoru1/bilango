@@ -38,7 +38,7 @@ self.addEventListener('fetch', (e) => {
 
 /**
  * Web Push (CDC §9.2) : le texte ne contient JAMAIS de montant (écran verrouillé).
- * Charge utile attendue : { type: 'report_sent'|'report_edited'|'reminder'|'expiring'|'new_device', businessName?: string }
+ * Charge utile attendue : { type: 'report_sent'|'report_edited'|'reminder'|'expiring'|'new_device'|'payment_confirmed', businessName?: string, badge?: boolean }
  */
 const TEXTS = {
   report_sent: (b) => ['Nouveau bilan reçu', b],
@@ -46,6 +46,7 @@ const TEXTS = {
   reminder: (b) => ['Pensez à faire le bilan du jour', b],
   expiring: (b) => ['Votre abonnement approche de la fin', b],
   new_device: () => ['Connexion sur un nouvel appareil', 'Si ce n’était pas vous, contactez le support.'],
+  payment_confirmed: (b) => ['Paiement reçu', b],
 };
 
 self.addEventListener('push', (e) => {

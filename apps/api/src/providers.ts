@@ -1,3 +1,4 @@
+import type { PushMessage } from '@gobilan/contracts';
 import type { CountryCode } from '@gobilan/domain';
 
 /**
@@ -43,16 +44,37 @@ export interface PaymentGateway {
   getTransaction(transactionId: string): Promise<GatewayTransactionState | null>;
 }
 
-export interface PushPayload {
-  title: string;
-  /** Jamais de montant : le texte s'affiche sur l'écran verrouillé (§9.2). */
-  body: string;
-  badge?: boolean;
-  tag?: string;
-}
+/**
+ * Charge utile typée : le service worker fabrique le texte à partir du `type`. Elle ne peut pas
+ * porter de montant (le schéma n'a aucun champ prévu pour cela), car elle peut s'afficher sur
+ * l'écran verrouillé (§9.2).
+ */
+export type PushPayload = PushMessage;
 
 export interface PushSender {
-  sendToUser(userId: string, payload: PushPayload): Promise<void>;
+  /** Ne lève jamais : un échec de notification ne doit pas faire échouer l'opération métier. */
+  sendToUser(userId: string, payload: PushPayload, opts?: PushSendOptions): Promise<void>;
+}
+
+export interface PushSendOptions {
+  /** Appareil à ne PAS notifier : l'alerte « nouvel appareil » part à l'ANCIEN appareil, jamais au nouveau (§9.2). */
+  excludeDeviceId?: string;
+}
+
+export interface PushTarget {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+/**
+ * Transport Web Push (chiffrement RFC 8291 + VAPID RFC 8292). L'implémentation RÉELLE exige des
+ * clés VAPID au nom de Novadis Digital : elle n'est pas livrée (voir docs/REMAINING_BLOCKERS.md).
+ * `status` est le code HTTP renvoyé par le service push du navigateur (201 = accepté, 404/410 =
+ * abonnement expiré).
+ */
+export interface PushTransport {
+  send(target: PushTarget, body: string): Promise<{ status: number }>;
 }
 
 export interface Providers {
@@ -113,9 +135,20 @@ export class DevGateway implements PaymentGateway {
 }
 
 export class DevPush implements PushSender {
-  readonly sent: { userId: string; payload: PushPayload }[] = [];
-  async sendToUser(userId: string, payload: PushPayload): Promise<void> {
-    this.sent.push({ userId, payload });
+  readonly sent: { userId: string; payload: PushPayload; excludeDeviceId?: string }[] = [];
+  async sendToUser(userId: string, payload: PushPayload, opts: PushSendOptions = {}): Promise<void> {
+    this.sent.push({ userId, payload, ...(opts.excludeDeviceId ? { excludeDeviceId: opts.excludeDeviceId } : {}) });
+  }
+}
+
+/** Transport de DÉVELOPPEMENT : enregistre les envois, ne contacte AUCUN service push. */
+export class DevPushTransport implements PushTransport {
+  readonly sent: { target: PushTarget; body: string }[] = [];
+  /** Statuts à renvoyer au prochain envoi (file), pour simuler 404/410/500. Par défaut 201. */
+  readonly nextStatuses: number[] = [];
+  async send(target: PushTarget, body: string): Promise<{ status: number }> {
+    this.sent.push({ target, body });
+    return { status: this.nextStatuses.shift() ?? 201 };
   }
 }
 

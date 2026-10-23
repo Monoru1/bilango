@@ -23,7 +23,7 @@
 
 ## Travail local restant pour V1
 
-- Enregistrement des abonnements Web Push et exécution des rappels/échéances ; planificateur de rapprochement FedaPay (la méthode existe, pas le service planifié).
+- Web Push : abonnements, rappels, échéances et rapprochement horaire sont livrés et testés avec transport Dev. Reste le transport réel (bibliothèque web-push + clés VAPID), non implémenté volontairement faute de clés ; variables à fournir : VAPID_PUBLIC_KEY (et clé privée côté transport). Planificateur en processus : à exécuter sur UNE instance ou à laisser la déduplication en base protéger (clé unique), à confirmer à l'exploitation.
 - Captures/vidéo d'installation iOS et tests sur Android/iPhone physiques (installabilité, standalone, notifications et clavier).
 - Validation du checkout FedaPay embarqué ; mode HTTP indique explicitement l'indisponibilité des paiements Dev.
 - Volumétrie et pagination : le workspace charge tout l'historique autorisé de tous les business pour calculer correctement la caisse. Il faut dissocier agrégats serveur et pages d'historique avant de viser des comptes volumineux / smartphones modestes.

@@ -5,6 +5,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { RemoteWelcome } from './RemoteWelcome';
 import { DEMO_PERSONAS } from '../demo/store';
 import { useStore } from '../app/useStore';
+import { currentEnv } from '../lib/env';
+
+/**
+ * §9.3 : sur Android, la permission de notification est demandée juste après la création du PIN, application installée.
+ * Sur iPhone elle ne l'est JAMAIS ici (bouton « Activer les notifications » du profil). Sans blocage du parcours.
+ */
+function offerPushOnAndroid(s: ReturnType<typeof useStore>) {
+  const env = currentEnv();
+  if (env.platform === 'android' && env.standalone) void s.enablePush();
+}
 
 function DemoTag() {
   const s = useStore();
@@ -169,6 +179,7 @@ export function Onboarding({ onCancel, purpose = 'signup' }: { onCancel: () => v
     if (next.length === 4) {
       const r = await s.createPin(next);
       if (!r.ok) { setPin(''); return goError(r.error); }
+      offerPushOnAndroid(s);
       setErr(null);
       setStep('referral');
     }
@@ -301,7 +312,7 @@ function ResetPin({ userId, onBack, onDone }: { userId: string; onBack: () => vo
     setPin(next);
     if (next.length === 4) {
       const r = await s.createPin(next);
-      if (r.ok) return onDone();
+      if (r.ok) { offerPushOnAndroid(s); return onDone(); }
       setErr(r.error);
       setPin('');
     }
