@@ -28,6 +28,16 @@ async function signup(phone = '0102030405') {
 }
 
 describe('HTTP — sécurité transverse', () => {
+  it('envoie des en-têtes de défense en profondeur sur toute réponse API (succès comme erreur)', async () => {
+    for (const url of ['/v1/me', '/v1/inexistant']) {
+      const r = await app.inject({ method: 'GET', url });
+      expect(r.headers['cache-control']).toBe('no-store');
+      expect(r.headers['x-content-type-options']).toBe('nosniff');
+      expect(r.headers['referrer-policy']).toBe('no-referrer');
+      expect(r.headers['x-frame-options']).toBe('DENY');
+      expect(r.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    }
+  });
   it('does not trust a client supplied X-Forwarded-For and does not enable credentialed cross-origin reads', async () => {
     await app.inject({ method: 'POST', url: '/v1/auth/otp/request', remoteAddress: '10.0.0.9', headers: { ...H, 'x-forwarded-for': '203.0.113.1' }, payload: { country: 'BJ', phone: '0197000022', purpose: 'signup', device, captchaToken: 'ok' } });
     expect((await ctx.db.query<{ ip: string }>('select ip from otp_codes')).rows[0]?.ip).toBe('10.0.0.9');

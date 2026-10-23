@@ -67,6 +67,9 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     reply.header('cache-control', 'no-store');
     reply.header('x-content-type-options', 'nosniff');
     reply.header('referrer-policy', 'no-referrer');
+    // API JSON uniquement : jamais embarquée ni interprétée comme une page (défense en profondeur).
+    reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
+    reply.header('x-frame-options', 'DENY');
   });
 
   app.setErrorHandler((err, _req, reply) => {
