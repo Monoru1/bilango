@@ -3,7 +3,7 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
   adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
-  loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, registerAgentSchema,
+  loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, pushSubscriptionSchema, pushUnsubscribeSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
@@ -14,6 +14,7 @@ import { AdminService, type AdminSession } from '../services/admin';
 import { AuthService, type SessionUser } from '../services/auth';
 import { BusinessService } from '../services/business';
 import { PartnerService, type PartnerSession } from '../services/partners';
+import { PushService } from '../services/push';
 import { ReportService } from '../services/reports';
 import { SubscriptionService } from '../services/subscriptions';
 
@@ -66,6 +67,9 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     reply.header('cache-control', 'no-store');
     reply.header('x-content-type-options', 'nosniff');
     reply.header('referrer-policy', 'no-referrer');
+    // API JSON uniquement : jamais embarquée ni interprétée comme une page (défense en profondeur).
+    reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
+    reply.header('x-frame-options', 'DENY');
   });
 
   app.setErrorHandler((err, _req, reply) => {
@@ -211,6 +215,19 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.get('/v1/businesses/:businessId/dashboard', async (req) => reports.dashboard((await user(req)).user, bizParam.parse(req.params).businessId));
   app.get('/v1/reports/:id', async (req) => ({ report: await reports.get((await user(req)).user, idParam.parse(req.params).id) }));
   app.put('/v1/reports/:id', async (req) => reports.edit((await user(req)).user, idParam.parse(req.params).id, editReportSchema.parse(req.body)));
+
+  // ================= Notifications Web Push =================
+  // Clé publique VAPID : jamais la clé privée. `enabled: false` tant qu'aucune clé n'est configurée.
+  app.get('/v1/push/config', async (req) => {
+    await user(req);
+    return { enabled: deps.config.vapidPublicKey !== null, publicKey: deps.config.vapidPublicKey };
+  });
+  app.post('/v1/push/subscriptions', async (req) => {
+    const u = await user(req);
+    const ua = req.headers['user-agent'];
+    return new PushService(deps).register(u.user, u.deviceId, pushSubscriptionSchema.parse(req.body), typeof ua === 'string' ? ua : undefined);
+  });
+  app.post('/v1/push/unsubscribe', async (req) => new PushService(deps).unregister((await user(req)).user, pushUnsubscribeSchema.parse(req.body).endpoint));
 
   // ================= Abonnement =================
   app.get('/v1/businesses/:businessId/subscription', async (req) => subs.view((await user(req)).user, bizParam.parse(req.params).businessId));

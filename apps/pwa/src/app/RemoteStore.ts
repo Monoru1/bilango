@@ -2,6 +2,10 @@ import { COUNTRIES, normalizePhone, type CountryCode, type PermissionLevel, type
 import { ApiError, createClient } from '@gobilan/ui';
 import type { ApplicationState, Result, Workspace } from '@gobilan/contracts';
 import { StoreView } from './StoreView';
+import { browserPush, type BrowserPush } from '../lib/push';
+
+/** Résultat de l'activation des notifications (cahier §9.3). */
+export type PushOutcome = 'enabled' | 'unconfigured' | 'unsupported' | 'denied' | 'failed';
 
 const empty = (): ApplicationState => ({ users: [], businesses: [], roles: [], members: [], invitations: [], reports: [], stock: [], subs: [], sessionUserId: null });
 type Api = ReturnType<typeof createClient>;
@@ -26,7 +30,7 @@ export class RemoteStore extends StoreView<ApplicationState> {
   private requestIds = new Map<string, { content: string; id: string }>();
   private active = false;
   get busy() { return this.active; }
-  constructor(private api: Api = createClient(), private device: () => Device = installationDevice) { super(empty()); }
+  constructor(private api: Api = createClient(), private device: () => Device = installationDevice, private push: BrowserPush = browserPush) { super(empty()); }
   async refreshIfIdle() { if (!this.active && !this.loading) await this.refresh(); }
   async initialize() {
     if (this.initialized || this.loading) return;
@@ -104,6 +108,34 @@ export class RemoteStore extends StoreView<ApplicationState> {
       await this.api('/v1/auth/pin/create', { method: 'POST', body: { otpProof: this.proof, pin, device: this.device() } });
       this.proof = null; await this.refresh();
     });
+  }
+  /**
+   * Active les notifications Web Push (§9.3). À appeler sur ACTION de l'utilisateur, ou juste après la création du PIN
+   * sur Android — jamais à l'arrivée. 'unconfigured' = le serveur n'a pas de clé VAPID : rien n'est promis à l'utilisateur.
+   */
+  async enablePush(): Promise<PushOutcome> {
+    try {
+      if (this.push.permission() === 'unsupported') return 'unsupported';
+      if (this.push.permission() === 'denied') return 'denied';
+      const cfg = await this.api<{ enabled: boolean; publicKey: string | null }>('/v1/push/config');
+      if (!cfg.enabled || !cfg.publicKey) return 'unconfigured';
+      if (this.push.permission() === 'default' && (await this.push.request()) !== 'granted') return this.push.permission() === 'denied' ? 'denied' : 'failed';
+      const sub = await this.push.subscribe(cfg.publicKey);
+      await this.api('/v1/push/subscriptions', { method: 'POST', body: sub });
+      return 'enabled';
+    } catch {
+      return 'failed';
+    }
+  }
+  /** Resynchronise l'abonnement (le navigateur peut l'avoir renouvelé) si la permission est déjà accordée. Silencieux. */
+  async resyncPush(): Promise<void> {
+    if (this.push.permission() === 'granted' && this.state.sessionUserId) await this.enablePush();
+  }
+  async disablePush(): Promise<void> {
+    try {
+      const endpoint = await this.push.unsubscribe();
+      if (endpoint) await this.api('/v1/push/unsubscribe', { method: 'POST', body: { endpoint } });
+    } catch { /* le retrait local suffit ; le serveur révoquera l'abonnement au prochain 404/410 */ }
   }
   async loginPin(phone: string, pin: string): Promise<Result> {
     return this.run(async () => { await this.api('/v1/auth/pin/login', { method: 'POST', body: { phone, pin, device: this.device() } }); await this.refresh(); });

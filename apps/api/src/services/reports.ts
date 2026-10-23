@@ -105,7 +105,9 @@ export class ReportService {
    * ne peut ni antidater ni saisir après coup (§8.4). Idempotent sur `clientRequestId`.
    */
   async submit(actor: SessionUser, businessId: string, input: Submit): Promise<{ id: string; day: string; duplicate: boolean }> {
-    return this.deps.db.tx(async (t) => {
+    // La notification part APRÈS le commit : jamais pour une transaction annulée, et sans verrou SQL tenu pendant un appel réseau.
+    const afterCommit: (() => Promise<void>)[] = [];
+    const result = await this.deps.db.tx(async (t) => {
       const ctx = await requireAccess(t, actor.id, businessId, { forUpdate: true });
       if (!can(ctx.access, 'submitReport')) throw forbidden();
       this.assertCanWrite(ctx);
@@ -143,12 +145,16 @@ export class ReportService {
       ).rows[0]!.id;
       await t.query('insert into report_versions(report_id, version_no, content, saved_at) values ($1,1,$2::jsonb,$3)', [id, JSON.stringify(content), iso(this.now)]);
 
-      // Texte sans montant : il s'affiche sur l'écran verrouillé (§9.2).
+      // Charge utile sans montant : elle peut s'afficher sur l'écran verrouillé (§9.2).
       if (!ctx.access.isOwner) {
-        await this.deps.providers.push.sendToUser(ctx.business.owner_id, { title: 'GoBilan', body: `Nouveau bilan reçu — ${ctx.business.name}`, badge: true, tag: `report-${businessId}` }).catch(() => undefined);
+        const ownerId = ctx.business.owner_id;
+        const businessName = ctx.business.name;
+        afterCommit.push(() => this.deps.providers.push.sendToUser(ownerId, { type: 'report_sent', businessName, badge: true }).catch(() => undefined));
       }
       return { id, day, duplicate: false };
     });
+    for (const send of afterCommit) await send();
+    return result;
   }
 
   /**
@@ -157,7 +163,8 @@ export class ReportService {
    * (le schéma interdit UPDATE/DELETE sur `report_versions`). Le propriétaire est notifié (§6.6).
    */
   async edit(actor: SessionUser, reportId: string, input: Edit): Promise<{ versionNo: number }> {
-    return this.deps.db.tx(async (t) => {
+    const afterCommit: (() => Promise<void>)[] = [];
+    const result = await this.deps.db.tx(async (t) => {
       if (!/^[0-9a-f-]{36}$/i.test(reportId)) throw notFound();
       const row = (await t.query<ReportRow>('select id, business_id, day, author_id, author_name, submitted_at from reports where id = $1 for update', [reportId])).rows[0];
       if (!row) throw notFound();
@@ -182,10 +189,14 @@ export class ReportService {
       const next = (await t.query<{ n: number }>('select coalesce(max(version_no),0) + 1 as n from report_versions where report_id = $1', [reportId])).rows[0]!.n;
       await t.query('insert into report_versions(report_id, version_no, content, saved_at) values ($1,$2,$3::jsonb,$4)', [reportId, next, JSON.stringify(content), iso(this.now)]);
       if (!ctx.access.isOwner) {
-        await this.deps.providers.push.sendToUser(ctx.business.owner_id, { title: 'GoBilan', body: `Bilan modifié — ${ctx.business.name}`, badge: true, tag: `report-${row.business_id}` }).catch(() => undefined);
+        const ownerId = ctx.business.owner_id;
+        const businessName = ctx.business.name;
+        afterCommit.push(() => this.deps.providers.push.sendToUser(ownerId, { type: 'report_edited', businessName, badge: true }).catch(() => undefined));
       }
       return { versionNo: Number(next) };
     });
+    for (const send of afterCommit) await send();
+    return result;
   }
 
   private toContent(input: Submit['content'], stockEnabled: boolean): ReportContent {

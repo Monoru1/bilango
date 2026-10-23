@@ -219,7 +219,11 @@ describe('nouvel appareil et PIN oublié (§4.3, §4.2)', () => {
     const r = await verify(codeSent(), 'new_device', dev2);
     if (r.kind !== 'session') throw new Error('attendu session');
     expect(r.otherDevices).toHaveLength(1);
-    expect(ctx.providers.push.sent.some((p) => p.payload.body.includes('nouvel appareil'))).toBe(true);
+    const alert = ctx.providers.push.sent.find((p) => p.payload.type === 'new_device');
+    expect(alert).toBeDefined();
+    // §9.2 : l'alerte part à l'ANCIEN appareil ; le nouvel appareil est explicitement exclu de la livraison.
+    const newRow = (await ctx.db.query<{ id: string }>('select id from devices where device_key = $1', [dev2.deviceId])).rows[0]!;
+    expect(alert!.excludeDeviceId).toBe(newRow.id);
     // Le PIN reste valable sur le nouvel appareil, désormais connu.
     await auth.loginPin({ phone: PHONE, pin: '4829', device: dev2 });
   });

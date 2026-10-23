@@ -62,3 +62,18 @@ Chromium 153 headless ; viewport mobile 390×844 et portails 1100×900. Le signa
 ## Limites de preuve
 
 Paiement confirmé, commission et versement sont exécutés au niveau API/SQL avec DevGateway et messages Dev, pas via un compte FedaPay sandbox externe. Aucun checkout fournisseur réel dans le navigateur. Ni iOS Safari physique, ni installation Android réelle, ni réception de notification, ni délivrabilité SMTP/WhatsApp testées. Aucun test de charge, pentest ou restauration de sauvegarde effectué. Les trois jobs GitHub Actions sont configurés ; leur résultat distant doit être lu sur la PR, sans l'inférer des résultats locaux.
+
+
+## Complément — notifications Web Push et ordonnanceur (23 octobre 2026, branche feat/gobilan-claude-v1)
+
+Node 22.22.0, PostgreSQL 16 local (127.0.0.1:55432). Transport push et passerelle de paiement : Dev uniquement, aucun envoi réel.
+
+| Vérification | Résultat |
+|---|---|
+| npm run check (code de sortie lu directement) | **0** : API 155 réussis + 8 ignorés (dernier run complet de l’API), PWA 45, contrats 7, domaine 94 ; builds des quatre applications |
+| TEST_DATABASE_URL=… npm run test:postgres -w @gobilan/api | **159/159**, 0 schéma résiduel |
+| Nouveaux tests | 22 dans apps/api/test/push.test.ts, 7 dans RemoteStore.test.ts |
+| CHROMIUM=/opt/pw-browsers/chromium E2E_DATABASE_URL=… npm run test:e2e | **exit 0**, deux suites navigateur (PWA + partenaires/admin) ; le Chromium préinstallé est utilisé car la version téléchargeable par Playwright n'est pas disponible |
+| Audit npm | **non rejoué** depuis ces changements |
+
+Non couvert : transport web-push/VAPID réel, navigateur et téléphones physiques.

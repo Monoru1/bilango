@@ -195,7 +195,7 @@ export class AuthService {
     ).rows;
     if (others.length > 0) {
       // Notification à l'ancien appareil (§4.3, §9.2) — jamais de contenu sensible.
-      await this.deps.providers.push.sendToUser(user.id, { title: 'GoBilan', body: 'Connexion sur un nouvel appareil.', tag: 'new-device' }).catch(() => undefined);
+      await this.deps.providers.push.sendToUser(user.id, { type: 'new_device' }, { excludeDeviceId: device }).catch(() => undefined);
     }
     return { kind: 'session', session, otherDevices: others.map((o) => ({ id: o.id, label: o.label, lastSeenAt: o.last_seen_at.toISOString() })) };
   }

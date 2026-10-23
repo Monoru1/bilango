@@ -30,9 +30,16 @@ export function ProfileScreen() {
   const [time, setTime] = useState(owned[0]?.reminderTime ?? '20:00');
   const [saved, setSaved] = useState(false);
   if (!user) return null;
+  const [pushNote, setPushNote] = useState<string | null>(null);
   const enable = async () => {
     if (!('Notification' in window)) return setPerm('unsupported');
-    setPerm(await Notification.requestPermission());
+    const outcome = await s.enablePush();
+    setPerm('Notification' in window ? Notification.permission : 'unsupported');
+    setPushNote(
+      outcome === 'unconfigured' ? (s.mode === 'api' ? 'Les notifications ne sont pas encore disponibles sur ce service. Réessayez plus tard.' : null)
+      : outcome === 'failed' ? 'Activation impossible pour le moment. Réessayez.'
+      : null,
+    );
   };
   return (
     <div className="screen">
@@ -43,7 +50,8 @@ export function ProfileScreen() {
         <section className="stack" style={{ gap: 8 }}>
           <h2 className="h2">Notifications</h2>
           {perm === 'granted' ? <p className="muted" style={{ margin: 0 }}>Notifications activées.</p> : perm === 'denied' ? <p className="muted" style={{ margin: 0 }}>Notifications refusées dans les réglages du téléphone.</p> : perm === 'unsupported' ? <p className="muted" style={{ margin: 0 }}>Ce téléphone ne prend pas en charge les notifications (iPhone : iOS 16.4 minimum, application installée).</p> : <button className="gb-btn gb-btn--ghost" onClick={() => void enable()}>Activer les notifications</button>}
-          <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucune notification réelle n’est envoyée (abonnement Web Push non branché au serveur).</p>
+          {s.mode === 'demo' && <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucune notification réelle n’est envoyée (abonnement Web Push non branché au serveur).</p>}
+          {pushNote && <p className="muted" role="status" style={{ margin: 0 }}>{pushNote}</p>}
         </section>
         {owned[0] && (
           <section className="stack" style={{ gap: 8 }}>
