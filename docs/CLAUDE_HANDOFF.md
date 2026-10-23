@@ -9,7 +9,7 @@ Départ : `b228617d95fc26fdf39c640fff7df54eacd61164` (main). Source fonctionnell
 - PWA : `lib/push.ts`, `RemoteStore.enablePush/resyncPush/disablePush`, invite Android après création du PIN, bouton du profil, mention DÉMO limitée au mode démo.
 
 ## Validé (exécuté)
-`npm run check` : exit 0 (API 151 + 8 ignorés, PWA 45, contrats 7, domaine 94). Suite API sur PostgreSQL 16 : 159/159, aucun schéma résiduel. Détails : docs/TEST_REPORT.md.
+`npm run check` : exit 0 (API 155 + 8 ignorés (après ajout des tests §13.3/§13.4 et en-têtes), PWA 45, contrats 7, domaine 94). Suite API sur PostgreSQL 16 : 159/159, aucun schéma résiduel. Détails : docs/TEST_REPORT.md.
 
 ## Reste à faire
 Voir docs/REMAINING_BLOCKERS.md et la liste « Travail local restant » de docs/DEPLOYMENT_READINESS.md. Non vérifiés à ce jour : E2E Playwright après ces changements, cartes sources en production (§13.1), révocation de sessions au changement de mot de passe partenaire (§13.3), alertes e-mail admin (§13.4), pagination du workspace, réapprovisionnement du stock, audit d'accessibilité.

@@ -70,7 +70,7 @@ Node 22.22.0, PostgreSQL 16 local (127.0.0.1:55432). Transport push et passerell
 
 | Vérification | Résultat |
 |---|---|
-| npm run check (code de sortie lu directement) | **0** : API 151 réussis + 8 ignorés, PWA 45, contrats 7, domaine 94 ; builds des quatre applications |
+| npm run check (code de sortie lu directement) | **0** : API 155 réussis + 8 ignorés (dernier run complet de l’API), PWA 45, contrats 7, domaine 94 ; builds des quatre applications |
 | TEST_DATABASE_URL=… npm run test:postgres -w @gobilan/api | **159/159**, 0 schéma résiduel |
 | Nouveaux tests | 22 dans apps/api/test/push.test.ts, 7 dans RemoteStore.test.ts |
 | CHROMIUM=/opt/pw-browsers/chromium E2E_DATABASE_URL=… npm run test:e2e | **exit 0**, deux suites navigateur (PWA + partenaires/admin) ; le Chromium préinstallé est utilisé car la version téléchargeable par Playwright n'est pas disponible |
