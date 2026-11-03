@@ -2,6 +2,7 @@ import { COUNTRIES, normalizePhone, type CountryCode, type PermissionLevel, type
 import { ApiError, createClient } from '@gobilan/ui';
 import type { ApplicationState, Result, Workspace } from '@gobilan/contracts';
 import { StoreView } from './StoreView';
+import { browserCaptcha } from '../lib/captcha';
 import { browserPush, type BrowserPush } from '../lib/push';
 
 /** Résultat de l'activation des notifications (cahier §9.3). */
@@ -87,11 +88,27 @@ export class RemoteStore extends StoreView<ApplicationState> {
     const phone = normalizePhone(country, local);
     if (!phone) return { ok: false, error: `Numéro invalide. Exemple : ${COUNTRIES[country].nationalExample}` };
     return this.run(async () => {
-      // Only the development server accepts this token; production startup is blocked there.
-      // A real CAPTCHA widget/provider remains an explicit release dependency.
-      await this.api('/v1/auth/otp/request', { method: 'POST', body: { country, phone: local, purpose, device: this.device(), captchaToken: 'development-only' } });
+      const config=await this.api<{captcha:{provider:'dev'|'turnstile';siteKey:string|null;action:string}}>('/v1/auth/config');
+      const captchaToken=config.captcha?.provider==='dev'?'development-only':config.captcha?.provider==='turnstile'&&config.captcha.siteKey?await browserCaptcha(config.captcha.siteKey,config.captcha.action):null;
+      if(!captchaToken)throw new ApiError('validation','Vérification de sécurité indisponible.',503);
+      await this.api('/v1/auth/otp/request', { method: 'POST', body: { country, phone: local, purpose, device: this.device(), captchaToken } });
       this.otp = { country, phone: local, purpose }; this.proof = null;
       return { code: '' }; // OTP is never returned to a real client.
+    });
+  }
+  async paymentAvailability():Promise<boolean>{
+    try{return (await this.api<{payments:{enabled:boolean}}>('/v1/auth/config')).payments?.enabled===true;}catch{return false;}
+  }
+  async subscriptionCheckout(businessId:string):Promise<Result<{paymentUrl:string}>>{
+    return this.run(async()=>{
+      if(!await this.paymentAvailability())throw new ApiError('validation','Paiement désactivé dans cet environnement.',503);
+      const storageKey=`gb-checkout-${businessId}-${this.subOf(businessId).paidUntil||'initial'}`;
+      let key=sessionStorage.getItem(storageKey);if(!key){key=crypto.randomUUID();sessionStorage.setItem(storageKey,key);}
+      const result=await this.api<{paymentUrl:string}>('/v1/subscription/checkout',{method:'POST',body:{businessId,idempotencyKey:key}}).catch(async error=>{
+        if(error instanceof ApiError&&error.code==='payment_terminal'){sessionStorage.removeItem(storageKey);await this.refresh();}throw error;
+      });
+      const url=new URL(result.paymentUrl);if(url.protocol!=='https:'||!['sandbox-checkout.fedapay.com','checkout.fedapay.com'].includes(url.hostname)||url.username||url.password||url.port)throw new ApiError('validation','Lien de paiement invalide.',502);
+      return {paymentUrl:url.href};
     });
   }
   async verifyOtp(code: string): Promise<Result<{ next: 'pin_create' | 'logged_in' }>> {

@@ -26,16 +26,17 @@ export class TurnstileVerifier implements CaptchaVerifier {
   }
 }
 
-function acceptanceOnly() {
-  if (process.env.NODE_ENV === 'production') throw new Error('acceptance_adapter_forbidden_in_production');
+function acceptanceOnly(productionApproved=false) {
+  if (process.env.NODE_ENV === 'production' && !productionApproved) throw new Error('acceptance_adapter_forbidden_in_production');
 }
 function email(value:string) {
   if (!/^[^\s<>,;@]+@[^\s<>,;@]+\.[^\s<>,;@]+$/.test(value) || value.length>254) throw new Error('single_email_required');
   return value.toLowerCase();
 }
 
-export function acceptanceSmtpTransport(config:{host:string;port:number;user?:string;password?:string;localCapture?:boolean}) {
-  acceptanceOnly();
+export function acceptanceSmtpTransport(config:{host:string;port:number;user?:string;password?:string;localCapture?:boolean;productionApproved?:boolean}) {
+  acceptanceOnly(config.productionApproved);
+  if(process.env.NODE_ENV==='production'&&config.localCapture)throw new Error('production_local_capture_forbidden');
   const loopback=['127.0.0.1','localhost','::1'].includes(config.host);
   if (!config.host || !Number.isInteger(config.port) || config.port<1 || config.port>65535 || (config.localCapture && !loopback)) throw new Error('smtp_configuration_invalid');
   return nodemailer.createTransport({host:config.host,port:config.port,secure:config.port===465,
@@ -49,14 +50,14 @@ export function acceptanceSmtpTransport(config:{host:string;port:number;user?:st
 /** Only approved test addresses; no fallback to customer delivery or console OTPs. */
 export class SmtpAcceptanceSender implements MessageSender {
   private readonly allowed:Set<string>;
-  constructor(private readonly transport:Transporter<SMTPTransport.SentMessageInfo>,private readonly from:string,recipients:readonly string[]) {
-    acceptanceOnly();email(from);this.allowed=new Set(recipients.map(email));
-    if (!this.allowed.size) throw new Error('test_recipient_allowlist_required');
+  constructor(private readonly transport:Transporter<SMTPTransport.SentMessageInfo>,private readonly from:string,recipients:readonly string[],private readonly productionApproved=false) {
+    acceptanceOnly(productionApproved);email(from);this.allowed=new Set(recipients.map(email));
+    if (!this.allowed.size && !(process.env.NODE_ENV==='production'&&productionApproved)) throw new Error('test_recipient_allowlist_required');
   }
   async sendWhatsAppOtp():Promise<void> { throw new Error('whatsapp_provider_not_configured'); }
   async sendEmail(to:string,message:{subject:string;text:string}):Promise<void> {
-    acceptanceOnly();const recipient=email(to);
-    if (!this.allowed.has(recipient)) throw new Error('test_recipient_not_allowed');
+    acceptanceOnly(this.productionApproved);const recipient=email(to);
+    if (!(process.env.NODE_ENV==='production'&&this.productionApproved)&&!this.allowed.has(recipient)) throw new Error('test_recipient_not_allowed');
     try {
       const result=await this.transport.sendMail({from:this.from,to:recipient,subject:message.subject,text:message.text,disableFileAccess:true,disableUrlAccess:true});
       if (!result.messageId || result.rejected.length || !result.accepted.some(address=>typeof address==='string'&&address.toLowerCase()===recipient)) throw new Error('smtp_not_accepted');
@@ -68,13 +69,13 @@ const PUSH_HOSTS=new Set(['fcm.googleapis.com','updates.push.services.mozilla.co
 /** Actual aes128gcm/VAPID generation; delivery limited to exact test subscriptions. */
 export class AcceptanceWebPushTransport implements PushTransport {
   private readonly endpoints:Set<string>;
-  constructor(private readonly vapid:{subject:string;publicKey:string;privateKey:string},endpoints:readonly string[],private readonly fetcher:typeof fetch=fetch) {
-    acceptanceOnly();this.endpoints=new Set(endpoints);
-    if (!this.endpoints.size) throw new Error('test_push_allowlist_required');
+  constructor(private readonly vapid:{subject:string;publicKey:string;privateKey:string},endpoints:readonly string[],private readonly fetcher:typeof fetch=fetch,private readonly productionApproved=false) {
+    acceptanceOnly(productionApproved);this.endpoints=new Set(endpoints);
+    if (!this.endpoints.size && !(process.env.NODE_ENV==='production'&&productionApproved)) throw new Error('test_push_allowlist_required');
   }
   async send(target:PushTarget,body:string):Promise<{status:number}> {
-    acceptanceOnly();const url=new URL(target.endpoint);
-    if (!this.endpoints.has(target.endpoint) || url.protocol!=='https:' || url.port || url.username || url.password || !PUSH_HOSTS.has(url.hostname)) throw new Error('push_endpoint_not_allowed');
+    acceptanceOnly(this.productionApproved);const url=new URL(target.endpoint);
+    if ((!(process.env.NODE_ENV==='production'&&this.productionApproved)&&!this.endpoints.has(target.endpoint)) || url.protocol!=='https:' || url.port || url.username || url.password || !PUSH_HOSTS.has(url.hostname)) throw new Error('push_endpoint_not_allowed');
     const payload=JSON.stringify(pushPayloadSchema.parse(JSON.parse(body)));
     const details=webpush.generateRequestDetails({endpoint:target.endpoint,keys:{p256dh:target.p256dh,auth:target.auth}},payload,{vapidDetails:this.vapid,TTL:300,contentEncoding:'aes128gcm'});
     const response=await this.fetcher(target.endpoint,{method:'POST',headers:details.headers,body:new Uint8Array(details.body!),redirect:'error',signal:AbortSignal.timeout(8000)});

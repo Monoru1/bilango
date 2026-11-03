@@ -29,5 +29,25 @@ services:
       PAYOUT_KEY_HEX: ${PAYOUT_KEY_HEX:?set a persistent random 32-byte hex key outside git}
       FEDAPAY_WEBHOOK_SECRET: ${FEDAPAY_WEBHOOK_SECRET:?set an isolated fixture signing secret outside git}
       SCHEDULER: "0"
+  backups:
+    image: postgres:17-bookworm
+    profiles: [backups]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ACCEPTANCE_ISOLATED: "true"
+      PGHOST: db
+      PGDATABASE: gobilan_acceptance
+      PGUSER: gobilan
+      PGPASSWORD: ${ACCEPTANCE_DB_PASSWORD:?set ACCEPTANCE_DB_PASSWORD outside git}
+    volumes:
+      - ./scripts/acceptance-backup.sh:/scripts/acceptance-backup.sh:ro
+      - acceptance-backups:/backups
+    entrypoint: [sh, /scripts/acceptance-backup.sh]
+    command: [loop]
+    restart: unless-stopped
+
 volumes:
   acceptance-postgres:
+  acceptance-backups:

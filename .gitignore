@@ -12,3 +12,5 @@ coverage/
 *.p12
 *.jks
 .vite/
+
+!.env.providers.example

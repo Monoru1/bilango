@@ -79,6 +79,11 @@ jobs:
       FEDAPAY_WEBHOOK_SECRET: fixture-only-signing-secret
     steps:
       - uses: actions/checkout@v4
+      - name: Build API image and verify production stays locked
+        run: |
+          docker build -f Dockerfile.api -t gobilan-api-reviewed .
+          if docker run --rm gobilan-api-reviewed > /tmp/gobilan-release-gate.log 2>&1; then exit 1; fi
+          grep -q 'validation de lancement' /tmp/gobilan-release-gate.log
       - name: Validate and start isolated persistence stack
         run: |
           docker compose -f compose.acceptance.yml config --quiet
@@ -90,6 +95,10 @@ jobs:
           docker compose -f compose.acceptance.yml up -d --force-recreate --wait --wait-timeout 120
           curl --fail http://127.0.0.1:8787/ready
           test "$(docker compose -f compose.acceptance.yml exec -T db psql -U gobilan -d gobilan_acceptance -tAc "select count(*) from users where name='Persistence fixture'")" = "1"
+      - name: Exercise operational backup and isolated restore
+        run: |
+          docker compose -f compose.acceptance.yml run --rm backups backup
+          docker compose -f compose.acceptance.yml run --rm --entrypoint sh backups -c 'archive=$(ls -t /backups/gobilan-*.dump | head -1); sh /scripts/acceptance-backup.sh verify "$archive"'
       - name: Remove isolated stack and fixture volume
         if: always()
         run: docker compose -f compose.acceptance.yml down -v

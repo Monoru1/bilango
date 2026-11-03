@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import {
   daysRemaining,
   extendedPaidUntil,
@@ -48,29 +49,36 @@ export class SubscriptionService {
    * Crée la transaction côté SERVEUR. `merchant_reference` unique et jamais réutilisé ; le
    * business et le type d'opération voyagent dans `custom_metadata` (§8.2). Rien n'est prolongé ici.
    */
-  async createCheckout(actor: SessionUser, businessId: string) {
+  async createCheckout(actor: SessionUser, businessId: string, requestKey:string=randomUUID()) {
     const ctx = await requireAccess(this.deps.db, actor.id, businessId);
     if (!ctx.access.isOwner) throw forbidden();
-    const reference = `SUB-${businessId}-${iso(this.now).slice(0, 7)}-${randomToken(6)}`;
-    const payment = (
-      await this.deps.db.query<{ id: string }>(
-        `insert into payments(business_id, merchant_reference, status, amount, created_at) values ($1,$2,'pending',$3,$4) returning id`,
-        [businessId, reference, SUBSCRIPTION_PRICE_FCFA, iso(this.now)],
-      )
-    ).rows[0]!;
+    if(!/^[0-9a-f-]{36}$/i.test(requestKey))throw new AppError('validation','Référence invalide.');
+    type Payment={id:string;merchant_reference:string;status:string;fedapay_transaction_id:string|null;checkout_url:string|null;initialization_started_at:Date|null};
+    const payment=await this.deps.db.tx(async t=>{
+      await t.query('select pg_advisory_xact_lock(hashtext($1))',[businessId+requestKey]);
+      const reference=`SUB-${businessId}-${iso(this.now).slice(0,7)}-${randomToken(6)}`;
+      await t.query(`insert into payments(business_id,merchant_reference,status,amount,created_at,request_key) values($1,$2,'pending',$3,$4,$5) on conflict do nothing`,[businessId,reference,SUBSCRIPTION_PRICE_FCFA,iso(this.now),requestKey]);
+      const row=(await t.query<Payment>('select * from payments where business_id=$1 and request_key=$2 for update',[businessId,requestKey])).rows[0]!;
+      if(row.status!=='pending')throw new AppError('payment_terminal','Ce paiement est terminé. Vérifiez votre historique avant une nouvelle demande.');
+      if(row.checkout_url)return row;
+      // An unacknowledged creation is ambiguous: never repeat the provider POST.
+      if(row.initialization_started_at&&(!row.fedapay_transaction_id||this.now-row.initialization_started_at.getTime()<30000))throw new AppError('conflict','Initialisation en cours ou à vérifier par le support.');
+      await t.query('update payments set initialization_started_at=$2 where id=$1',[row.id,iso(this.now)]);return row;
+    });
+    if(payment.checkout_url)return {merchantReference:payment.merchant_reference,paymentUrl:payment.checkout_url};
+    const input={merchantReference:payment.merchant_reference,amount:SUBSCRIPTION_PRICE_FCFA,country:ctx.business.country,description:`Abonnement GoBilan — ${ctx.business.name} (30 jours)`,metadata:{business_id:businessId,type:'renouvellement_abonnement' as const}};
     try {
-      const tx = await this.deps.providers.gateway.createTransaction({
-        merchantReference: reference,
-        amount: SUBSCRIPTION_PRICE_FCFA,
-        country: ctx.business.country,
-        description: `Abonnement GoBilan — ${ctx.business.name} (30 jours)`,
-        metadata: { business_id: businessId, type: 'renouvellement_abonnement' },
+      const gateway=this.deps.providers.gateway;
+      if(payment.fedapay_transaction_id&&!gateway.resumeTransaction)throw new Error('gateway_resume_unavailable');
+      const tx=payment.fedapay_transaction_id&&gateway.resumeTransaction?await gateway.resumeTransaction(payment.fedapay_transaction_id,input):await gateway.createTransaction(input,async id=>{
+        await this.deps.db.query('update payments set fedapay_transaction_id=$2 where id=$1 and fedapay_transaction_id is null',[payment.id,id]);
       });
-      await this.deps.db.query('update payments set fedapay_transaction_id = $2 where id = $1', [payment.id, tx.transactionId]);
-      return { merchantReference: reference, paymentUrl: tx.paymentUrl };
-    } catch {
-      await this.deps.db.query(`update payments set status = 'failed' where id = $1 and status = 'pending'`, [payment.id]);
-      throw new AppError('internal', 'Paiement momentanément indisponible. Réessayez dans quelques minutes.');
+      await this.deps.db.query('update payments set fedapay_transaction_id=$2,checkout_url=$3,initialization_started_at=null where id=$1',[payment.id,tx.transactionId,tx.paymentUrl]);
+      return {merchantReference:payment.merchant_reference,paymentUrl:tx.paymentUrl};
+    }catch {
+      // Retain known provider IDs for reconciliation and safe token-only recovery.
+      await this.deps.db.query('update payments set initialization_started_at=null where id=$1 and fedapay_transaction_id is not null',[payment.id]);
+      throw new AppError('internal','Paiement momentanément indisponible. Réutilisez la même demande ; contactez le support si elle reste bloquée.');
     }
   }
 

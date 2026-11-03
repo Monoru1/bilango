@@ -2,7 +2,7 @@ import type { PushMessage } from '@gobilan/contracts';
 import type { CountryCode } from '@gobilan/domain';
 
 /**
- * Frontières avec les services externes. Aucune implémentation « réelle » n'est livrée ici :
+ * Frontières avec les services externes. Adaptateurs configurés dans integrations/configured.ts ;
  * WhatsApp Business, e-mail, CAPTCHA, FedaPay et Web Push exigent des comptes et clés au nom de
  * Novadis Digital (cahier §13.5, actions restantes §15). Les classes `Dev*` ci-dessous
  * ENREGISTRENT les messages en mémoire ; elles ne les envoient à personne.
@@ -39,7 +39,8 @@ export interface GatewayTransactionState {
 }
 
 export interface PaymentGateway {
-  createTransaction(input: GatewayTransactionInput): Promise<GatewayTransaction>;
+  createTransaction(input: GatewayTransactionInput, onCreated?:(id:string)=>Promise<void>): Promise<GatewayTransaction>;
+  resumeTransaction?(id:string,input:GatewayTransactionInput):Promise<GatewayTransaction>;
   /** Vérification de secours périodique (§8.2) : interroge la passerelle, ne croit aucune redirection. */
   getTransaction(transactionId: string): Promise<GatewayTransactionState | null>;
 }
@@ -69,7 +70,7 @@ export interface PushTarget {
 
 /**
  * Transport Web Push (chiffrement RFC 8291 + VAPID RFC 8292). L'implémentation RÉELLE exige des
- * clés VAPID au nom de Novadis Digital : elle n'est pas livrée (voir docs/REMAINING_BLOCKERS.md).
+ * clés VAPID au nom de Novadis Digital : voir integrations/acceptance.ts et configured.ts.
  * `status` est le code HTTP renvoyé par le service push du navigateur (201 = accepté, 404/410 =
  * abonnement expiré).
  */

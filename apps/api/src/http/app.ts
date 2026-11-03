@@ -123,6 +123,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   }
   const authLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
+  app.get('/v1/auth/config',async()=>({payments:{enabled:deps.config.paymentsEnabled===true,mode:deps.config.fedapayMode},captcha:{provider:deps.config.captchaSiteKey?'turnstile':'dev',siteKey:deps.config.captchaSiteKey||null,action:'otp'}}));
   app.get('/health', async () => ({ ok: true }));
   app.get('/ready', async (_req, reply) => {
     try { await deps.db.query('select 1'); return {ok:true}; }
@@ -235,7 +236,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
 
   // ================= Abonnement =================
   app.get('/v1/businesses/:businessId/subscription', async (req) => subs.view((await user(req)).user, bizParam.parse(req.params).businessId));
-  app.post('/v1/subscription/checkout', async (req) => subs.createCheckout((await user(req)).user, checkoutSchema.parse(req.body).businessId));
+  app.post('/v1/subscription/checkout', async (req) => {const input=checkoutSchema.parse(req.body);return subs.createCheckout((await user(req)).user,input.businessId,input.idempotencyKey);});
   // Webhook : pas de cookie ni CSRF — authentifié par la signature HMAC du corps brut.
   app.post('/v1/webhooks/fedapay', async (req, reply) => {
     const sig = req.headers['x-fedapay-signature'];

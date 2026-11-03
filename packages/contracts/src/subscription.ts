@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { idSchema } from './common';
 
-export const checkoutSchema = z.object({ businessId: idSchema });
+export const checkoutSchema = z.object({ businessId: idSchema, idempotencyKey:z.string().uuid().optional() });
 
 /** Réponse de création de transaction : le paiement se fait dans la PWA via FedaPay. */
 export const checkoutResponseSchema = z.object({

@@ -58,8 +58,73 @@ Les tests SQL/E2E créent des schémas de test aléatoires et ne suppriment que 
 
 ## Bloqué / non livré
 
-**NO-GO production**, maintenu volontairement dans server.ts. Fournisseurs WhatsApp, CAPTCHA, SMTP, FedaPay et push réels non branchés. Rappels et rapprochement périodique non planifiés. Checkout réel indisponible en mode HTTP. Captures/vidéo iOS, installation sur appareils physiques, tests de charge, restauration, infrastructure, domaines, secrets gérés et revue juridique absents.
+**NO-GO production** : les adaptateurs réels et leur câblage HTTP sont livrés dans le lot décrit ci-dessous, mais les comptes fournisseurs et leur recette externe ne sont pas validés. Ordonnanceur, restauration isolée et image API sont livrés ; hébergement API/PostgreSQL, secrets gérés, copie de sauvegarde hors hôte et autorisation de lancement restent requis. Appareils physiques et charge réelle non validés.
 
 Performance à traiter avant forte volumétrie : le workspace charge tout l'historique autorisé de tous les business. Préférer des agrégats serveur et un historique paginé, sans réintroduire de troncature dans la caisse/stock. Réapprovisionnement stock non livré. Voir REQUIREMENTS_MATRIX.md et DEPLOYMENT_READINESS.md pour les limites détaillées.
 
 Les hypothèses métier documentées par Claude, notamment D-004/D-014/D-018, ne sont pas des validations client. Les conserver visibles jusqu'à arbitrage.
+
+## Livraison : branche existante PR #7 — intégrations configurées
+
+`PROVIDER_MODE=configured` sélectionne les transports réels Meta OTP, SMTP,
+Turnstile, Web Push chiffré et FedaPay REST dans le serveur. Il n'existe aucun
+repli sur les doublures si une clé manque. Les variables sont dans
+`.env.providers.example` (copier vers `.env.providers`, jamais committer ce
+fichier). Pour la recette Docker :
+
+```sh
+docker compose -f compose.acceptance.yml -f compose.providers.yml up -d --build
+```
+
+Laisser `EXTERNAL_DELIVERY_ENABLED=false` et `EXTERNAL_PAYMENTS_ENABLED=false`.
+En recette, une activation ultérieure exige les listes exactes
+`TEST_EMAIL_RECIPIENTS`, `TEST_WHATSAPP_RECIPIENTS`, `TEST_PUSH_ENDPOINTS` ; jamais
+les coordonnées des clients. WhatsApp utilise un template d'authentification
+Meta approuvé (corps OTP et bouton URL OTP). La version Graph doit être celle
+approuvée pour le compte, sans valeur supposée par le code. Aucun appel externe
+réel n'est attesté par les tests HTTP avec doubles.
+
+La PWA demande la configuration CAPTCHA publique puis affiche Turnstile et
+transmet son jeton à l'API. Un échec ne remplace jamais ce jeton par un jeton de
+développement. La CSP autorise uniquement le domaine Turnstile nécessaire.
+Le bouton FedaPay apparaît uniquement si l'API déclare l'activation explicite ;
+il ne confirme aucun abonnement au retour navigateur. La même demande conserve
+sa clé en session et réutilise son identifiant fournisseur après panne du token.
+Une création ambiguë sans identifiant reste bloquée pour contrôle fournisseur.
+
+Netlify : définir `API_ORIGIN=https://<hôte-API-autorisé>` dans le contexte voulu.
+Le build génère un proxy `/v1/*` avant la route SPA. Sans cette origine, les appels
+API restent des erreurs JSON 404 explicites ; aucune donnée de démo n'est injectée.
+Le déploiement courant de production n'a pas été modifié.
+
+### Sauvegarde opérationnelle de recette
+
+```sh
+# Une sauvegarde quotidienne, rétention locale 7 jours ; volume distinct de PostgreSQL.
+docker compose -f compose.acceptance.yml --profile backups up -d backups
+# Sauvegarde ponctuelle
+docker compose -f compose.acceptance.yml run --rm backups backup
+# Contrôle de restauration dans une base TEMPORAIRE distincte, supprimée après contrôle
+docker compose -f compose.acceptance.yml run --rm backups verify /backups/gobilan-<horodatage>.dump
+```
+
+Archives custom PostgreSQL, permissions privées, checksum SHA-256 et validation
+du catalogue. Le script refuse toute base autre que `db/gobilan_acceptance`.
+Ne pas utiliser `down -v` sur une recette à conserver : cela efface les volumes,
+y compris les sauvegardes locales. Ce volume ne remplace pas une copie hors hôte ;
+un stockage durable existant doit être choisi avant lancement, sans souscription
+payante automatique. La CI exerce sauvegarde et restauration isolées.
+
+### Préconditions de lancement (ne pas activer pendant la recette)
+
+Le démarrage production exige `PRODUCTION_RELEASE_APPROVED=true`,
+`PROVIDER_MODE=configured`, PostgreSQL TLS `sslmode=verify-full`,
+`SECURE_COOKIES=true` et trois origines HTTPS explicites. Aucune migration ni
+création d'administrateur de développement n'est exécutée automatiquement en
+production. Appliquer les migrations par la commande dédiée avant démarrage ;
+le serveur vérifie la présence des colonnes de reprise. Le mode Live exige en
+plus `FEDAPAY_LIVE_APPROVED=true`. Ces portes ne constituent ni une autorisation
+actuelle, ni une validation des comptes fournisseurs. Hébergement API/PostgreSQL,
+secrets, recettes fournisseur et approbation de lancement restent nécessaires.
+
+`Dockerfile.api` prépare l’image de lancement avec `NODE_ENV=production` ; la CI vérifie qu’elle refuse le démarrage sans approbation. `Dockerfile.acceptance` reste réservé à la recette. Aucune image n’a été déployée sur une infrastructure production.

@@ -1,5 +1,5 @@
 import { SUBSCRIPTION_PRICE_FCFA, daysRemaining, formatFcfa, subscriptionEnd, subscriptionStatus } from '@gobilan/domain';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useStore } from '../app/useStore';
 import { Dialog } from '../components/Popup';
@@ -11,6 +11,10 @@ export function SubscriptionScreen() {
   const s = useStore();
   const { business: b, isOwner } = useOutletContext<BizCtx>();
   const [confirm, setConfirm] = useState(false);
+  const [paymentsEnabled,setPaymentsEnabled]=useState(false);
+  const [paymentError,setPaymentError]=useState<string|null>(null);
+  useEffect(()=>{let active=true;if(s.mode==='api')void s.paymentAvailability().then(enabled=>{if(active)setPaymentsEnabled(enabled);});return()=>{active=false;};},[s]);
+  const pay=async()=>{if(s.mode!=='api')return;setPaymentError(null);const result=await s.subscriptionCheckout(b.id);if(result.ok)window.location.assign(result.value.paymentUrl);else setPaymentError(result.error);};
   const sub = s.subOf(b.id);
   const now = s.now();
   const status = subscriptionStatus(sub, now);
@@ -23,7 +27,8 @@ export function SubscriptionScreen() {
       <h1 className="h1">Mon abonnement</h1>
       <div><div className="gb-label">Statut</div><p className="h2" style={{ marginTop: 8 }}>{text}</p><p className="muted" style={{ margin: 0 }}>{Math.max(0, daysRemaining(sub, now))} jour{daysRemaining(sub, now) > 1 ? 's' : ''} restant{daysRemaining(sub, now) > 1 ? 's' : ''}</p></div>
       <p className="muted" style={{ margin: 0, fontSize: 14 }}>{formatFcfa(SUBSCRIPTION_PRICE_FCFA)} pour 30 jours. Pas de prélèvement automatique ; les 30 jours s’ajoutent aux jours restants.</p>
-      {s.mode === 'demo' ? <button className="gb-btn" onClick={() => setConfirm(true)}>Renouveler</button> : <p role="status">Paiement indisponible dans cet environnement de développement. Aucun paiement réel n’est actif.</p>}
+      {s.mode === 'demo' ? <button className="gb-btn" onClick={() => setConfirm(true)}>Renouveler</button> : paymentsEnabled?<button className="gb-btn" disabled={s.mode==='api'&&s.busy} onClick={()=>void pay()}>Renouveler avec FedaPay</button>: <p role="status">Paiement indisponible dans cet environnement de développement. Aucun paiement réel n’est actif.</p>}
+      {paymentError?<p role="alert">{paymentError}</p>:null}
       <section>
         <h2 className="h2">Historique des paiements</h2>
         {sub.payments.length === 0 ? <p className="muted">Aucun paiement.</p> : (
