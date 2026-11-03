@@ -86,7 +86,7 @@ try {
   await guest.goto(`http://localhost:5173/b/${businessId}/bilan`);
   await fillReport(guest, 400, null, 1);
   await guest.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await guest.getByRole('link', { name: /Voir le détail|octobre/ }).first().click();
+  await guest.locator(`a[href^="/b/${businessId}/bilans/"]`).first().click();
   await guest.getByRole('link', { name: 'Modifier (24 h maximum)' }).click();
   await guest.locator('#f-revenue').fill('600');
   await guest.getByRole('button', { name: 'Enregistrer la modification' }).click();
@@ -99,7 +99,7 @@ try {
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   check((await owner.locator('body').innerText()).includes('1\u202f600'), 'dashboard aggregates owner and employee reports after edit');
   await owner.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await owner.getByRole('link', { name: /octobre/ }).first().click();
+  await owner.locator(`a[href^="/b/${businessId}/bilans/"]`).first().click();
   const downloading = owner.waitForEvent('download');
   await owner.getByRole('button', { name: 'Télécharger le bilan' }).click();
   const download = await downloading; await download.saveAs('/tmp/gobilan-export.pdf');
