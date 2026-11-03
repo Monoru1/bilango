@@ -19,12 +19,14 @@ export class MetaOtpSender {
   if(!/^[1-9]\d{8,14}$/.test(to)||!/^\d{4,6}$/.test(code))throw new Error('invalid_otp_delivery');
   if(this.env.NODE_ENV!=='production'&&!list(this.env.TEST_WHATSAPP_RECIPIENTS).map(x=>x.replace(/^\+/,'')).includes(to))throw new Error('test_recipient_not_allowed');
   const r=await this.fetcher(`https://graph.facebook.com/${this.env.WHATSAPP_GRAPH_VERSION}/${this.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,{method:'POST',redirect:'error',signal:AbortSignal.timeout(8000),headers:{Authorization:`Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to,type:'template',template:{name:this.env.WHATSAPP_OTP_TEMPLATE,language:{code:this.env.WHATSAPP_TEMPLATE_LANGUAGE},components:[{type:'body',parameters:[{type:'text',text:code}]},{type:'button',sub_type:'url',index:'0',parameters:[{type:'text',text:code}]}]}})});
-  if(!r.ok)throw new Error('whatsapp_delivery_failed');const body=await r.json() as {messages?:{id?:unknown}[]};if(typeof body.messages?.[0]?.id!=='string'||!body.messages[0].id)throw new Error('whatsapp_acknowledgement_invalid');
+  if(!r.ok)throw new Error('whatsapp_delivery_failed');const body=await r.json() as {messages?:{id?:unknown}[]};if(typeof body.messages?.[0]?.id!=='string'||!body.messages[0].id.trim())throw new Error('whatsapp_acknowledgement_invalid');
  }
 }
 
-/** Real REST gateway, with outbound creation disabled independently of notifications. */
+/** REST protocol: https://docs-v1.fedapay.com/payments/transactions
+ * Real customer identity and provider acknowledgement are required; outbound is opt-in. */
 export class FedaPayGateway {
+ readonly customerRequired=true;
  private origin:string;private account:number;
  constructor(private env:Env,private fetcher:typeof fetch=fetch){
   const mode=required(env,'FEDAPAY_MODE');if(!['sandbox','live'].includes(mode)||!required(env,'FEDAPAY_SECRET_KEY').startsWith(`sk_${mode}_`))throw new Error('gateway_configuration_invalid');
@@ -46,7 +48,12 @@ export class FedaPayGateway {
   return tx;
  }
  async createTransaction(input:GatewayTransactionInput,onCreated?:(id:string)=>Promise<void>):Promise<GatewayTransaction>{
-  const p=await this.call('/transactions','POST',{amount:input.amount,currency:{iso:'XOF'},description:input.description,merchant_reference:input.merchantReference,custom_metadata:input.metadata,callback_url:this.env.PWA_ORIGIN});
+  enabled(this.env,'EXTERNAL_PAYMENTS_ENABLED');
+  const customer=input.customer;
+  if(!customer||!customer.name.trim()||!/^\+[1-9]\d{8,14}$/.test(customer.phone)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email))throw new Error('gateway_customer_required');
+  if(this.env.NODE_ENV!=='production'&&(!list(this.env.TEST_EMAIL_RECIPIENTS).includes(customer.email)||!list(this.env.TEST_WHATSAPP_RECIPIENTS).includes(customer.phone)))throw new Error('test_recipient_not_allowed');
+  const names=customer.name.trim().split(/\s+/);const firstname=names.shift()!;
+  const p=await this.call('/transactions','POST' ,{amount:input.amount,currency:{iso:'XOF'},customer:{firstname,lastname:names.join(' ')||firstname,email:customer.email,phone_number:{number:customer.phone,country:customer.country.toLowerCase()}},description:input.description,merchant_reference:input.merchantReference,custom_metadata:input.metadata,callback_url:this.env.PWA_ORIGIN});
   const tx=(p['v1/transaction']??p) as {id?:unknown};if(!Number.isSafeInteger(tx.id)||Number(tx.id)<1)throw new Error('gateway_invalid_id');const id=String(tx.id);
   await onCreated?.(id);return this.resumeTransaction(id,input);
  }
@@ -65,6 +72,7 @@ export class FedaPayGateway {
 }
 
 export function configuredProviders(env:Env,db:Db,clock:Clock):Providers {
+ if(env.NODE_ENV==='production'&&(env.PROVIDER_MODE!=='configured'||env.PRODUCTION_RELEASE_APPROVED!=='true'))throw new Error('production_not_approved');
  if(env.PROVIDER_MODE!=='configured')return createDevProviders();
  const approved=env.NODE_ENV==='production'&&env.PRODUCTION_RELEASE_APPROVED==='true';
  if(env.NODE_ENV==='production'&&!approved)throw new Error('production_not_approved');

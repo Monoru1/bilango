@@ -237,3 +237,9 @@ it('rejects a competing initialization and permits a fresh key after a terminal 
  await expect(subs.createCheckout(t.owner.user,t.businessId,key)).rejects.toMatchObject({code:'payment_terminal'});
  await subs.createCheckout(t.owner.user,t.businessId,crypto.randomUUID());expect(creates).toBe(2);
 });
+it('requires the real payment customer before persisting any ambiguous initialization',async()=>{
+ const t=await mkTeam(ctx);const {subs}=services(ctx);
+ ctx.deps.providers.gateway={customerRequired:true,createTransaction:async()=>{throw new Error('must not call');},getTransaction:async()=>null};
+ await expect(subs.createCheckout(t.owner.user,t.businessId,crypto.randomUUID())).rejects.toMatchObject({code:'validation'});
+ expect((await ctx.db.query('select id from payments')).rows).toHaveLength(0);
+});

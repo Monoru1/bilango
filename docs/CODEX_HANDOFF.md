@@ -88,7 +88,7 @@ La PWA demande la configuration CAPTCHA publique puis affiche Turnstile et
 transmet son jeton à l'API. Un échec ne remplace jamais ce jeton par un jeton de
 développement. La CSP autorise uniquement le domaine Turnstile nécessaire.
 Le bouton FedaPay apparaît uniquement si l'API déclare l'activation explicite ;
-il ne confirme aucun abonnement au retour navigateur. La même demande conserve
+il recueille l’e-mail de paiement pour le client FedaPay (nom et téléphone issus de la session authentifiée), sans confirmer aucun abonnement au retour navigateur. La même demande conserve
 sa clé en session et réutilise son identifiant fournisseur après panne du token.
 Une création ambiguë sans identifiant reste bloquée pour contrôle fournisseur.
 

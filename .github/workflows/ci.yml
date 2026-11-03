@@ -101,4 +101,4 @@ jobs:
           docker compose -f compose.acceptance.yml run --rm --entrypoint sh backups -c 'archive=$(ls -t /backups/gobilan-*.dump | head -1); sh /scripts/acceptance-backup.sh verify "$archive"'
       - name: Remove isolated stack and fixture volume
         if: always()
-        run: docker compose -f compose.acceptance.yml down -v
+        run: docker compose -f compose.acceptance.yml --profile backups down -v

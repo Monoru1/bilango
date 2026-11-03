@@ -1,7 +1,7 @@
 import {describe,it,expect,vi} from 'vitest';
 import {MetaOtpSender,FedaPayGateway} from '../src/integrations/configured';
-const env={NODE_ENV:'test',WHATSAPP_ACCESS_TOKEN:'fixture',WHATSAPP_PHONE_NUMBER_ID:'123',WHATSAPP_GRAPH_VERSION:'v23.0',WHATSAPP_OTP_TEMPLATE:'otp',WHATSAPP_TEMPLATE_LANGUAGE:'fr',TEST_WHATSAPP_RECIPIENTS:'+2290197000000',FEDAPAY_MODE:'sandbox',FEDAPAY_SECRET_KEY:'sk_sandbox_fixture',FEDAPAY_ACCOUNT_ID:'42',PWA_ORIGIN:'https://pwa.example.test'};
-const input={merchantReference:'fixture',amount:2000,country:'BJ' as const,description:'Fixture',metadata:{business_id:'fixture-business',type:'renouvellement_abonnement' as const}};
+const env={NODE_ENV:'test',WHATSAPP_ACCESS_TOKEN:'fixture',WHATSAPP_PHONE_NUMBER_ID:'123',WHATSAPP_GRAPH_VERSION:'v23.0',WHATSAPP_OTP_TEMPLATE:'otp',WHATSAPP_TEMPLATE_LANGUAGE:'fr',TEST_WHATSAPP_RECIPIENTS:'+2290197000000',TEST_EMAIL_RECIPIENTS:'owner@example.test',FEDAPAY_MODE:'sandbox',FEDAPAY_SECRET_KEY:'sk_sandbox_fixture',FEDAPAY_ACCOUNT_ID:'42',PWA_ORIGIN:'https://pwa.example.test'};
+const input={merchantReference:'fixture',customer:{name:'Fixture Owner',phone:'+2290197000000',email:'owner@example.test',country:'BJ' as const},amount:2000,country:'BJ' as const,description:'Fixture',metadata:{business_id:'fixture-business',type:'renouvellement_abonnement' as const}};
 describe('configured external adapters',()=>{
  it('keeps every financial/delivery request disabled until separate activation',async()=>{
   const fetcher=vi.fn();await expect(new MetaOtpSender(env,fetcher).send('+2290197000000','1234')).rejects.toThrow('disabled');
@@ -18,7 +18,7 @@ describe('configured external adapters',()=>{
  it('persists the transaction acknowledgement before token failure and resumes without recreating it',async()=>{
   const fetcher=vi.fn().mockResolvedValueOnce(Response.json({'v1/transaction':{id:12}})).mockResolvedValueOnce(Response.json({id:12,account_id:42,amount:2000,currency:{iso:'XOF'},merchant_reference:'fixture',custom_metadata:input.metadata})).mockResolvedValueOnce(new Response(null,{status:503}));
   const gateway=new FedaPayGateway({...env,EXTERNAL_PAYMENTS_ENABLED:'true'},fetcher);const persist=vi.fn();
-  await expect(gateway.createTransaction(input,persist)).rejects.toThrow('unavailable');expect(persist).toHaveBeenCalledWith('12');
+  await expect(gateway.createTransaction(input,persist)).rejects.toThrow('unavailable');expect(persist).toHaveBeenCalledWith('12');expect(JSON.parse(fetcher.mock.calls[0]![1].body).customer.email).toBe('owner@example.test');
   fetcher.mockResolvedValueOnce(Response.json({id:12,account_id:42,amount:2000,currency:{iso:'XOF'},merchant_reference:'fixture',custom_metadata:input.metadata})).mockResolvedValueOnce(Response.json({token:'fixture',url:'https://sandbox-checkout.fedapay.com/fixture'}));
   expect(await gateway.resumeTransaction('12',input)).toMatchObject({transactionId:'12'});
   expect(fetcher.mock.calls.filter(([url])=>url.endsWith('/transactions'))).toHaveLength(1);
@@ -39,4 +39,9 @@ it('selects actual configured providers without opening deliveries or falling ba
  await expect(providers.messages.sendEmail('test@example.test',{subject:'fixture',text:'fixture'})).rejects.toThrow('disabled');
  await expect(providers.messages.sendWhatsAppOtp('+2290197000000','1234')).rejects.toThrow('disabled');
  expect(()=>configuredProviders({...env,PROVIDER_MODE:'configured'},ctx.db,ctx.clock)).toThrow('SMTP_HOST');
+});
+it('refuses missing or non-allowlisted FedaPay customer data before any HTTP call',async()=>{
+ const fetcher=vi.fn();const gateway=new FedaPayGateway({...env,EXTERNAL_PAYMENTS_ENABLED:'true'},fetcher);
+ await expect(gateway.createTransaction({...input,customer:undefined})).rejects.toThrow('customer_required');
+ await expect(gateway.createTransaction({...input,customer:{...input.customer,email:'client@example.test'}})).rejects.toThrow('not_allowed');expect(fetcher).not.toHaveBeenCalled();
 });

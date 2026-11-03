@@ -49,9 +49,10 @@ export class SubscriptionService {
    * Crée la transaction côté SERVEUR. `merchant_reference` unique et jamais réutilisé ; le
    * business et le type d'opération voyagent dans `custom_metadata` (§8.2). Rien n'est prolongé ici.
    */
-  async createCheckout(actor: SessionUser, businessId: string, requestKey:string=randomUUID()) {
+  async createCheckout(actor: SessionUser, businessId: string, requestKey:string=randomUUID(),customerEmail?:string) {
     const ctx = await requireAccess(this.deps.db, actor.id, businessId);
     if (!ctx.access.isOwner) throw forbidden();
+    if(this.deps.providers.gateway.customerRequired&&!customerEmail)throw new AppError('validation','Adresse e-mail de paiement requise.');
     if(!/^[0-9a-f-]{36}$/i.test(requestKey))throw new AppError('validation','Référence invalide.');
     type Payment={id:string;merchant_reference:string;status:string;fedapay_transaction_id:string|null;checkout_url:string|null;initialization_started_at:Date|null};
     const payment=await this.deps.db.tx(async t=>{
@@ -66,7 +67,7 @@ export class SubscriptionService {
       await t.query('update payments set initialization_started_at=$2 where id=$1',[row.id,iso(this.now)]);return row;
     });
     if(payment.checkout_url)return {merchantReference:payment.merchant_reference,paymentUrl:payment.checkout_url};
-    const input={merchantReference:payment.merchant_reference,amount:SUBSCRIPTION_PRICE_FCFA,country:ctx.business.country,description:`Abonnement GoBilan — ${ctx.business.name} (30 jours)`,metadata:{business_id:businessId,type:'renouvellement_abonnement' as const}};
+    const input={...(customerEmail?{customer:{name:actor.name,phone:actor.phone,email:customerEmail,country:actor.country}}:{}),merchantReference:payment.merchant_reference,amount:SUBSCRIPTION_PRICE_FCFA,country:ctx.business.country,description:`Abonnement GoBilan — ${ctx.business.name} (30 jours)`,metadata:{business_id:businessId,type:'renouvellement_abonnement' as const}};
     try {
       const gateway=this.deps.providers.gateway;
       if(payment.fedapay_transaction_id&&!gateway.resumeTransaction)throw new Error('gateway_resume_unavailable');

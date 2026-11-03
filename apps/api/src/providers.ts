@@ -18,6 +18,7 @@ export interface CaptchaVerifier {
 
 export interface GatewayTransactionInput {
   merchantReference: string;
+  customer?:{name:string;phone:string;email:string;country:CountryCode};
   amount: number;
   country: CountryCode;
   description: string;
@@ -39,6 +40,7 @@ export interface GatewayTransactionState {
 }
 
 export interface PaymentGateway {
+  readonly customerRequired?:boolean;
   createTransaction(input: GatewayTransactionInput, onCreated?:(id:string)=>Promise<void>): Promise<GatewayTransaction>;
   resumeTransaction?(id:string,input:GatewayTransactionInput):Promise<GatewayTransaction>;
   /** Vérification de secours périodique (§8.2) : interroge la passerelle, ne croit aucune redirection. */

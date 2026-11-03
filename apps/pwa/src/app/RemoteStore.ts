@@ -99,12 +99,12 @@ export class RemoteStore extends StoreView<ApplicationState> {
   async paymentAvailability():Promise<boolean>{
     try{return (await this.api<{payments:{enabled:boolean}}>('/v1/auth/config')).payments?.enabled===true;}catch{return false;}
   }
-  async subscriptionCheckout(businessId:string):Promise<Result<{paymentUrl:string}>>{
+  async subscriptionCheckout(businessId:string,customerEmail:string):Promise<Result<{paymentUrl:string}>>{
     return this.run(async()=>{
       if(!await this.paymentAvailability())throw new ApiError('validation','Paiement désactivé dans cet environnement.',503);
       const storageKey=`gb-checkout-${businessId}-${this.subOf(businessId).paidUntil||'initial'}`;
       let key=sessionStorage.getItem(storageKey);if(!key){key=crypto.randomUUID();sessionStorage.setItem(storageKey,key);}
-      const result=await this.api<{paymentUrl:string}>('/v1/subscription/checkout',{method:'POST',body:{businessId,idempotencyKey:key}}).catch(async error=>{
+      const result=await this.api<{paymentUrl:string}>('/v1/subscription/checkout',{method:'POST',body:{businessId,idempotencyKey:key,customerEmail}}).catch(async error=>{
         if(error instanceof ApiError&&error.code==='payment_terminal'){sessionStorage.removeItem(storageKey);await this.refresh();}throw error;
       });
       const url=new URL(result.paymentUrl);if(url.protocol!=='https:'||!['sandbox-checkout.fedapay.com','checkout.fedapay.com'].includes(url.hostname)||url.username||url.password||url.port)throw new ApiError('validation','Lien de paiement invalide.',502);

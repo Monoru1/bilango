@@ -135,3 +135,25 @@ it('requests an actual CAPTCHA token only when advertised by the API and never s
  expect(api).toHaveBeenCalledWith('/v1/auth/otp/request',expect.objectContaining({body:expect.objectContaining({captchaToken:'turnstile-fixture'})}));
  api.mockClear();api.mockResolvedValue({});expect((await store.startOtp('BJ','0197000001')).ok).toBe(false);expect(api.mock.calls.some(([path])=>path.endsWith('/request'))).toBe(false);
 });
+it('preserves checkout identity and customer email across a lost response and rejects an untrusted URL',async()=>{
+ sessionStorage.clear();const {store,api}=setup();let calls=0;
+ api.mockImplementation(async path=>{
+  if(path==='/v1/auth/config')return {payments:{enabled:true}};
+  if(path==='/v1/subscription/checkout'){if(++calls===1)throw new ApiError('network','Réponse perdue',0);return {paymentUrl:calls===2?'https://sandbox-checkout.fedapay.com/fixture':'https://evil.example/pay'};}
+  return {};
+ });
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(true);
+ const posts=api.mock.calls.filter(([path])=>path.endsWith('/checkout'));expect(posts[0]?.[1]?.body).toEqual(posts[1]?.[1]?.body);expect(posts[0]?.[1]?.body).toMatchObject({customerEmail:'owner@example.test',idempotencyKey:expect.any(String)});
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);sessionStorage.clear();
+});
+it('never initiates checkout when disabled and clears only a terminal payment request',async()=>{
+ sessionStorage.clear();const {store,api}=setup();api.mockResolvedValue({payments:{enabled:false}});
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);expect(api.mock.calls.some(([path])=>path.endsWith('/checkout'))).toBe(false);
+ api.mockImplementation(async path=>{
+  if(path==='/v1/auth/config')return {payments:{enabled:true}};
+  if(path.endsWith('/checkout'))throw new ApiError('payment_terminal','Paiement terminé',409);
+  if(path==='/v1/me')return {user};if(path==='/v1/businesses')return {businesses:[]};return {invitations:[]};
+ });
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);expect(sessionStorage.getItem('gb-checkout-business-fixture-initial')).toBeNull();sessionStorage.clear();
+});

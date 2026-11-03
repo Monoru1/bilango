@@ -236,7 +236,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
 
   // ================= Abonnement =================
   app.get('/v1/businesses/:businessId/subscription', async (req) => subs.view((await user(req)).user, bizParam.parse(req.params).businessId));
-  app.post('/v1/subscription/checkout', async (req) => {const input=checkoutSchema.parse(req.body);return subs.createCheckout((await user(req)).user,input.businessId,input.idempotencyKey);});
+  app.post('/v1/subscription/checkout', async (req) => {const input=checkoutSchema.parse(req.body);return subs.createCheckout((await user(req)).user,input.businessId,input.idempotencyKey,input.customerEmail);});
   // Webhook : pas de cookie ni CSRF — authentifié par la signature HMAC du corps brut.
   app.post('/v1/webhooks/fedapay', async (req, reply) => {
     const sig = req.headers['x-fedapay-signature'];
