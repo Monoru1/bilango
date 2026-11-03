@@ -21,7 +21,15 @@ describe('PWA workspace integration and isolation', () => {
     const w = await new WorkspaceService(ctx.deps).load(entry.user, team.businessId);
     expect(w.reports).toEqual([]); expect(w.users).toEqual([entry.user]); expect(w.members).toHaveLength(1);
     expect(w.invitations).toEqual([]); expect(w.subscription.payments).toEqual([]); expect(w.theoreticalCash).toBeNull();
-    expect(w.stockLevels[0]?.remaining).toBe(6); expect(JSON.stringify(w)).not.toContain('98765');
+    expect(w.stockLevels[0]?.remaining).toBe(6);
+    // UUIDs may contain the same digits as a private amount. Inspect numeric
+    // values rather than matching arbitrary identifier substrings.
+    const numbers = (value: unknown): number[] => {
+      if (typeof value === 'number') return [value];
+      if (value !== null && typeof value === 'object') return Object.values(value).flatMap(numbers);
+      return [];
+    };
+    expect(numbers(w)).not.toContain(98765);
   });
   it('refuses workspace access across businesses and immediately after removal', async () => {
     const team = await mkTeam(ctx); const other = await mkUser(ctx, 'Intrus');
