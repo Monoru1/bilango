@@ -29,6 +29,7 @@ export const apiErrorSchema = z.object({
       'otp_exhausted',
       'otp_quota',
       'subscription_blocked',
+      'payment_terminal',
       'edit_window_closed',
       'internal',
     ]),

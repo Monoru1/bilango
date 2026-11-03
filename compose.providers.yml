@@ -1,0 +1,4 @@
+# Explicit override: configured adapters, still no deliveries or payments by default.
+services:
+  api:
+    env_file: [.env.providers]

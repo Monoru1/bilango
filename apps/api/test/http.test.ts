@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/http/app';
 import { signFedapayWebhook } from '../src/crypto';
@@ -215,4 +215,11 @@ describe('HTTP — partenaires et administration', () => {
     expect((await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: session } })).statusCode).toBe(401);
     expect(mails().filter((m) => m === 'Mot de passe administrateur modifié')).toHaveLength(2);
   });
+});
+
+it('readiness checks the database and hides dependency errors', async()=>{
+ expect((await app.inject({method:'GET',url:'/ready'})).statusCode).toBe(200);
+ vi.spyOn(ctx.db,'query').mockRejectedValueOnce(new Error('private database detail'));
+ const response=await app.inject({method:'GET',url:'/ready'});
+ expect(response.statusCode).toBe(503);expect(response.json()).toEqual({ok:false});expect(response.body).not.toContain('private');
 });

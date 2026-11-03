@@ -1,5 +1,8 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -30,8 +33,22 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run test:postgres -w @gobilan/api
+      - name: Restore synthetic backup into a separate database
+        env:
+          TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node --import tsx scripts/test-backup-restore.mjs
   browser:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            width: 320
+          - browser: firefox
+            width: 390
+          - browser: webkit
+            width: 768
     services:
       postgres:
         image: postgres:17
@@ -44,10 +61,44 @@ jobs:
           --health-retries 10
     env:
       E2E_DATABASE_URL: postgresql://gobilan:test-only-password@localhost:5432/gobilan_e2e
+      E2E_BROWSER: ${{ matrix.browser }}
+      E2E_WIDTH: ${{ matrix.width }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
       - run: npm run test:e2e
+  acceptance-container:
+    runs-on: ubuntu-latest
+    env:
+      ACCEPTANCE_DB_PASSWORD: fixture-only-password
+      PIN_PEPPER_HEX: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      PAYOUT_KEY_HEX: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+      FEDAPAY_WEBHOOK_SECRET: fixture-only-signing-secret
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image and verify production stays locked
+        run: |
+          docker build -f Dockerfile.api -t gobilan-api-reviewed .
+          if docker run --rm gobilan-api-reviewed > /tmp/gobilan-release-gate.log 2>&1; then exit 1; fi
+          grep -q 'validation de lancement' /tmp/gobilan-release-gate.log
+      - name: Validate and start isolated persistence stack
+        run: |
+          docker compose -f compose.acceptance.yml config --quiet
+          docker compose -f compose.acceptance.yml up -d --build --wait --wait-timeout 180
+          curl --fail http://127.0.0.1:8787/ready
+      - name: Verify persistence across container replacement
+        run: |
+          docker compose -f compose.acceptance.yml exec -T db psql -U gobilan -d gobilan_acceptance -v ON_ERROR_STOP=1 -c "insert into users(phone,country,name,created_at) values('+2290100000000','BJ','Persistence fixture',now())"
+          docker compose -f compose.acceptance.yml up -d --force-recreate --wait --wait-timeout 120
+          curl --fail http://127.0.0.1:8787/ready
+          test "$(docker compose -f compose.acceptance.yml exec -T db psql -U gobilan -d gobilan_acceptance -tAc "select count(*) from users where name='Persistence fixture'")" = "1"
+      - name: Exercise operational backup and isolated restore
+        run: |
+          docker compose -f compose.acceptance.yml run --rm backups backup
+          docker compose -f compose.acceptance.yml run --rm --entrypoint sh backups -c 'archive=$(ls -t /backups/gobilan-*.dump | head -1); sh /scripts/acceptance-backup.sh verify "$archive"'
+      - name: Remove isolated stack and fixture volume
+        if: always()
+        run: docker compose -f compose.acceptance.yml --profile backups down -v

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type createClient } from '@gobilan/ui';
+vi.mock('../lib/captcha',()=>({browserCaptcha:vi.fn()}));
+import {browserCaptcha} from '../lib/captcha';
 import { RemoteStore } from './RemoteStore';
 import { emptyContent } from '@gobilan/domain';
 
@@ -7,6 +9,7 @@ const user = { id: 'u1', name: 'Awa', phone: '+2290197000001', country: 'BJ' as 
 const device = () => ({ deviceId: 'installation-test', label: 'Test' });
 function setup() {
   const api = vi.fn<ReturnType<typeof createClient>>().mockImplementation(async (path) => {
+    if(path==='/v1/auth/config')return {captcha:{provider:'dev',siteKey:null,action:'otp'}};
     if (path === '/v1/me') return { user };
     if (path === '/v1/businesses') return { businesses: [] };
     if (path === '/v1/me/invitations') return { invitations: [] };
@@ -22,7 +25,7 @@ describe('HTTP PWA store', () => {
   });
   it('keeps PIN proof in memory and sends same installation across OTP and PIN', async () => {
     const { store, api } = setup();
-    api.mockImplementation(async (path) => path.endsWith('/verify') ? { kind: 'pin_required', proof: 'one-time-proof' } : path === '/v1/me' ? { user } : path === '/v1/businesses' ? { businesses: [] } : { invitations: [] });
+    api.mockImplementation(async (path) => path==='/v1/auth/config'?{captcha:{provider:'dev',siteKey:null,action:'otp'}}:path.endsWith('/verify') ? { kind: 'pin_required', proof: 'one-time-proof' } : path === '/v1/me' ? { user } : path === '/v1/businesses' ? { businesses: [] } : { invitations: [] });
     expect((await store.startOtp('BJ', '0197000001')).ok).toBe(true);
     expect((await store.verifyOtp('4321')).ok).toBe(true);
     expect((await store.createPin('9876')).ok).toBe(true);
@@ -34,7 +37,8 @@ describe('HTTP PWA store', () => {
     let tries = 0;
     api.mockImplementation(async (path) => {
       if (path.endsWith('/reports')) { if (++tries === 1) throw new ApiError('network', 'Réseau coupé', 0); return { id: 'r1' }; }
-      if (path === '/v1/me') return { user };
+      if(path==='/v1/auth/config')return {captcha:{provider:'dev',siteKey:null,action:'otp'}};
+    if (path === '/v1/me') return { user };
       if (path === '/v1/businesses') return { businesses: [] };
       return { invitations: [] };
     });
@@ -73,7 +77,8 @@ describe('Web Push (PWA, §9.3)', () => {
     };
     const api = vi.fn().mockImplementation(async (path: string) => {
       if (path === '/v1/push/config') return { enabled: over.enabled ?? true, publicKey: (over.enabled ?? true) ? 'BPUBLIC' : null };
-      if (path === '/v1/me') return { user };
+      if(path==='/v1/auth/config')return {captcha:{provider:'dev',siteKey:null,action:'otp'}};
+    if (path === '/v1/me') return { user };
       if (path === '/v1/businesses') return { businesses: [] };
       if (path === '/v1/me/invitations') return { invitations: [] };
       return {};
@@ -121,4 +126,34 @@ describe('Web Push (PWA, §9.3)', () => {
     await store.disablePush();
     expect(api).toHaveBeenCalledWith('/v1/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
   });
+});
+
+it('requests an actual CAPTCHA token only when advertised by the API and never substitutes a dev token',async()=>{
+ const {store,api}=setup();vi.mocked(browserCaptcha).mockResolvedValue('turnstile-fixture');
+ api.mockImplementation(async path=>path==='/v1/auth/config'?{captcha:{provider:'turnstile',siteKey:'public-fixture',action:'otp'}}:{});
+ expect((await store.startOtp('BJ','0197000001')).ok).toBe(true);expect(browserCaptcha).toHaveBeenCalledWith('public-fixture','otp');
+ expect(api).toHaveBeenCalledWith('/v1/auth/otp/request',expect.objectContaining({body:expect.objectContaining({captchaToken:'turnstile-fixture'})}));
+ api.mockClear();api.mockResolvedValue({});expect((await store.startOtp('BJ','0197000001')).ok).toBe(false);expect(api.mock.calls.some(([path])=>path.endsWith('/request'))).toBe(false);
+});
+it('preserves checkout identity and customer email across a lost response and rejects an untrusted URL',async()=>{
+ sessionStorage.clear();const {store,api}=setup();let calls=0;
+ api.mockImplementation(async path=>{
+  if(path==='/v1/auth/config')return {payments:{enabled:true}};
+  if(path==='/v1/subscription/checkout'){if(++calls===1)throw new ApiError('network','Réponse perdue',0);return {paymentUrl:calls===2?'https://sandbox-checkout.fedapay.com/fixture':'https://evil.example/pay'};}
+  return {};
+ });
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(true);
+ const posts=api.mock.calls.filter(([path])=>path.endsWith('/checkout'));expect(posts[0]?.[1]?.body).toEqual(posts[1]?.[1]?.body);expect(posts[0]?.[1]?.body).toMatchObject({customerEmail:'owner@example.test',idempotencyKey:expect.any(String)});
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);sessionStorage.clear();
+});
+it('never initiates checkout when disabled and clears only a terminal payment request',async()=>{
+ sessionStorage.clear();const {store,api}=setup();api.mockResolvedValue({payments:{enabled:false}});
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);expect(api.mock.calls.some(([path])=>path.endsWith('/checkout'))).toBe(false);
+ api.mockImplementation(async path=>{
+  if(path==='/v1/auth/config')return {payments:{enabled:true}};
+  if(path.endsWith('/checkout'))throw new ApiError('payment_terminal','Paiement terminé',409);
+  if(path==='/v1/me')return {user};if(path==='/v1/businesses')return {businesses:[]};return {invitations:[]};
+ });
+ expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);expect(sessionStorage.getItem('gb-checkout-business-fixture-initial')).toBeNull();sessionStorage.clear();
 });

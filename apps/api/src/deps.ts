@@ -17,6 +17,8 @@ export interface AppConfig {
    * clés n'a été générée au nom de Novadis Digital : la PWA n'affiche alors aucune activation de notifications.
    */
   vapidPublicKey: string | null;
+  captchaSiteKey?:string|null;
+  paymentsEnabled?:boolean;
 }
 
 export interface Deps {
