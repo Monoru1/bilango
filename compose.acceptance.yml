@@ -1,0 +1,33 @@
+# Isolated acceptance only. No public database port; API bound to host loopback.
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: gobilan_acceptance
+      POSTGRES_USER: gobilan
+      POSTGRES_PASSWORD: ${ACCEPTANCE_DB_PASSWORD:?set ACCEPTANCE_DB_PASSWORD outside git}
+    volumes:
+      - acceptance-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U gobilan -d gobilan_acceptance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.acceptance
+    ports:
+      - "127.0.0.1:8787:8787"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ACCEPTANCE_ISOLATED: "true"
+      DATABASE_URL: postgresql://gobilan:${ACCEPTANCE_DB_PASSWORD}@db:5432/gobilan_acceptance
+      PIN_PEPPER_HEX: ${PIN_PEPPER_HEX:?set a persistent random hex pepper outside git}
+      PAYOUT_KEY_HEX: ${PAYOUT_KEY_HEX:?set a persistent random 32-byte hex key outside git}
+      FEDAPAY_WEBHOOK_SECRET: ${FEDAPAY_WEBHOOK_SECRET:?set an isolated fixture signing secret outside git}
+      SCHEDULER: "0"
+volumes:
+  acceptance-postgres:

@@ -124,6 +124,10 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   const authLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
   app.get('/health', async () => ({ ok: true }));
+  app.get('/ready', async (_req, reply) => {
+    try { await deps.db.query('select 1'); return {ok:true}; }
+    catch { return reply.status(503).send({ok:false}); }
+  });
 
   // ================= Utilisateurs (PWA) =================
   app.post('/v1/auth/otp/request', authLimit, async (req) => {

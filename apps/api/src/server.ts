@@ -1,4 +1,5 @@
 import { systemClock } from './clock';
+import { developmentRuntime } from './runtime-config';
 import { createPgDb, createPgliteDb, migrate } from './db';
 import { defaultConfig, type Deps } from './deps';
 import { buildApp } from './http/app';
@@ -23,6 +24,7 @@ async function main() {
   if (production) {
     throw new Error("Démarrage en production refusé : les fournisseurs réels ne sont pas branchés (stubs Dev uniquement). Voir docs/CODEX_HANDOFF.md.");
   }
+  const runtime = developmentRuntime(process.env);
   const db = process.env.DATABASE_URL ? await createPgDb(process.env.DATABASE_URL) : await createPgliteDb();
   const applied = await migrate(db);
   if (applied.length) process.stdout.write(`[api] migrations appliquées : ${applied.join(', ')}\n`);
@@ -56,7 +58,7 @@ async function main() {
       fedapayWebhookSecret: requireEnv('FEDAPAY_WEBHOOK_SECRET'),
     },
     providers,
-    config: { ...defaultConfig, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null },
+    config: { ...defaultConfig, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null },
   };
   if (deps.secrets.pepper.length < 32 || deps.secrets.payoutKey.length !== 32) throw new Error('PIN_PEPPER_HEX (>=32 octets) et PAYOUT_KEY_HEX (32 octets) requis.');
   if (process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {
@@ -71,9 +73,9 @@ async function main() {
     });
     process.stdout.write('[api] ordonnanceur démarré (rappels, expirations, rapprochement FedaPay horaire) — SCHEDULER=0 pour le désactiver\n');
   }
-  const app = buildApp(deps, { secureCookies: false, rateLimit: true });
-  const port = Number(process.env.PORT ?? 8787);
-  await app.listen({ port, host: '127.0.0.1' });
+  const app = buildApp(deps, { secureCookies: runtime.secureCookies, rateLimit: true });
+  const port = runtime.port;
+  await app.listen({ port, host: runtime.host });
   process.stdout.write(`[api] http://127.0.0.1:${port} — MODE DEV (fournisseurs simulés)\n`);
 }
 

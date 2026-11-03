@@ -2,15 +2,19 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
-const { chromium } = require('playwright');
+const browserName = process.env.E2E_BROWSER || 'chromium';
+if (!['chromium','firefox','webkit'].includes(browserName)) throw new Error('Invalid E2E browser');
+const browserType = require('playwright')[browserName];
 const { Client } = createRequire(import.meta.url)('pg');
 const apiLog = process.env.API_LOG ?? '/tmp/gobilan-api.log';
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await browserType.launch(browserName === 'chromium' ? { executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] } : {});
 const failures = [];
 const contexts = [];
 const check = (ok, text) => { if (!ok) throw new Error(text); console.log(`PASS ${text}`); };
+const viewportWidth = Number(process.env.E2E_WIDTH || 390);
+if (![320,390,768,1440].includes(viewportWidth)) throw new Error('Invalid E2E viewport');
 const context = async () => {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }); contexts.push(ctx);
+  const ctx = await browser.newContext({ viewport: { width: viewportWidth, height: 844 } }); contexts.push(ctx);
   await ctx.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { value: true }); });
   const page = await ctx.newPage(); page.on('pageerror', e => failures.push(e.message));
   return page;
@@ -63,6 +67,7 @@ try {
   await owner.reload();
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   await owner.screenshot({ path: '/tmp/gobilan-owner-mobile.png', fullPage: true });
+  check(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `dashboard has no horizontal overflow at ${viewportWidth}px in ${browserName}`);
   check((await owner.locator('body').innerText()).includes('1\u202f000'), 'dashboard survives reload and shows server revenue');
   await owner.goto(`http://localhost:5173/b/${businessId}/equipe`);
   await owner.getByLabel('Nom du rôle').fill('Caissier');
