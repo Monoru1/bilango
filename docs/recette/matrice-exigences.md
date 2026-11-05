@@ -4,10 +4,10 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 
 | ID / source | Exigence | Implémentation | Test | Preuve / statut | Bloqueur |
 | --- | --- | --- | --- | --- | --- |
-| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Tests locaux + E2E à consigner | Recette déployée |
+| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Tests locaux et E2E CI trois moteurs réussis | Recette déployée |
 | P0-DEMO / mission §1 | ?demo=1 ne contourne pas le site public | useStore.ts, App.tsx | App.test.tsx, install-smoke.mjs | Flag build explicite, aucun repli API | Démo métier hébergée séparée |
 | P0-ANDROID / CDC §3.2 | beforeinstallprompt, manifest, icônes, SW, HTTPS | Install.tsx, public/, netlify.toml | screens.test.tsx, install-smoke.mjs | Événement synthétique distingué d'une installation réelle | Appareil physique |
-| P0-IOS / v1.2 §6 | Guide visuel trois étapes, fermer puis réouvrir volontairement | Install.tsx | screens.test.tsx, install-smoke.mjs | Fermeture persistée, focus clavier et Échap | Safari physique |
+| P0-IOS / v1.2 §6 | Guide visuel trois étapes, fermer puis réouvrir volontairement | Install.tsx | screens.test.tsx, install-smoke.mjs | Unitaires et E2E trois moteurs réussis : fermeture persistée, focus et Échap | Safari physique |
 | P0-INAPP / CDC §3.4 | Invitation à ouvrir Chrome/Safari | lib/env.ts, Install.tsx | env.test.ts, install-smoke.mjs | UA simulée ; WhatsApp réel à vérifier | Navigateur WhatsApp physique |
 | P0-API / mission §1 | Pas de crash /v1/me, pas de HTML de SPA pour API | ui/http.ts, RemoteStore.ts, configure-netlify.mjs | http.test.ts, RemoteStore.test.ts, netlify-routing.test.ts | Erreurs contrôlées et proxy existant PR #7 repris | API persistante hébergée |
 | AUTH / CDC §4 | Pays, OTP, PIN, nouvel appareil, CAPTCHA, récupération | Auth.tsx, services/auth.ts, integrations/ | auth/http/configured-integrations tests, pwa-smoke.mjs | Code repris PR #7, validation distante restante | Meta/Turnstile configurés et recette autorisée |
@@ -32,3 +32,5 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 ## REC-01 à REC-14
 
 Le lot P0 cible REC-08 uniquement. REC-01–07 et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.
+
+Preuve transversale du lot : commit `2eba05d`, [CI six jobs réussis](https://github.com/Monoru1/bilango/actions/runs/42032534589), preview et captures référencées dans `demo-15-novembre.md`. Les limites physiques et fournisseurs ne sont pas levées par ces résultats.

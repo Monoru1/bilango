@@ -22,8 +22,8 @@ Corrections du lot :
 | Tests client HTTP partagé | 7 réussis localement |
 | ESLint | Réussi localement |
 | Audit dépendances production | 0 vulnérabilité (`npm audit --omit=dev --audit-level=high`) |
-| `npm run check` | Résultat final consigné dans la PR ; première tentative interrompue après timeout/mémoire des moteurs PGlite non fermés, correction incluse |
-| E2E mobiles ajoutés | Résultat de CI à reporter dans la PR ; aucun succès local revendiqué : téléchargement Chromium reçu tronqué ; PostgreSQL système indisponible dans l'environnement |
+| `npm run check` | Réussi : 345 tests (API 177, PWA 60, contrats 7, domaine 94, UI 7), 9 réservés au PostgreSQL réseau. Première tentative interrompue, moteurs PGlite désormais fermés |
+| E2E mobiles ajoutés | CI réussie sur Chromium 320, Firefox 390, WebKit 768 pour les parcours métier ; suite installation en viewport 390 sur les trois moteurs. Aucun E2E local revendiqué |
 | Site public existant | Ouvrir `/b/private/bilan?demo=1` affiche uniquement installation et lien légal dans Chrome distant ; constat sur `main`, pas preuve de déploiement des nouvelles corrections |
 | Recette physique | Aucun iPhone, Android ou navigateur WhatsApp physique testé pendant ce lot |
 | Intégrations externes | Aucun OTP WhatsApp, e-mail, paiement FedaPay ou push réel exécuté |
@@ -48,3 +48,29 @@ Les scénarios API/DB et navigateur existants couvrent une partie de ces chemins
 - Arbitrages v1.2 dans `../decisions/contradictions-cdc.md`, cahier de sécurité complémentaire et relecture juridique avant recette finale.
 
 **Statut : P0 en cours. Ni démonstration complète homologuée, ni livraison finale déclarée.**
+
+## Preuves finales du lot P0
+
+Commit de code vérifié : `2eba05d1600fac55635ed315049290f5eb1cb678` (PR [#9](https://github.com/Monoru1/bilango/pull/9)).
+
+[CI complète du commit](https://github.com/Monoru1/bilango/actions/runs/42032534589) : **six jobs réussis**, résultat consulté le 5 novembre 2026. PostgreSQL : 186 tests réussis, aucun ignoré ; ce sont les 177 cas API locaux plus les 9 cas de concurrence, pas 186 tests supplémentaires à additionner au total local. Les deux parcours PWA et portails passent sur les trois moteurs. Les envois restent Dev ; aucun prestataire réel certifié.
+
+Le job PostgreSQL restaure un dump dans une base isolée : utilisateur, caisse, historique et triggers préservés. Le job conteneur vérifie la persistance après remplacement, l'archive et son checksum puis une restauration dans une base temporaire distincte. Aucun stockage de production ou sauvegarde hors hôte validé.
+
+Captures CI : `mobile-install-chromium` (artifact 13417111238), `mobile-install-firefox` (13416941929), `mobile-install-webkit` (13416862094), accessibles depuis la CI. Deux captures publiques, sans données personnelles, sont aussi conservées dans `preuves/` :
+
+- [Installation iPhone émulée après fermeture du guide](preuves/installation-iphone-emule.png).
+- [Erreur API contrôlée et réessai](preuves/api-erreur-controlee.png).
+
+Preview : [https://deploy-preview-9--gobilan-pwa.netlify.app](https://deploy-preview-9--gobilan-pwa.netlify.app), deploy Netlify `6aec7edf1f5e7dcc147bb1b0`, lié au même SHA, état ready. HTTP et navigateur réellement contrôlés :
+
+| Ressource / action | Résultat constaté |
+| --- | --- |
+| `/` et `/connexion` | 200 HTML, CSP présente |
+| Route métier `/b/private/bilan?demo=1` | Installation seule, aucune donnée métier affichée dans Chrome distant |
+| Lien légal depuis cette page | Texte légal complet accessible |
+| `/v1/me` | 404 `application/json`, code `unavailable`, jamais HTML |
+| `/manifest.webmanifest` | 200 `application/manifest+json`, display standalone, cache no-cache |
+| `/sw.js` | 200 JavaScript, version gobilan-shell-v2, cache no-cache |
+
+La réponse `unavailable` est volontaire et ne constitue pas une API métier disponible. La preview de cette PR reste une preuve d'hébergement PWA, pas une démonstration métier hébergée complète. La production demeure sur main.

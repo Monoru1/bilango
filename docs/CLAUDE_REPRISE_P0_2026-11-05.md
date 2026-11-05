@@ -39,3 +39,9 @@ La branche part de `d260c08` (PR #7) et intègre main `871824c` : adaptateurs r�
 - Mettre à jour les preuves de recette pour le commit exact : commande, résultats, URL et appareils. Ne pas additionner les mêmes tests API exécutés sur PGlite et PostgreSQL.
 - Commits/PR testés, petites étapes. Pas de fusion main, déploiement production, migration destructive, vraie notification ni paiement sans l'autorisation applicable. Ne jamais imprimer les secrets.
 - Termine chaque lot avec ce qui a changé, ce qui a réellement passé, la preview vérifiée et uniquement les blocages concrets. Ne jamais déclarer « prêt » sur la seule base d'une CI verte.
+
+## Résultats acquis à conserver
+
+Code vérifié : `2eba05d1600fac55635ed315049290f5eb1cb678`, PR #9. `npm run check` local réussi (345 tests, 9 concurrence non exécutés localement) ; PostgreSQL CI 186 cas API réussis ; six jobs CI réussis, E2E Chromium/Firefox/WebKit, persistance et sauvegarde/restauration isolées : https://github.com/Monoru1/bilango/actions/runs/42032534589.
+
+Preview effectivement vérifiée : https://deploy-preview-9--gobilan-pwa.netlify.app ; installation/légal accessibles, /v1/me 404 JSON explicite, manifest MIME correct et service worker v2. Il n'y a pas encore d'API métier hébergée branchée à cette preview : ne pas envoyer ce lien au client comme une démo métier complète. Le premier travail restant est cet environnement de recette, puis l'homologation physique et fournisseurs, avec les corrections indépendantes P1 poursuivies en parallèle.
