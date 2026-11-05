@@ -15,7 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
  */
 export function InstallPage({ env }: { env: Env }) {
   const [evt, setEvt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [guide, setGuide] = useState(false);
+  const [guide, setGuide] = useState(() => env.iosSafari);
   const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,6 +62,7 @@ export function InstallPage({ env }: { env: Env }) {
         <Logo size={96} />
         <p className="muted" style={{ margin: 0, fontSize: 17 }}>Installez l’application sur votre téléphone pour suivre votre business.</p>
         <button className="gb-btn" onClick={install}>Installer l’application</button>
+        {env.iosSafari && !guide && <button className="link" onClick={() => setGuide(true)}>Comment installer ?</button>}
         {hint && <p className="gb-error" role="status" style={{ margin: 0 }}>{hint}</p>}
       </div>
       {guide && <IosGuide onClose={() => setGuide(false)} />}
@@ -80,7 +81,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 /**
  * Guide iPhone/Safari (§3.3). Aucune automatisation de l'installation. Le guide se réaffiche à
- * chaque visite (rien n'est mémorisé quand on le ferme). Captures d'écran et vidéo d'environ 10 s :
+ * uniquement à la demande après fermeture (CDC modifications v1.2 §6). Captures d'écran et vidéo :
  * NON fournies à ce jour (voir docs/CODEX_HANDOFF.md) — illustrations vectorielles provisoires.
  */
 function IosGuide({ onClose }: { onClose: () => void }) {
