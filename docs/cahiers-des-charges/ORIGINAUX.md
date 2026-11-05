@@ -1,6 +1,6 @@
-# PDF originaux vérifiés localement le 5 novembre 2026
+# PDF originaux — publication autorisée le 5 novembre 2026
 
-Fichiers reçus du propriétaire, copiés localement sans réécriture binaire. Ils ne sont pas publiés dans Git : le contrôle automatique a rejeté la diffusion des PDF sur le dépôt public faute d'autorisation jugée suffisamment explicite. Les extractions textuelles déjà présentes sur main restent inchangées. Une autorisation explicite est nécessaire pour ajouter les binaires au dépôt public :
+Fichiers reçus du propriétaire, vérifiés localement puis ajoutés sans réécriture binaire au dépôt public après son autorisation explicite du 5 novembre 2026. Le refus automatique initial de diffusion est levé par cette autorisation. Les extractions textuelles restent inchangées.
 
 | Fichier | Pages | SHA-256 |
 | --- | --- | --- |

@@ -14,7 +14,3 @@ coverage/
 .vite/
 
 !.env.providers.example
-
-# Original PDFs retained locally pending explicit approval for public disclosure.
-docs/cahiers-des-charges/CDC_GoBilan_2026-10-19.pdf
-docs/cahiers-des-charges/Modifications_GoBilan_v1.2_2026-11-01.pdf

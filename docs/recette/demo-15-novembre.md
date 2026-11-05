@@ -11,7 +11,7 @@ Corrections du lot :
 - Service worker v2 : pas de cache API, pas de HTML ajouté au cache des assets, conservation des caches appartenant à d'autres applications et mise à jour de la coque de secours.
 - PGlite de test fermé après chaque cas au lieu d'accumuler les moteurs WASM ; deux workers API maximum.
 - Tests navigateur du build public ajoutés : Android/iPhone/WhatsApp émulés, légal, zéro appel API public, réponse HTML installée et reprise. Captures CI `mobile-install-*`.
-- PDF originaux conservés localement et comparés aux extractions ; voir `../cahiers-des-charges/ORIGINAUX.md`.
+- PDF originaux comparés aux extractions puis publiés avec autorisation explicite du propriétaire ; voir `../cahiers-des-charges/ORIGINAUX.md`.
 
 ## Exécutions et limites
 
@@ -74,3 +74,7 @@ Preview : [https://deploy-preview-9--gobilan-pwa.netlify.app](https://deploy-pre
 | `/sw.js` | 200 JavaScript, version gobilan-shell-v2, cache no-cache |
 
 La réponse `unavailable` est volontaire et ne constitue pas une API métier disponible. La preview de cette PR reste une preuve d'hébergement PWA, pas une démonstration métier hébergée complète. La production demeure sur main.
+
+## Autorisation des originaux
+
+Le 5 novembre 2026, le propriétaire a explicitement autorisé la publication des deux PDF originaux sur le dépôt public en réponse à la demande précise. Les deux binaires sont ajoutés sans altération dans `docs/cahiers-des-charges/` ; leurs SHA-256 sont ceux du contrôle initial. Le blocage de publication des PDF est donc levé. Aucun changement applicatif ni activation de prestataire dans ce lot documentaire.

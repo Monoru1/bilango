@@ -6,7 +6,7 @@ Tu reprends `Monoru1/bilango`, branche `fix/p0-demo-november`, pour LIVRER, sans
 
 ## Commence par les sources et l'état livré
 
-Lis entièrement `AGENTS.md`, `docs/CODEX_MISSION_LIVRAISON_2026-11.md`, les deux extractions sous `docs/cahiers-des-charges/`, puis les deux PDF originaux s'ils sont disponibles localement : leur publication publique a été rejetée par le contrôle automatique et nécessite une autorisation explicite. Lis `docs/recette/demo-15-novembre.md`, `docs/recette/matrice-exigences.md` et `docs/decisions/contradictions-cdc.md`. Vérifie le dernier commit de cette branche et les résultats de sa PR/CI ; ne repars pas de main seul et ne réimplémente pas la PR #7.
+Lis entièrement `AGENTS.md`, `docs/CODEX_MISSION_LIVRAISON_2026-11.md`, les deux extractions sous `docs/cahiers-des-charges/`, puis les deux PDF originaux dans le même dossier : leur publication publique a été explicitement autorisée par le propriétaire le 5 novembre 2026. Lis `docs/recette/demo-15-novembre.md`, `docs/recette/matrice-exigences.md` et `docs/decisions/contradictions-cdc.md`. Vérifie le dernier commit de cette branche et les résultats de sa PR/CI ; ne repars pas de main seul et ne réimplémente pas la PR #7.
 
 La branche part de `d260c08` (PR #7) et intègre main `871824c` : adaptateurs réels configurables, CAPTCHA, checkout reprenable, proxy API et sauvegardes sont présents, mais pas certifiés opérationnels chez les prestataires. La production reste verrouillée.
 
@@ -19,7 +19,7 @@ La branche part de `d260c08` (PR #7) et intègre main `871824c` : adaptateurs r�
 - Service worker v2 : API non cachée, pas de HTML mis en cache comme asset, nettoyage limité aux caches GoBilan.
 - PGlite de test libéré après chaque cas et workers API limités ; ne pas retirer cette fermeture.
 - `e2e/install-smoke.mjs` et `npm run test:e2e:install` testent le build public sur les trois moteurs en CI ; captures archivées par job. Événement Android synthétique et UA iPhone/WhatsApp = émulation uniquement.
-- PDF originaux vérifiés localement sans réécriture, checksums et équivalence textuelle documentés ; binaires exclus de Git après rejet de la publication par le contrôle automatique. Les décisions commerciales ouvertes ne sont pas approuvées implicitement.
+- PDF originaux vérifiés sans réécriture, checksums et équivalence textuelle documentés ; binaires ajoutés à Git après autorisation explicite du propriétaire le 5 novembre 2026. Les décisions commerciales ouvertes ne sont pas approuvées implicitement.
 
 ## Exécute la suite, sans nouvel audit global
 
