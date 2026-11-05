@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build -w @gobilan/pwa"
+  publish = "apps/pwa/dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
