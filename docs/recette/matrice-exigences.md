@@ -20,9 +20,9 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 | ADMIN / CDC §10/13 | Admin séparé, allowlist/2FA, versements append-only | apps/admin + services/migrations | admin/allowlist/concurrency + portals-smoke.mjs | Code présent | SMTP + comptes autorisés |
 | UI-LEGAL / CDC §11/12/annexes | Mobile, palette, textes intégraux et confidentialité | UI partagé, LegalPage et assets | screens/App + install smoke | PDF archivés, textes comparés | Revue juridique et appareils |
 | OPS / CDC §13 | HTTPS, secrets serveur, backup/restore, quotas, logs | runtime-config, compose, scripts | runtime/crypto/tenant, CI postgres et acceptance-container | Infrastructure de recette existante reprise | Hébergement et sauvegarde hors hôte |
-| V12-CLOSE / §2 | Heure fermeture configurable, bonne zone IANA | reminderTime existant, à compléter dans création | REC-01 à exécuter | Ouvert | Implémentation P1 |
+| V12-CLOSE / §2 | Heure fermeture configurable, bonne zone IANA | domain/notifications.ts + countries.ts (timeZone), contrat `closingTime`, BusinessService.createBusiness, ClosingTimeField (création, onboarding, profil par business) | domain notifications.test.ts (fuseaux vérifiés contre l'ICU), api v12-closing-notifications.test.ts, screens.test.tsx, pwa-smoke.mjs | REC-01 volet notifications internes automatisé (voir REC ci-dessous) | Rappel WhatsApp exclu tant que §9 non tranché |
 | V12-REMIND / §3 | WhatsApp jours 1–7, sans lien, aucun si bilan envoyé | À compléter après décision | REC-02/03/04 | Ouvert | Décision V1, consentements/templates |
-| V12-INTERNAL / §4 | Notification selon nombre employés | push existant à adapter | REC-05/06 | Ouvert | Implémentation P1 |
+| V12-INTERNAL / §4 | Notification selon nombre employés | domain `ownerReportNotice`, ReportService.submit, contrat push `report_available`/`authorFirstName`, sw.js sans tag commun | api v12-closing-notifications.test.ts, service-worker.test.ts | REC-05/06 automatisés avec transport Push Dev | VAPID + appareil physique pour la réception réelle |
 | V12-EVENING / §5 | Un seul rapport patron, business à jour uniquement | À implémenter | REC-07 | Ouvert | Décision V1, horaire, Meta |
 | V12-IOS / §6 | Guide fermé ne revient qu'à la demande | P0-IOS ci-dessus | REC-08 + écrans/E2E installation | Partiel : tests représentatifs à consigner | Installation physique |
 | V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Auth existante, arbitrage requis | REC-14 | Ouvert | Contradiction 2/24h |
@@ -31,6 +31,14 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 
 ## REC-01 à REC-14
 
-Le lot P0 cible REC-08 uniquement. REC-01–07 et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.
+Le lot P0 cible REC-08. Le lot P1 du 5 novembre (voir `demo-15-novembre.md`, section « Lot P1 ») automatise :
+
+| REC | Résultat automatisé | Limite |
+| --- | --- | --- |
+| REC-01 | 18:00 à la création puis 21:30 : stocké côté serveur (E2E trois moteurs) ; le rappel interne part à 18:05 puis plus à l'ancienne heure, et à 21:35 après modification (API, PGlite + PostgreSQL) | Volet « rappels WhatsApp » non implémenté (décision §9) |
+| REC-05 | Un employé : `report_available`, texte « Le bilan de [Business] est disponible » | Transport Push Dev ; réception physique non testée |
+| REC-06 | Trois employés : trois notifications `report_sent` avec prénom, sans montant ni tag commun | Idem |
+
+REC-02/03/04/07 (WhatsApp) et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.
 
 Preuve transversale du lot : commit `2eba05d`, [CI six jobs réussis](https://github.com/Monoru1/bilango/actions/runs/42032534589), preview et captures référencées dans `demo-15-novembre.md`. Les limites physiques et fournisseurs ne sont pas levées par ces résultats.

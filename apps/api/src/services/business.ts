@@ -18,7 +18,7 @@ import { iso } from '../clock';
 import type { Deps } from '../deps';
 import { AppError, forbidden, notFound } from '../errors';
 import { requireAccess, subscriptionOf } from './access';
-import { RATE_CARDS, AGREEMENT_VERSION } from '@gobilan/domain';
+import { RATE_CARDS, AGREEMENT_VERSION, DEFAULT_CLOSING_TIME } from '@gobilan/domain';
 import type { SessionUser } from './auth';
 
 type CreateBusiness = z.infer<typeof createBusinessSchema>;
@@ -61,9 +61,9 @@ export class BusinessService {
       const trialGranted = prior.rows.length === 0;
       const id = (
         await t.query<{ id: string }>(
-          `insert into businesses(owner_id, name, country, sector, stock_enabled, trial_ends_at, created_device_key, created_at)
-           values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-          [user.id, input.name, input.country, input.sector, input.stockEnabled ?? false, trialGranted ? trialEndsAtFrom(now) : null, deviceKey, iso(now)],
+          `insert into businesses(owner_id, name, country, sector, stock_enabled, trial_ends_at, created_device_key, created_at, reminder_time)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+          [user.id, input.name, input.country, input.sector, input.stockEnabled ?? false, trialGranted ? trialEndsAtFrom(now) : null, deviceKey, iso(now), input.closingTime ?? DEFAULT_CLOSING_TIME],
         )
       ).rows[0]!.id;
       await t.query('insert into members(business_id, user_id, role_id, is_owner, joined_at) values ($1,$2,null,true,$3)', [id, user.id, iso(now)]);

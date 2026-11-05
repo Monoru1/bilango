@@ -78,3 +78,32 @@ La réponse `unavailable` est volontaire et ne constitue pas une API métier dis
 ## Autorisation des originaux
 
 Le 5 novembre 2026, le propriétaire a explicitement autorisé la publication des deux PDF originaux sur le dépôt public en réponse à la demande précise. Les deux binaires sont ajoutés sans altération dans `docs/cahiers-des-charges/` ; leurs SHA-256 sont ceux du contrôle initial. Le blocage de publication des PDF est donc levé. Aucun changement applicatif ni activation de prestataire dans ce lot documentaire.
+
+## Lot P1 du 5 novembre (après-midi) — heure de fermeture et notifications internes v1.2
+
+### Correction CI
+Le run [42039128158](https://github.com/Monoru1/bilango/actions/runs/42039128158) (commit `77d1140`) a échoué sur le seul job `browser (webkit, 768)` : « no browser runtime errors (…/v1/me/invitations due to access control checks) ». Cause : `e2e/pwa-smoke.mjs` naviguait (`goto`) pendant le rechargement déclenché par « Réessayer » et juste après un `reload()` ; WebKit signale l'interruption d'un fetch en cours comme erreur de page. Correction : attendre la fin du rechargement (nouvelle vérification « retry restores the dashboard after network recovery ») et supprimer le `reload()` redondant. Aucun filtrage d'erreurs ajouté.
+
+### Fonctionnalités
+- v1.2 §2 : heure de fermeture choisie à la création (18h00, 20h00, 21h30 ou heure libre), à l'onboarding comme dans « Ajouter un business », modifiable par business dans le profil (l'ancien réglage ne modifiait que le premier business). Contrat `closingTime`, défaut 20:00, modification réservée au propriétaire côté serveur.
+- Fuseaux : `COUNTRIES[...].timeZone` (Africa/Porto-Novo, Africa/Abidjan, Africa/Lome) ; les décalages utilisés sont vérifiés contre l'ICU. L'hypothèse « UTC+1 pour les trois pays » du PDF v1.2 n'est pas recopiée.
+- v1.2 §4 : un employé → « Le bilan de [Business] est disponible » (`report_available`) ; plusieurs → « [Prénom] a envoyé son bilan » (`report_sent` + `authorFirstName`), une notification par bilan (plus de tag commun dans le service worker). Règle dans `packages/domain`, aucune donnée financière.
+- Correction annexe : hook React appelé après un retour anticipé dans `ProfileScreen`.
+
+### Exécutions réelles (local, 5 novembre 2026)
+
+| Commande | Résultat |
+| --- | --- |
+| `npm ci` puis `npm run check` | Réussi : API 183 + 9 ignorés (PostgreSQL réseau), PWA 64, contrats 7, domaine 98, UI 7 ; typecheck, lint et builds OK |
+| `TEST_DATABASE_URL=… npm run test:postgres -w @gobilan/api` | 192 réussis (183 cas + 9 concurrence) sur PostgreSQL **16.15 local** dédié ; la CI utilise PostgreSQL 17 |
+| `npm run test:e2e` chromium 320 / firefox 390 / webkit 768 | Réussi sur les trois : 21 vérifications PWA dont REC-01 (création 18:00 puis 21:30 depuis le profil, lu en base) + smoke portails partenaires/admin |
+| `npm run test:e2e:install` chromium / firefox / webkit | 12 vérifications réussies sur chacun (émulation ; pas d'installation physique) |
+
+Envois Push/WhatsApp : transport Dev uniquement. Aucune réception sur appareil réel.
+
+### Environnement de recette API + PostgreSQL : bloqué, décision requise
+- Supabase (organisation `ryadsaka0@gmail.com's Org`) : deux projets seulement. `maison-pyjamas-recette` est exclu. Le second, `ryadsaka0@gmail.com's Project`, contient une boutique en ligne (produits, commandes, événement de Noël) : inutilisable comme base GoBilan. Aucun projet créé (palier gratuit déjà à deux projets actifs, un troisième serait payant).
+- Aucun hôte Node accessible depuis l'environnement de travail pour l'API Fastify ; le bac à sable ne joint pas de PostgreSQL externe.
+- Décision attendue du propriétaire : soit un projet PostgreSQL dédié `gobilan-recette` + un hôte API (Render/Fly/équivalent) dans son compte, avec `DATABASE_URL`, `PWA_ORIGIN` et `API_ORIGIN` HTTPS renseigné dans Netlify pour le proxy `/v1/*` ; soit l'accord pour porter l'API sur Netlify Functions (changement d'architecture : ordonnanceur et limitation de débit à revoir).
+
+**Statut inchangé : P0 en cours ; la preview reste une preuve d'hébergement PWA, pas une démonstration métier hébergée.**

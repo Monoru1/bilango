@@ -52,10 +52,18 @@ try {
   await owner.getByRole('button', { name: 'Ajouter un business', exact: true }).click();
   await owner.getByLabel('Nom du business').fill('GoBilan Test réel');
   await owner.getByRole('checkbox').check();
+  await owner.getByLabel('Heure de fermeture', { exact: true }).selectOption('18:00');
   await owner.getByRole('button', { name: 'Créer', exact: true }).click();
   await owner.getByText('Ton manager n’a pas encore fait son premier bilan.', { exact: false }).waitFor();
   const businessId = new URL(owner.url()).pathname.split('/')[2];
   check(Boolean(businessId), 'signup → profile → business persisted');
+  const closingTime = async () => (await db.query('select reminder_time from businesses where id=$1', [businessId])).rows[0].reminder_time.slice(0, 5);
+  check(await closingTime() === '18:00', 'v1.2 §2 closing time chosen at creation is stored (REC-01)');
+  await owner.goto('http://localhost:5173/profil');
+  await owner.getByLabel('Heure de fermeture', { exact: true }).selectOption('21:30');
+  await owner.getByRole('button', { name: 'Enregistrer l’heure', exact: true }).click();
+  await owner.getByText('Heure de fermeture réglée à 21:30.', { exact: true }).waitFor();
+  check(await closingTime() === '21:30', 'v1.2 §2 closing time changed from profile is stored server-side (REC-01)');
   await owner.goto(`http://localhost:5173/b/${businessId}/stock`);
   await owner.getByLabel('Nom de l’article').fill('Riz');
   await owner.getByLabel('Quantité de départ').fill('10');
@@ -99,7 +107,7 @@ try {
   check((await db.query('select count(*)::int n from report_versions v join reports r on r.id=v.report_id where r.business_id=$1', [businessId])).rows[0].n === 3, 'edit preserves original version');
   const leak = await guest.evaluate(async bid => { const r = await fetch(`/v1/businesses/${bid}/workspace`); return r.json(); }, businessId);
   check(leak.reports.length === 1 && leak.users.length === 1 && leak.subscription.payments.length === 0, 'entry permission filters server payload');
-  await owner.reload();
+  // Navigation complète unique (l'ancien reload suivi d'un goto immédiat interrompait les requêtes en cours).
   await owner.goto(`http://localhost:5173/b/${businessId}`);
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   check((await owner.locator('body').innerText()).includes('1\u202f600'), 'dashboard aggregates owner and employee reports after edit');
@@ -113,6 +121,10 @@ try {
   await owner.reload(); await owner.getByRole('button', { name: 'Réessayer', exact: true }).waitFor();
   check(!(await owner.locator('body').innerText()).includes('1\u202f600'), 'network failure clears financial screen and offers retry');
   await owner.unroute('**/v1/**'); await owner.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  // Attendre la fin du rechargement avant de naviguer : une navigation pendant un fetch en cours l'interrompt, et
+  // WebKit signale cette interruption comme erreur de page (« access control checks »), échec CI du run 42039128158.
+  await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
+  check(!(await owner.getByRole('button', { name: 'Réessayer', exact: true }).count()), 'retry restores the dashboard after network recovery');
   await owner.goto(`http://localhost:5173/b/${businessId}`);
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   const outsider = await context(); await signup(outsider, national(), 'Autre Test');

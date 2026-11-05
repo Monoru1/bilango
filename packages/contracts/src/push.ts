@@ -5,13 +5,15 @@ import { z } from 'zod';
  * construit lui-même le texte à partir de ce type : la charge utile ne transporte JAMAIS de montant
  * (elle peut s'afficher sur l'écran verrouillé).
  */
-export const pushTypeSchema = z.enum(['report_sent', 'report_edited', 'reminder', 'expiring', 'new_device', 'payment_confirmed']);
+export const pushTypeSchema = z.enum(['report_available', 'report_sent', 'report_edited', 'reminder', 'expiring', 'new_device', 'payment_confirmed']);
 export type PushType = z.infer<typeof pushTypeSchema>;
 
 /** Charge utile envoyée au navigateur. Volontairement minimale : type, nom du business, badge. */
 export const pushPayloadSchema = z.object({
   type: pushTypeSchema,
   businessName: z.string().max(80).optional(),
+  /** Prénom de l'auteur pour « [Prénom] a envoyé son bilan » (v1.2 §4). Jamais de montant. */
+  authorFirstName: z.string().max(40).optional(),
   badge: z.boolean().optional(),
 });
 export type PushMessage = z.infer<typeof pushPayloadSchema>;

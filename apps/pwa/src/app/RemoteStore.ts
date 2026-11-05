@@ -164,7 +164,7 @@ export class RemoteStore extends StoreView<ApplicationState> {
   logout() { return this.run(async () => { await this.api('/v1/auth/logout', { method: 'POST' }); this.clear(); }); }
   logoutOtherDevices() { return this.run(async () => { await this.api('/v1/auth/devices/logout-others', { method: 'POST' }); this.otherDevices = []; }); }
   setProfile(name: string, referralCode?: string) { return this.mutate<void>('/v1/me/profile', { name, referralCode }, 'PUT'); }
-  createBusiness(name: string, sector: Sector, stockEnabled: boolean) { return this.mutate<{ id: string }>('/v1/businesses', { name, sector, stockEnabled, country: this.user?.country }); }
+  createBusiness(name: string, sector: Sector, stockEnabled: boolean, closingTime = '20:00') { return this.mutate<{ id: string }>('/v1/businesses', { name, sector, stockEnabled, closingTime, country: this.user?.country }); }
   createRole(bid: string, name: string, level: PermissionLevel) { return this.mutate<{ id: string }>(`/v1/businesses/${bid}/roles`, { name, level }); }
   updateRole(bid: string, id: string, name: string, level: PermissionLevel) { return this.mutate<void>(`/v1/businesses/${bid}/roles/${id}`, { name, level }, 'PUT'); }
   archiveRole(bid: string, id: string) { return this.mutate<void>(`/v1/businesses/${bid}/roles/${id}`, undefined, 'DELETE'); }

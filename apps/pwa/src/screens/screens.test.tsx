@@ -124,3 +124,32 @@ describe('Abonnement vu par le propriétaire et l\'employé (§8.3, §8.3 bis)',
     expect(screen.getByRole('link', { name: 'Historique' })).toBeTruthy();
   });
 });
+
+describe('Heure de fermeture par business (v1.2 §2, REC-01)', () => {
+  it('à la création : liste 18h00/20h00/21h30 ou heure libre, enregistrée sur le business', async () => {
+    const { NewBusiness } = await import('./NewBusiness');
+    store.loginAsPersona(P.owner);
+    render(<MemoryRouter initialEntries={['/nouveau']}><Routes><Route path="/nouveau" element={<NewBusiness />} /><Route path="/b/:bid" element={<div>business créé</div>} /></Routes></MemoryRouter>);
+    const select = screen.getByLabelText('Heure de fermeture') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(['18h00', '20h00', '21h30', 'Autre heure…']);
+    fireEvent.change(screen.getByLabelText('Nom du business'), { target: { value: 'Maquis du soir' } });
+    fireEvent.change(select, { target: { value: 'other' } });
+    fireEvent.change(screen.getByLabelText('Heure de fermeture libre'), { target: { value: '22:15' } });
+    await act(async () => void fireEvent.click(screen.getByRole('button', { name: 'Créer' })));
+    expect(screen.getByText('business créé')).toBeTruthy();
+    expect(store.state.businesses.find((b) => b.name === 'Maquis du soir')?.reminderTime).toBe('22:15');
+  });
+
+  it('dans le profil : modifiable pour le business courant, puis 18h00 → 21h30', async () => {
+    const { ProfileScreen } = await import('./Settings');
+    store.loginAsPersona(P.owner);
+    await act(async () => void store.setReminder('b_etoile', '18:00'));
+    render(<MemoryRouter initialEntries={['/b/b_etoile/profil']}><Routes><Route path="/b/:bid/profil" element={<ProfileScreen />} /></Routes></MemoryRouter>);
+    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    expect(select.value).toBe('18:00');
+    fireEvent.change(select, { target: { value: '21:30' } });
+    await act(async () => void fireEvent.click(screen.getAllByRole('button', { name: 'Enregistrer l’heure' })[0]!));
+    expect(store.state.businesses.find((b) => b.id === 'b_etoile')?.reminderTime).toBe('21:30');
+    expect(screen.getByText('Heure de fermeture réglée à 21:30.')).toBeTruthy();
+  });
+});
