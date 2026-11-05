@@ -22,6 +22,9 @@ export function createClient(baseUrl = '') {
       throw new ApiError('network', 'Connexion impossible. Vérifiez votre réseau et réessayez.', 0);
     }
     const data = (await res.json().catch(() => null)) as { error?: { code: string; message: string; retryAfterSeconds?: number } } | null;
+    if (res.ok && res.status !== 204 && (data === null || typeof data !== 'object' || Array.isArray(data))) {
+      throw new ApiError('invalid_response', 'Réponse du serveur indisponible. Réessayez dans quelques instants.', 502);
+    }
     if (!res.ok) throw new ApiError(data?.error?.code ?? 'internal', data?.error?.message ?? 'Une erreur est survenue.', res.status, data?.error?.retryAfterSeconds);
     return data as T;
   };

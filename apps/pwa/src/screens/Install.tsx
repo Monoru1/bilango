@@ -1,5 +1,5 @@
 import { Logo } from '@gobilan/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShareIcon } from '../components/Icons';
 import type { Env } from '../lib/env';
@@ -15,7 +15,14 @@ interface BeforeInstallPromptEvent extends Event {
  */
 export function InstallPage({ env }: { env: Env }) {
   const [evt, setEvt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [guide, setGuide] = useState(false);
+  const [guide, setGuide] = useState(() => {
+    try { return env.iosSafari && localStorage.getItem('gb-ios-guide-dismissed') !== '1'; }
+    catch { return env.iosSafari; }
+  });
+  const closeGuide = () => {
+    try { localStorage.setItem('gb-ios-guide-dismissed', '1'); } catch { /* Storage may be unavailable. */ }
+    setGuide(false);
+  };
   const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,9 +55,13 @@ export function InstallPage({ env }: { env: Env }) {
       return;
     }
     if (evt) {
-      await evt.prompt();
-      await evt.userChoice;
-      setEvt(null);
+      try {
+        await evt.prompt();
+        const choice = await evt.userChoice;
+        if (choice.outcome === 'accepted') setHint('Installation demandée. Ouvre GoBilan depuis son icône sur l’écran d’accueil.');
+      } catch {
+        setHint('Installation indisponible. Réessaie depuis le menu de Chrome.');
+      } finally { setEvt(null); }
       return;
     }
     setHint('Pour installer, ouvre ce site dans Chrome, puis touche « Installer l’application » dans le menu du navigateur.');
@@ -62,9 +73,10 @@ export function InstallPage({ env }: { env: Env }) {
         <Logo size={96} />
         <p className="muted" style={{ margin: 0, fontSize: 17 }}>Installez l’application sur votre téléphone pour suivre votre business.</p>
         <button className="gb-btn" onClick={install}>Installer l’application</button>
+        {env.iosSafari && !guide && <button className="link" onClick={() => setGuide(true)}>Comment installer ?</button>}
         {hint && <p className="gb-error" role="status" style={{ margin: 0 }}>{hint}</p>}
       </div>
-      {guide && <IosGuide onClose={() => setGuide(false)} />}
+      {guide && <IosGuide onClose={closeGuide} />}
     </Shell>
   );
 }
@@ -79,20 +91,35 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Guide iPhone/Safari (§3.3). Aucune automatisation de l'installation. Le guide se réaffiche à
- * chaque visite (rien n'est mémorisé quand on le ferme). Captures d'écran et vidéo d'environ 10 s :
+ * Guide iPhone/Safari (§3.3). Aucune automatisation de l'installation. Le guide se réaffiche
+ * uniquement à la demande après fermeture (CDC modifications v1.2 §6). Captures d'écran et vidéo :
  * NON fournies à ce jour (voir docs/CODEX_HANDOFF.md) — illustrations vectorielles provisoires.
  */
 function IosGuide({ onClose }: { onClose: () => void }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const button = dialog.current?.querySelector('button');
+    button?.focus();
+    const keydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close.current();
+      // The close button is the only interactive element in this guide.
+      if (e.key === 'Tab') { e.preventDefault(); button?.focus(); }
+    };
+    const element = dialog.current;
+    element?.addEventListener('keydown', keydown);
+    return () => { element?.removeEventListener('keydown', keydown); previous?.focus(); };
+  }, []);
   return (
     <div className="overlay" role="presentation" style={{ alignItems: 'end', padding: 0 }}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label="Installer GoBilan sur iPhone" style={{ borderRadius: '20px 20px 0 0', maxWidth: 520, maxHeight: '92dvh', overflowY: 'auto' }}>
+      <div ref={dialog} className="dialog" role="dialog" aria-modal="true" aria-label="Installer GoBilan sur iPhone" style={{ borderRadius: '20px 20px 0 0', maxWidth: 520, maxHeight: '92dvh', overflowY: 'auto' }}>
         <div className="row"><h2 className="h2">Installer sur iPhone</h2><button className="link" onClick={onClose}>Fermer</button></div>
         <ol className="steps">
           <li><span>Appuie sur <strong>Partager</strong> <span style={{ display: 'inline-block', verticalAlign: 'middle' }}><ShareIcon /></span> en bas de Safari.</span></li>
           <li><span><strong>Fais défiler</strong> le menu vers le bas.</span></li>
-          <li><span>Appuie sur <strong>« Sur l’écran d’accueil »</strong>.</span></li>
-          <li><span>Appuie sur <strong>« Ajouter »</strong>.</span></li>
+          <li><span>Choisis <strong>« Sur l’écran d’accueil »</strong>, puis confirme avec <strong>« Ajouter »</strong>.</span></li>
         </ol>
         <p className="muted" style={{ margin: 0, fontSize: 14 }}>L’installation est nécessaire pour recevoir les notifications.</p>
         <div className="center bob" aria-hidden="true" style={{ color: 'var(--text)' }}>

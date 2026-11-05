@@ -15,7 +15,7 @@ import { InstallPage } from './Install';
 const env = (o: Partial<Env>): Env => ({ standalone: false, platform: 'other', iosSafari: false, inAppBrowser: null, ...o });
 const wrap = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
-beforeEach(() => store.reset());
+beforeEach(() => { store.reset(); localStorage.clear(); });
 afterEach(cleanup);
 
 describe('Page d\'installation (§3)', () => {
@@ -42,15 +42,18 @@ describe('Page d\'installation (§3)', () => {
     expect(evt.defaultPrevented).toBe(true);
   });
 
-  it('iPhone + Safari : guide en 4 étapes, mention des notifications, et il se réaffiche après fermeture', () => {
+  it('iPhone + Safari : guide en trois étapes, fermeture persistante et réouverture volontaire', () => {
     wrap(<InstallPage env={env({ platform: 'ios', iosSafari: true })} />);
     const open = () => fireEvent.click(screen.getByRole('button', { name: 'Installer l’application' }));
     open();
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByText(/nécessaire pour recevoir les notifications/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    open(); // aucune mémorisation : il revient
+    cleanup();
+    wrap(<InstallPage env={env({ platform: 'ios', iosSafari: true })} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Comment installer ?' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 

@@ -21,7 +21,8 @@
     "dev:partners": "npm run dev -w @gobilan/partners",
     "dev:admin": "npm run dev -w @gobilan/admin",
     "dev:api": "npm run dev -w @gobilan/api",
-    "test:e2e": "node e2e/run-smoke.mjs"
+    "test:e2e": "node e2e/run-smoke.mjs",
+    "test:e2e:install": "npm run build -w @gobilan/pwa && node e2e/run-install.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

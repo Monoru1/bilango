@@ -1,0 +1,34 @@
+# Traçabilité de livraison GoBilan
+
+Matrice de travail, pas certificat de conformité. Le détail historique reste dans `docs/REQUIREMENTS_MATRIX.md`. « Code présent » ne signifie pas « livré ». Les preuves de ce lot sont dans `demo-15-novembre.md` ; chaque ligne non validée reste ouverte.
+
+| ID / source | Exigence | Implémentation | Test | Preuve / statut | Bloqueur |
+| --- | --- | --- | --- | --- | --- |
+| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Tests locaux + E2E à consigner | Recette déployée |
+| P0-DEMO / mission §1 | ?demo=1 ne contourne pas le site public | useStore.ts, App.tsx | App.test.tsx, install-smoke.mjs | Flag build explicite, aucun repli API | Démo métier hébergée séparée |
+| P0-ANDROID / CDC §3.2 | beforeinstallprompt, manifest, icônes, SW, HTTPS | Install.tsx, public/, netlify.toml | screens.test.tsx, install-smoke.mjs | Événement synthétique distingué d'une installation réelle | Appareil physique |
+| P0-IOS / v1.2 §6 | Guide visuel trois étapes, fermer puis réouvrir volontairement | Install.tsx | screens.test.tsx, install-smoke.mjs | Fermeture persistée, focus clavier et Échap | Safari physique |
+| P0-INAPP / CDC §3.4 | Invitation à ouvrir Chrome/Safari | lib/env.ts, Install.tsx | env.test.ts, install-smoke.mjs | UA simulée ; WhatsApp réel à vérifier | Navigateur WhatsApp physique |
+| P0-API / mission §1 | Pas de crash /v1/me, pas de HTML de SPA pour API | ui/http.ts, RemoteStore.ts, configure-netlify.mjs | http.test.ts, RemoteStore.test.ts, netlify-routing.test.ts | Erreurs contrôlées et proxy existant PR #7 repris | API persistante hébergée |
+| AUTH / CDC §4 | Pays, OTP, PIN, nouvel appareil, CAPTCHA, récupération | Auth.tsx, services/auth.ts, integrations/ | auth/http/configured-integrations tests, pwa-smoke.mjs | Code repris PR #7, validation distante restante | Meta/Turnstile configurés et recette autorisée |
+| RBAC / CDC §5/13 | Isolation, rangs, révocation logique, invitations | requireAccess, business/workspace services | tenant/roles/workspace/concurrency tests, pwa-smoke.mjs | Contrôles serveur conservés | Recette déployée |
+| REPORTS / CDC §6 | Multi-auteurs, caisse, stock, édition 24h/version/recalcul | domain + reports service + PWA | report/workspace tests, pwa-smoke.mjs | Code présent ; état détaillé matrice historique | Recette déployée |
+| DASHBOARD / CDC §7 | Périodes, dernier bilan, aide, PDF | Home/Reports/Help, lib/pdf.ts | domain/PWA + pwa-smoke.mjs | Code présent | Recette mobile complète |
+| SUB / CDC §8 | 7j, 2000 FCFA/30j, grâce 3j, blocage J4, pas de rattrapage | domain/subscriptions + PWA | subscription/tenant + pwa-smoke.mjs | Aucune confirmation sur retour navigateur | FedaPay sandbox autorisé |
+| PUSH / CDC §9 | Événements sans montants, badge et permission au bon moment | push/jobs + SW/PWA | push/scheduler/RemoteStore tests | Adaptateur configuré repris PR #7 | VAPID et appareils physiques |
+| PARTNERS / CDC §10/annexe D | Activation, accords, commissions, cloisonnement | apps/partners + services | partners/admin/concurrency + portals-smoke.mjs | Code présent ; pas de validation externe déclarée | SMTP, recette métier |
+| ADMIN / CDC §10/13 | Admin séparé, allowlist/2FA, versements append-only | apps/admin + services/migrations | admin/allowlist/concurrency + portals-smoke.mjs | Code présent | SMTP + comptes autorisés |
+| UI-LEGAL / CDC §11/12/annexes | Mobile, palette, textes intégraux et confidentialité | UI partagé, LegalPage et assets | screens/App + install smoke | PDF archivés, textes comparés | Revue juridique et appareils |
+| OPS / CDC §13 | HTTPS, secrets serveur, backup/restore, quotas, logs | runtime-config, compose, scripts | runtime/crypto/tenant, CI postgres et acceptance-container | Infrastructure de recette existante reprise | Hébergement et sauvegarde hors hôte |
+| V12-CLOSE / §2 | Heure fermeture configurable, bonne zone IANA | reminderTime existant, à compléter dans création | REC-01 à exécuter | Ouvert | Implémentation P1 |
+| V12-REMIND / §3 | WhatsApp jours 1–7, sans lien, aucun si bilan envoyé | À compléter après décision | REC-02/03/04 | Ouvert | Décision V1, consentements/templates |
+| V12-INTERNAL / §4 | Notification selon nombre employés | push existant à adapter | REC-05/06 | Ouvert | Implémentation P1 |
+| V12-EVENING / §5 | Un seul rapport patron, business à jour uniquement | À implémenter | REC-07 | Ouvert | Décision V1, horaire, Meta |
+| V12-IOS / §6 | Guide fermé ne revient qu'à la demande | P0-IOS ci-dessus | REC-08 + écrans/E2E installation | Partiel : tests représentatifs à consigner | Installation physique |
+| V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Auth existante, arbitrage requis | REC-14 | Ouvert | Contradiction 2/24h |
+| V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | À implémenter dans domain/contracts/API/PWA/admin | REC-09/10/11/12/13 | Ouvert | Nature des jours/plafond/essai |
+| V12-METRICS / §12/13 | Analytics anonymes, funnel, CSV, admins seuls, audit accès | À implémenter | Tests isolation/agrégats/CSV à créer | Ouvert | Politique anonymat/APDP, exclusions équipe |
+
+## REC-01 à REC-14
+
+Le lot P0 cible REC-08 uniquement. REC-01–07 et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.

@@ -18,7 +18,7 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'migr
  * Limite : une seule connexion — les vraies courses entre transactions concurrentes ne sont
  * pas reproduites ici et doivent être rejouées sur PostgreSQL en CI (docs/TEST_REPORT.md).
  */
-export async function createPgliteDb(): Promise<Db> {
+export async function createPgliteDb(): Promise<Db & { close(): Promise<void> }> {
   const { PGlite } = await import('@electric-sql/pglite');
   const pg = new PGlite();
   type Queryable = { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }>; exec: (sql: string) => Promise<unknown> };
@@ -31,7 +31,7 @@ export async function createPgliteDb(): Promise<Db> {
   });
   const nested = (q: Queryable): Db =>
     wrap(q, async (fn) => fn(nested(q))); // pas de sous-transaction : on réutilise celle en cours
-  return wrap(pg as unknown as Queryable, (fn) => pg.transaction((t) => fn(nested(t as unknown as Queryable))));
+  return { ...wrap(pg as unknown as Queryable, (fn) => pg.transaction((t) => fn(nested(t as unknown as Queryable)))), close: () => pg.close() };
 }
 
 export async function createPgDb(connectionString: string): Promise<Db & { close(): Promise<void> }> {

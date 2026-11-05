@@ -1,0 +1,288 @@
+EXTRACTION TEXTUELLE DU PDF FOURNI — les tableaux/images et la mise en page ne remplacent pas le PDF original.
+
+<PARSED TEXT FOR PAGE: 1 / 5>
+                      Cahier de charges des modifications
+                                        GoBilan | Version 1.2 | 1er novembre 2026
+
+ Destinataire : développeur de la plateforme
+ Émetteur : éditeur de GoBilan
+ Statut : à valider avant développement
+
+
+ 1. Objet
+ Ce document décrit les modifications à apporter à l'application GoBilan (PWA) : heure de fermeture par
+ business, rappels aux employés, notifications internes, rapport du soir, installation sur iPhone, limitation des
+ envois de codes, et programme de parrainage pour les owners. Il complète le cahier des charges fonctionnel
+ et le cahier de charges sécurité. En cas de contradiction, la règle la plus stricte s'applique.
+
+
+ 2. Heure de fermeture par business
+  • À l'ajout d'un business, le patron (owner) sélectionne l'heure de fermeture dans une liste : 18h00, 20h00,
+    21h30, ou une heure libre.
+  • Il peut la modifier à tout moment depuis les paramètres du business.
+  • Cette heure sert de repère pour les rappels aux employés. Tous les calculs se font à l'heure locale
+    (UTC+1 pour le Bénin, le Togo et la Côte d'Ivoire).
+
+
+ 3. Rappels WhatsApp aux employés (7 premiers jours)
+  • Déclencheur : à l'heure de fermeture du business, pour chaque employé qui n'a pas encore validé son
+    bilan du jour.
+  • Période : du jour de l'inscription au 7e jour inclus. À partir du 8e jour, aucun envoi WhatsApp pour cet
+    employé, de façon définitive.
+  • Texte exact, sans modification : « Bonjour [Prénom], c'est l'heure de ton bilan quotidien pour [Nom du
+    Business]. Ouvre ton application pour le remplir. »
+  • Règle stricte : aucun lien, aucune URL, aucun bouton dans le message. L'employé doit ouvrir
+    l'application depuis son écran d'accueil.
+  • Aucun rappel si le bilan du jour est déjà validé.
+  • Après le 7e jour, les notifications passent exclusivement par les notifications internes de l'application
+    (section 4).
+
+
+ 4. Notifications internes (gratuites, dans l'application)
+  • Les notifications instantanées passent uniquement par l'application (PWA). Elles ne passent jamais par
+    WhatsApp.
+  • Business à un seul employé : dès la validation du bilan, le patron reçoit « Le bilan de [Nom du
+    Business] est disponible ».
+  • Business à plusieurs employés : à chaque validation, le patron reçoit une notification individuelle : «
+    [Prénom] a envoyé son bilan ».
+
+
+ 5. Rapport WhatsApp unique du soir (patron)
+  • Aucun message WhatsApp instantané pendant la journée, pour limiter les coûts.
+  • Une tâche serveur s'exécute chaque soir à 21h30, heure fixe.
+  • Un seul message par patron, regroupant tous ses business.
+  • Le message ne cite que les business qui ont envoyé leur bilan du jour. Un business en retard n'est pas
+    mentionné.
+
+
+
+GoBilan | Cahier de charges des modifications | v1.2                                                            Page 1
+<PARSED TEXT FOR PAGE: 2 / 5>
+  • L'heure de 21h30 doit être configurable par l'administrateur (voir section 9).
+
+
+ 6. Installation sur iPhone
+  • Android : le bouton « Installer l'application » lance l'installation directe.
+  • iOS (Safari) : détection de l'appareil, puis un écran explicatif visuel (pop-up ou courte animation) en trois
+    étapes : appuyer sur « Partager », faire défiler, puis choisir « Sur l'écran d'accueil ».
+  • L'écran peut être fermé. Il ne réapparaît que si l'utilisateur demande « Comment installer ? ».
+
+
+ 7. Limitation des envois de codes
+  • Par numéro : un code toutes les 2 minutes, 5 demandes maximum par 24 heures (déjà prévu au cahier
+    de charges).
+  • Par appareil ou par adresse IP : seuil à fixer (proposition : 10 demandes par heure).
+  • Plafond global journalier : seuil à fixer, avec une alerte automatique au-delà (SEC-21 du cahier de
+    charges sécurité).
+
+
+ 8. Programme de parrainage pour les owners
+ 8.1 Accès et disponibilité
+  • Un onglet « Parrainage » apparaît dans le menu latéral gauche.
+  • L'onglet n'est accessible qu'à partir du moment où l'owner a payé au moins un abonnement. Avant ce
+    moment, il est masqué.
+  • Un owner sans abonnement payé ne peut pas générer de code.
+
+ 8.2 Génération du code
+  • L'owner clique sur un bouton « Générer mon code de parrainage ». Un code unique lui est attribué.
+  • Un code par owner. Il ne peut pas être modifié par l'owner. Une modification passe par un administrateur.
+  • Le code est généré par le système, aléatoirement, et ne contient aucune information sur le nom ou le
+    business de l'owner.
+  • Format proposé : 8 caractères alphanumériques, sans caractères ambigus (0, O, I, 1). À valider avec le
+    développeur.
+
+ 8.3 Unicité et référencement
+  • Aucun code en double dans tout le système, quel que soit le nombre d'owners.
+  • L'unicité est garantie au niveau de la base de données (contrainte d'unicité), et non seulement dans
+    l'interface. En cas de collision à la génération, le système génère un nouveau code.
+  • Chaque code généré est enregistré dans une table dédiée, avec : le code, l'owner propriétaire, la date de
+    création, le statut (actif ou désactivé), et la liste des inscriptions rattachées.
+  • Un code n'est jamais réattribué, même après désactivation.
+
+ 8.4 Utilisation du code
+  • Une personne s'inscrit avec le code de l'owner parrain.
+  • Lorsque cette personne prend son premier abonnement payé, le parrain reçoit 30 jours gratuits.
+  • Un parrain peut recevoir cet avantage pour chaque personne parrainée qui remplit ces conditions.
+  • Le code ne crédite aucune commission sur le tableau de bord d'un agent, d'un manager ou d'un
+    influenceur.
+
+ 8.5 Règles de gestion des 30 jours
+  Règle                           Traitement attendu
+
+  Nature des 30 jours             Offerts au parrain. Ils ne comptent pas comme jours d'abonnement actif (règle du
+                                  cahier).
+
+
+
+GoBilan | Cahier de charges des modifications | v1.2                                                                 Page 2
+<PARSED TEXT FOR PAGE: 3 / 5>
+  Règle                           Traitement attendu
+
+  Déclenchement                   Premier abonnement payé par la personne parrainée, et non l'inscription.
+
+  Cumul                           Un avantage par personne parrainée. Pas de plafond proposé, à confirmer (section 9).
+
+  Affichage                       Le parrain voit le nombre de parrainages validés et les jours gratuits accumulés dans
+                                  son onglet.
+
+
+ 8.6 Espace administrateur
+  • Les administrateurs ont accès à la liste complète des codes de parrainage, tous owners confondus.
+  • Pour chaque code : owner propriétaire, date de création, statut, nombre d'inscriptions rattachées, nombre
+    de premiers abonnements payés, jours gratuits accordés.
+  • Recherche par code, par owner ou par date. Export possible au format CSV.
+  • Un administrateur peut désactiver un code, avec motif enregistré dans le journal (SEC-48 du cahier de
+    charges sécurité).
+
+
+ 9. Points à trancher avant le développement
+  • WhatsApp en V1 ou plus tard. Les rappels et le rapport du soir demandent l'API WhatsApp Business,
+    payante à chaque envoi, avec des modèles de messages approuvés par Meta. Décider si c'est en V1, qui
+    paie les envois, et vérifier les tarifs actuels.
+  • Heure du rapport du soir. Si un business ferme après 21h30, son bilan arrivera après le rapport.
+    Proposition : rendre l'heure du rapport configurable par l'administrateur.
+  • Nature des 30 jours du parrain. Ces jours prolongent-ils la date de fin d'abonnement, ou sont-ils une
+    période séparée ? La règle « ne comptent pas comme jours d'abonnement actif » doit être précisée.
+  • Plafond de parrainages. Faut-il limiter le nombre de jours gratuits par owner ?
+  • Essai de la personne parrainée. Garde-t-elle son essai gratuit standard en plus de l'inscription par code
+    ?
+  • Consentement des employés. Les employés doivent accepter de recevoir des messages WhatsApp. Il
+    faut conserver une trace de cet accord (contrôle possible de l'APDP).
+  • Seuils des envois de codes. Fixer les chiffres exacts pour les limites par appareil et le plafond global.
+
+
+ 10. Critères de recette
+  Réf           Test                                                 Résultat attendu
+
+  REC-01        Créer un business avec 18h00, puis modifier          L'heure est enregistrée, les rappels suivent la
+                l'heure à 21h30                                      nouvelle heure
+
+  REC-02        Ajouter un employé, simuler la fermeture le jour 3   Rappel WhatsApp reçu, sans lien
+
+  REC-03        Simuler la fermeture le jour 8                       Aucun message WhatsApp, notification interne
+                                                                     uniquement
+
+  REC-04        Valider un bilan avant l'heure de fermeture          Aucun rappel envoyé pour ce jour
+
+  REC-05        Business à un employé, validation du bilan           Notification « disponible » reçue par le patron
+
+  REC-06        Business à trois employés, validation de chacun      Trois notifications individuelles reçues
+
+  REC-07        Exécution à 21h30 avec deux business, un seul        Un message WhatsApp, avec le seul business à jour
+                en retard
+
+  REC-08        Ouvrir l'application sur iPhone Safari               Écran explicatif en trois étapes affiché
+
+  REC-09        Owner sans abonnement payé                           Onglet Parrainage masqué
+
+  REC-10        Owner avec abonnement payé, génération de            Code unique généré, visible dans l'onglet
+                code
+
+
+
+GoBilan | Cahier de charges des modifications | v1.2                                                                   Page 3
+<PARSED TEXT FOR PAGE: 4 / 5>
+  Réf            Test                                                 Résultat attendu
+
+  REC-11         Deux owners, génération simultanée                   Deux codes différents, aucun doublon en base
+
+  REC-12         Personne inscrite avec le code, premier              30 jours offerts au parrain, aucune commission
+                 abonnement payé                                      versée à un agent
+
+  REC-13         Connexion administrateur à la liste des codes        Tous les codes visibles, avec owner et statut
+
+  REC-14         Plus de 5 demandes de code pour un même              Demandes suivantes refusées
+                 numéro en 24 h
+
+
+ 11. Livrables attendus
+  • Mise à jour de la PWA et de l'API, avec les modifications décrites ci-dessus.
+  • Documentation des tâches automatiques (rappels, rapport du soir) et de leur paramétrage.
+  • Rapport de recette rempli, avec les résultats des tests REC-01 à REC-14.
+  • Mise à jour du cahier de charges sécurité pour les nouveaux points d'entrée (parrainage, codes,
+    WhatsApp).
+
+
+ 12. Tableau de bord administrateur : visiteurs de la page d'accueil
+  • L'administrateur voit le nombre de visiteurs de la page d'accueil de gobilan.com, c'est-à-dire la page qui
+    présente le bouton « Installer l'application ».
+  • Indicateurs : visiteurs uniques et visites, par jour, sur 7 jours, sur 30 jours, et sur une période
+    personnalisée.
+  • Définitions : une visite est une session de navigation. Un visiteur unique est un navigateur distinct sur la
+    période, identifié de façon anonyme, sans nom ni numéro de téléphone.
+  • Anonymat : aucune adresse IP stockée en clair, aucun cookie publicitaire. Si un outil de mesure est
+    utilisé, il doit être sans cookies, de préférence auto-hébergé. La conformité est à vérifier avec l'APDP
+    avant lancement.
+  • Exclusions : les visites de l'équipe et des robots ne sont pas comptées.
+  • Sources de trafic : lien direct, WhatsApp, Facebook, TikTok, lien d'un agent ou d'un influenceur
+    (identifiant de campagne ou code de parrainage).
+  • Export : les données sont exportables au format CSV.
+
+ Entonnoir d'installation
+  Étape                              Mesure                                   Limite à connaître
+
+  1. Visiteurs de l'accueil          Visiteurs uniques de la page             Aucune
+
+  2. Clic sur « Installer »          Nombre de clics sur le bouton            Aucune
+
+  3. Installation confirmée          Événement d'installation du              Disponible sur Android uniquement. Sur
+                                     navigateur                               iPhone, seul le clic sur le guide est
+                                                                              mesurable.
+
+  4. Première ouverture de l'app     Ouvertures depuis l'icône installée      Aucune
+
+  5. Inscription terminée            Comptes créés après OTP                  Aucune
+
+
+ 13. Métriques du tableau de bord administrateur (propositions)
+ Les métriques marquées (*) figuraient déjà dans les notes de projet sur l'ancien tableau de bord
+ administrateur. Les autres sont proposées pour suivre la santé du SaaS.
+ Accès administrateur : inchangé, tel que défini dans le cahier de charges GoBilan (PWA) du 19 octobre
+ 2026. Il sera détaillé dans une version ultérieure.
+
+
+
+
+GoBilan | Cahier de charges des modifications | v1.2                                                                   Page 4
+<PARSED TEXT FOR PAGE: 5 / 5>
+  Famille                 Métriques
+
+  Acquisition             Visiteurs de l'accueil (section 12) ; visiteurs par système (Android / iPhone) ; clics sur « Installer
+                          » ; personnes ayant saisi leur numéro ; comptes créés ; répartition par source * ; comptes créés
+                          par code de parrainage *
+
+  Activation              Business créés ; premier employé invité ; premier bilan envoyé dans les 48 heures ; taux
+                          d'activation
+
+  Conversion              Essais démarrés * ; essais en cours, avec jours restants * ; essais terminés sans paiement
+                          (abandons), par semaine d'inscription ; essais convertis en abonnement payé * ; délai moyen
+                          entre inscription et premier paiement ; répartition essai gratuit / abonné payant *
+
+  Revenu                  Revenu mensuel récurrent (MRR) ; abonnements actifs * ; abonnements en grâce (3 jours) ;
+                          abonnements bloqués (à partir du 4e jour) ; revenu par pays ; commissions dues et versées aux
+                          agents et managers
+
+  Rétention               Taux de renouvellement mois par mois ; abonnements non renouvelés * ; churn ; cohortes par
+                          mois d'inscription ; durée moyenne d'abonnement
+
+  Engagement              Bilans envoyés par jour ; part des bilans envoyés avant l'heure de fermeture ; utilisateurs actifs
+                          quotidiens, hebdomadaires et mensuels ; business sans bilan depuis 3 jours
+
+  Parrainage              Codes générés ; inscriptions par code ; jours offerts accordés ; contrôle d'unicité (nombre de
+                          doublons, attendu : 0)
+
+  Opérations              Paiements échoués ; webhooks reçus contre attendus ; codes envoyés par jour et par pays
+                          (coût WhatsApp) ; erreurs serveur ; disponibilité du site
+
+  Support                 Demandes reçues ; utilisateurs partis avant leur premier bilan
+
+ Règles de confidentialité : les visiteurs sont anonymes. La répartition Android / iPhone se fait à partir du
+ navigateur, avec une marge d'erreur, et ne sert qu'à piloter l'installation.
+ Règles d'accès : seuls les administrateurs voient les métriques globales. Un owner ne voit que ses propres
+ business et son propre parrainage. Chaque consultation de données personnelles est enregistrée dans le
+ journal d'activité.
+
+
+
+
+GoBilan | Cahier de charges des modifications | v1.2                                                                       Page 5

@@ -18,6 +18,17 @@ function setup() {
   return { api, store: new RemoteStore(api as ReturnType<typeof createClient>, device) };
 }
 describe('HTTP PWA store', () => {
+  it('handles a null session response without crashing or suggesting a public demo bypass', async () => {
+    const { store, api } = setup();
+    api.mockResolvedValueOnce(null);
+    await store.initialize();
+    expect(store.initialized).toBe(true);
+    expect(store.user).toBeNull();
+    expect(store.error).toContain('Connexion au serveur indisponible');
+    expect(store.error).not.toContain('demo=1');
+    await store.refresh();
+    expect(store.user).toEqual(user);
+  });
   it('starts empty and restores only server state, never demo personas', async () => {
     const { store } = setup();
     expect(store.state.businesses).toEqual([]); expect(store.user).toBeNull();

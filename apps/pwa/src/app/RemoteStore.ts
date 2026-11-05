@@ -40,7 +40,11 @@ export class RemoteStore extends StoreView<ApplicationState> {
   async refresh() {
     this.loading = true; this.error = null; this.loadError = null; this.emit();
     try {
-      const { user } = await this.api<{ user: Workspace['users'][number] }>('/v1/me');
+      const session = await this.api<{ user: Workspace['users'][number] }>('/v1/me');
+      if (!session || !session.user) {
+        throw new ApiError('api_unavailable', 'Connexion au serveur indisponible. Réessayez dans quelques instants.', 503);
+      }
+      const { user } = session;
       const { businesses } = await this.api<{ businesses: { id: string }[] }>('/v1/businesses');
       const { invitations } = await this.api<{ invitations: Workspace['invitations'] }>('/v1/me/invitations');
       const loaded = await Promise.all(businesses.map(b => this.api<Workspace>(`/v1/businesses/${b.id}/workspace`)));
