@@ -1,5 +1,7 @@
 # MISSION CODEX — GOBILAN : DÉMO 15/11/2026, LIVRAISON 01/12/2026
 
+**Documents disponibles dans le dépôt :** `docs/cahiers-des-charges/CDC_GoBilan_2026-10-19_EXTRACTION.txt` et `docs/cahiers-des-charges/Modifications_GoBilan_v1.2_2026-11-01_EXTRACTION.txt`. Ces fichiers sont des **extractions textuelles** des PDF transmis : pour les tableaux, figures, annexes ou ambiguïtés, exiger les PDF originaux avant validation finale. Ne pas présenter ces extractions comme les PDF binaires.
+
 Tu es l'ingénieur principal chargé de **livrer** GoBilan, pas de produire un audit de plus. Référentiel contractuel : les deux PDF originaux remis par le propriétaire (19/10/2026, 29 pages ; modifications v1.2 du 01/11/2026, 5 pages). Ils doivent être conservés sans altération dans `docs/cahiers-des-charges/`. **Si les PDF ne sont pas encore présents dans le dépôt, signale leur absence et demande leur ajout : ne prétends pas les avoir lus depuis GitHub.** Le propriétaire les a fournis dans la conversation ChatGPT, pas nécessairement dans l'environnement Codex. Ne substitue jamais ce prompt aux PDF.
 
 ## Dates et définition de « livré »
@@ -83,4 +85,4 @@ Conserver les textes sources intacts. Créer `docs/decisions/contradictions-cdc.
 - **Ne pas conclure avec un audit. Implémenter, tester, corriger, livrer.** Ne jamais prétendre avoir testé un appareil ou un service si ce n'est pas le cas.
 
 ## Commande de départ
-Commence par vérifier les deux PDF dans `docs/cahiers-des-charges/` et les lire. Si absents, réalise immédiatement les corrections P0 indépendantes de leur disponibilité et signale précisément ce qui reste à fournir. Exécute ensuite la suite de tests existante et corrige les échecs. Prends comme suivi GitHub l'issue #8.
+Commence par lire intégralement les deux extractions textuelles présentes dans `docs/cahiers-des-charges/`. Vérifie ensuite si les deux PDF originaux sont également présents ; sinon, demande leur ajout pour contrôler tableaux, annexes et fidélité avant recette finale, mais commence immédiatement les corrections P0. Exécute ensuite la suite de tests existante et corrige les échecs. Prends comme suivi GitHub l'issue #8.
