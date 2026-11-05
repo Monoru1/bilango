@@ -3,7 +3,8 @@ import { DemoStore } from '../demo/store';
 import { RemoteStore } from './RemoteStore';
 
 export function demoEnabled(): boolean {
-  if (import.meta.env.VITE_ALLOW_DEMO_BYPASS === '0') return false;
+  // Les données simulées sont interdites dans les builds publics par défaut.
+  if (import.meta.env.VITE_ALLOW_DEMO_BYPASS !== '1') return false;
   try {
     const value = new URLSearchParams(window.location.search).get('demo');
     if (value === '0') sessionStorage.removeItem('gb-demo');
