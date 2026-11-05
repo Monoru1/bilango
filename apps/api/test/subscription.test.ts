@@ -208,3 +208,38 @@ describe('webhook FedaPay (§8.2)', () => {
     expect(ctx.providers.gateway.created[0]!.amount).toBe(2000);
   });
 });
+
+describe('durable checkout recovery',()=>{
+ it('returns the same provider transaction when the client replays a request key',async()=>{
+  const t=await mkTeam(ctx);const {subs}=services(ctx);const key=crypto.randomUUID();
+  const first=await subs.createCheckout(t.owner.user,t.businessId,key);
+  expect(await subs.createCheckout(t.owner.user,t.businessId,key)).toEqual(first);expect(ctx.providers.gateway.created).toHaveLength(1);
+ });
+ it('does not repeat an ambiguous creation and retains a known ID across token failure',async()=>{
+  const t=await mkTeam(ctx);const {subs}=services(ctx);const key=crypto.randomUUID();let creations=0;
+  ctx.deps.providers.gateway={createTransaction:async()=>{creations++;throw new Error('lost response');},getTransaction:async()=>null};
+  await expect(subs.createCheckout(t.owner.user,t.businessId,key)).rejects.toThrow('momentanément');
+  await expect(subs.createCheckout(t.owner.user,t.businessId,key)).rejects.toMatchObject({code:'conflict'});expect(creations).toBe(1);
+  const second=crypto.randomUUID();let resumes=0;
+  ctx.deps.providers.gateway={createTransaction:async(_input,persist)=>{creations++;await persist?.('123');throw new Error('token failure');},resumeTransaction:async()=>{resumes++;return {transactionId:'123',paymentUrl:'https://sandbox-checkout.fedapay.com/fixture'};},getTransaction:async()=>null};
+  await expect(subs.createCheckout(t.owner.user,t.businessId,second)).rejects.toThrow('momentanément');
+  expect((await ctx.db.query<{fedapay_transaction_id:string}>("select fedapay_transaction_id from payments where request_key=$1",[second])).rows[0]?.fedapay_transaction_id).toBe('123');
+  await subs.createCheckout(t.owner.user,t.businessId,second);expect(creations).toBe(2);expect(resumes).toBe(1);
+ });
+});
+it('rejects a competing initialization and permits a fresh key after a terminal attempt',async()=>{
+ const t=await mkTeam(ctx);const {subs}=services(ctx);const key=crypto.randomUUID();
+ let release!:()=>void;let started!:()=>void;const wait=new Promise<void>(resolve=>{release=resolve;});const reached=new Promise<void>(resolve=>{started=resolve;});let creates=0;
+ ctx.deps.providers.gateway={createTransaction:async()=>{creates++;started();await wait;return {transactionId:String(320+creates),paymentUrl:'https://sandbox-checkout.fedapay.com/fixture'};},getTransaction:async()=>null};
+ const first=subs.createCheckout(t.owner.user,t.businessId,key);await reached;
+ await expect(subs.createCheckout(t.owner.user,t.businessId,key)).rejects.toMatchObject({code:'conflict'});release();await first;expect(creates).toBe(1);
+ await ctx.db.query("update payments set status='failed' where request_key=$1",[key]);
+ await expect(subs.createCheckout(t.owner.user,t.businessId,key)).rejects.toMatchObject({code:'payment_terminal'});
+ await subs.createCheckout(t.owner.user,t.businessId,crypto.randomUUID());expect(creates).toBe(2);
+});
+it('requires the real payment customer before persisting any ambiguous initialization',async()=>{
+ const t=await mkTeam(ctx);const {subs}=services(ctx);
+ ctx.deps.providers.gateway={customerRequired:true,createTransaction:async()=>{throw new Error('must not call');},getTransaction:async()=>null};
+ await expect(subs.createCheckout(t.owner.user,t.businessId,crypto.randomUUID())).rejects.toMatchObject({code:'validation'});
+ expect((await ctx.db.query('select id from payments')).rows).toHaveLength(0);
+});

@@ -15,7 +15,7 @@ import { InstallPage } from './Install';
 const env = (o: Partial<Env>): Env => ({ standalone: false, platform: 'other', iosSafari: false, inAppBrowser: null, ...o });
 const wrap = (ui: React.ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
-beforeEach(() => store.reset());
+beforeEach(() => { store.reset(); localStorage.clear(); });
 afterEach(cleanup);
 
 describe('Page d\'installation (§3)', () => {
@@ -42,15 +42,18 @@ describe('Page d\'installation (§3)', () => {
     expect(evt.defaultPrevented).toBe(true);
   });
 
-  it('iPhone + Safari : guide en 4 étapes, mention des notifications, et il se réaffiche après fermeture', () => {
+  it('iPhone + Safari : guide en trois étapes, fermeture persistante et réouverture volontaire', () => {
     wrap(<InstallPage env={env({ platform: 'ios', iosSafari: true })} />);
     const open = () => fireEvent.click(screen.getByRole('button', { name: 'Installer l’application' }));
     open();
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByText(/nécessaire pour recevoir les notifications/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    open(); // aucune mémorisation : il revient
+    cleanup();
+    wrap(<InstallPage env={env({ platform: 'ios', iosSafari: true })} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Comment installer ?' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
@@ -119,5 +122,34 @@ describe('Abonnement vu par le propriétaire et l\'employé (§8.3, §8.3 bis)',
     renderBusiness(P.cashier);
     expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Historique' })).toBeTruthy();
+  });
+});
+
+describe('Heure de fermeture par business (v1.2 §2, REC-01)', () => {
+  it('à la création : liste 18h00/20h00/21h30 ou heure libre, enregistrée sur le business', async () => {
+    const { NewBusiness } = await import('./NewBusiness');
+    store.loginAsPersona(P.owner);
+    render(<MemoryRouter initialEntries={['/nouveau']}><Routes><Route path="/nouveau" element={<NewBusiness />} /><Route path="/b/:bid" element={<div>business créé</div>} /></Routes></MemoryRouter>);
+    const select = screen.getByLabelText('Heure de fermeture') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(['18h00', '20h00', '21h30', 'Autre heure…']);
+    fireEvent.change(screen.getByLabelText('Nom du business'), { target: { value: 'Maquis du soir' } });
+    fireEvent.change(select, { target: { value: 'other' } });
+    fireEvent.change(screen.getByLabelText('Heure de fermeture libre'), { target: { value: '22:15' } });
+    await act(async () => void fireEvent.click(screen.getByRole('button', { name: 'Créer' })));
+    expect(screen.getByText('business créé')).toBeTruthy();
+    expect(store.state.businesses.find((b) => b.name === 'Maquis du soir')?.reminderTime).toBe('22:15');
+  });
+
+  it('dans le profil : modifiable pour le business courant, puis 18h00 → 21h30', async () => {
+    const { ProfileScreen } = await import('./Settings');
+    store.loginAsPersona(P.owner);
+    await act(async () => void store.setReminder('b_etoile', '18:00'));
+    render(<MemoryRouter initialEntries={['/b/b_etoile/profil']}><Routes><Route path="/b/:bid/profil" element={<ProfileScreen />} /></Routes></MemoryRouter>);
+    const select = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    expect(select.value).toBe('18:00');
+    fireEvent.change(select, { target: { value: '21:30' } });
+    await act(async () => void fireEvent.click(screen.getAllByRole('button', { name: 'Enregistrer l’heure' })[0]!));
+    expect(store.state.businesses.find((b) => b.id === 'b_etoile')?.reminderTime).toBe('21:30');
+    expect(screen.getByText('Heure de fermeture réglée à 21:30.')).toBeTruthy();
   });
 });

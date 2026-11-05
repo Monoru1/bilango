@@ -1,4 +1,6 @@
 import { systemClock } from './clock';
+import { configuredProviders } from './integrations/configured';
+import { developmentRuntime } from './runtime-config';
 import { createPgDb, createPgliteDb, migrate } from './db';
 import { defaultConfig, type Deps } from './deps';
 import { buildApp } from './http/app';
@@ -8,8 +10,8 @@ import { startScheduler } from './services/jobs';
 import { DbPushSender } from './services/push';
 
 /**
- * Démarrage. Les fournisseurs réels (WhatsApp, e-mail, CAPTCHA, FedaPay, Web Push) ne sont PAS
- * encore implémentés (voir docs/CODEX_HANDOFF.md) : le serveur refuse donc de démarrer en
+ * Démarrage. Les adaptateurs configurés sont opt-in ; le lancement production reste soumis
+ * à une validation fournisseur explicite (voir docs/CODEX_HANDOFF.md) : le serveur refuse donc de démarrer en
  * production avec les stubs de développement, pour qu'aucun faux envoi ne soit pris pour un vrai.
  */
 function requireEnv(name: string): string {
@@ -20,14 +22,17 @@ function requireEnv(name: string): string {
 
 async function main() {
   const production = process.env.NODE_ENV === 'production';
-  if (production) {
-    throw new Error("Démarrage en production refusé : les fournisseurs réels ne sont pas branchés (stubs Dev uniquement). Voir docs/CODEX_HANDOFF.md.");
+  if (production && process.env.PRODUCTION_RELEASE_APPROVED!=='true') {
+    throw new Error("Démarrage en production refusé : validation de lancement des fournisseurs requise. Voir docs/CODEX_HANDOFF.md.");
   }
+  const runtime = developmentRuntime(process.env);
   const db = process.env.DATABASE_URL ? await createPgDb(process.env.DATABASE_URL) : await createPgliteDb();
-  const applied = await migrate(db);
+  const applied = production ? [] : await migrate(db);
+  if(production)await db.query('select request_key,checkout_url from payments limit 0'); // deploy migration separately before startup
   if (applied.length) process.stdout.write(`[api] migrations appliquées : ${applied.join(', ')}\n`);
   const providers: Providers = createDevProviders();
   // Outil de DÉVELOPPEMENT : les « envois » simulés sont écrits sur la sortie standard pour pouvoir tester les parcours.
+  if(process.env.PROVIDER_MODE!=='configured'){
   const wa = providers.messages.sendWhatsAppOtp.bind(providers.messages);
   const em = providers.messages.sendEmail.bind(providers.messages);
   providers.messages.sendWhatsAppOtp = async (phone, code) => {
@@ -47,6 +52,8 @@ async function main() {
     return send(target, body);
   };
   providers.push = new DbPushSender(db, systemClock, pushTransport);
+  }
+  if(process.env.PROVIDER_MODE==='configured')Object.assign(providers,configuredProviders(process.env,db,systemClock));
   const deps: Deps = {
     db,
     clock: systemClock,
@@ -56,10 +63,10 @@ async function main() {
       fedapayWebhookSecret: requireEnv('FEDAPAY_WEBHOOK_SECRET'),
     },
     providers,
-    config: { ...defaultConfig, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null },
+    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null },
   };
   if (deps.secrets.pepper.length < 32 || deps.secrets.payoutKey.length !== 32) throw new Error('PIN_PEPPER_HEX (>=32 octets) et PAYOUT_KEY_HEX (32 octets) requis.');
-  if (process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {
+  if (!production && process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {
     await new AdminService(deps).upsertAdmin(process.env.DEV_SEED_ADMIN_EMAIL, process.env.DEV_SEED_ADMIN_PASSWORD);
     process.stdout.write(`[api] administrateur de développement créé : ${process.env.DEV_SEED_ADMIN_EMAIL}\n`);
   }
@@ -71,10 +78,10 @@ async function main() {
     });
     process.stdout.write('[api] ordonnanceur démarré (rappels, expirations, rapprochement FedaPay horaire) — SCHEDULER=0 pour le désactiver\n');
   }
-  const app = buildApp(deps, { secureCookies: false, rateLimit: true });
-  const port = Number(process.env.PORT ?? 8787);
-  await app.listen({ port, host: '127.0.0.1' });
-  process.stdout.write(`[api] http://127.0.0.1:${port} — MODE DEV (fournisseurs simulés)\n`);
+  const app = buildApp(deps, { secureCookies: runtime.secureCookies, rateLimit: true });
+  const port = runtime.port;
+  await app.listen({ port, host: runtime.host });
+  process.stdout.write(`[api] http://127.0.0.1:${port} — fournisseurs ${process.env.PROVIDER_MODE==='configured'?'configurés (activations explicites requises)':'de développement simulés'}\n`);
 }
 
 main().catch((e) => {

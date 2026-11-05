@@ -7,7 +7,9 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
-const { chromium } = require('playwright');
+const browserName = process.env.E2E_BROWSER || 'chromium';
+if (!['chromium','firefox','webkit'].includes(browserName)) throw new Error('Invalid E2E browser');
+const browserType = require('playwright')[browserName];
 const LOG = process.env.API_LOG ?? '/tmp/api.log';
 const TAG = Date.now().toString(36).toUpperCase().replace(/[^A-Z]/g, 'X').slice(-5);
 const MGR = `marie-${TAG.toLowerCase()}@partner.test`;
@@ -17,7 +19,7 @@ const log = () => readFileSync(LOG, 'utf8');
 const lastMatch = (re) => { const m = [...log().matchAll(re)]; return m.length ? m[m.length - 1] : null; };
 const check = (cond, msg) => { if (!cond) throw new Error('ÉCHEC : ' + msg); console.log('OK   ' + msg); };
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await browserType.launch(browserName === 'chromium' ? { executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] } : {});
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
 const errors = [];
 // Contextes séparés : en production admin et partenaires sont sur des hôtes distincts (cookies « host-only »).

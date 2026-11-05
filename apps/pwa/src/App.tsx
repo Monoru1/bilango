@@ -63,9 +63,9 @@ export function App() {
     const timer = setInterval(update, 30000);
     return () => { window.removeEventListener('focus', update); clearInterval(timer); };
   }, [s, env.standalone]);
-  if (!ready) return <Splash />;
   // Le navigateur public ne charge jamais l'API ni les écrans métier.
   if (!env.standalone) return <BrowserRouter><Routes><Route path="/legal" element={<LegalScreen />} /><Route path="*" element={<InstallPage env={env} />} /></Routes></BrowserRouter>;
+  if (!ready) return <Splash />;
   if (s.mode === 'api' && !s.initialized) return <Splash />;
   if (s.mode === 'api' && s.loadError && !s.user) return <main className="pad stack"><p role="alert">{s.error}</p><button className="gb-btn" onClick={() => void s.refresh()}>Réessayer</button></main>;
   const installed = env.standalone;

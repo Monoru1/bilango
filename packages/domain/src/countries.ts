@@ -15,6 +15,8 @@ export interface CountryConfig {
   dialCode: '+229' | '+225' | '+228';
   /** Décalage du fuseau du pays par rapport à UTC, en minutes (jour métier du business). */
   utcOffsetMinutes: number;
+  /** Fuseau IANA du pays. Aucun des trois pays n'applique d'heure d'été : le décalage fixe ci-dessus en découle (vérifié par test). */
+  timeZone: 'Africa/Porto-Novo' | 'Africa/Abidjan' | 'Africa/Lome';
   /** Numéro national saisi par l'utilisateur, sans indicatif. */
   nationalPattern: RegExp;
   /** Exemple affiché sous le champ. */
@@ -29,6 +31,7 @@ export const COUNTRIES: Record<CountryCode, CountryConfig> = {
     flag: '🇧🇯',
     dialCode: '+229',
     utcOffsetMinutes: 60,
+    timeZone: 'Africa/Porto-Novo',
     // Réforme 2024 : 10 chiffres commençant par 01.
     nationalPattern: /^01\d{8}$/,
     nationalExample: '01 97 00 00 01',
@@ -40,6 +43,7 @@ export const COUNTRIES: Record<CountryCode, CountryConfig> = {
     flag: '🇨🇮',
     dialCode: '+225',
     utcOffsetMinutes: 0,
+    timeZone: 'Africa/Abidjan',
     nationalPattern: /^\d{10}$/,
     nationalExample: '07 00 00 00 01',
     networks: ['MTN', 'Moov', 'Orange', 'Wave'],
@@ -50,6 +54,7 @@ export const COUNTRIES: Record<CountryCode, CountryConfig> = {
     flag: '🇹🇬',
     dialCode: '+228',
     utcOffsetMinutes: 0,
+    timeZone: 'Africa/Lome',
     nationalPattern: /^\d{8}$/,
     nationalExample: '90 00 00 01',
     networks: ['Moov', 'TMoney'],

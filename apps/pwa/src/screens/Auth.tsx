@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { RemoteWelcome } from './RemoteWelcome';
 import { DEMO_PERSONAS } from '../demo/store';
 import { useStore } from '../app/useStore';
+import { ClosingTimeField } from '../components/ClosingTimeField';
 import { currentEnv } from '../lib/env';
 
 /**
@@ -146,6 +147,7 @@ export function Onboarding({ onCancel, purpose = 'signup' }: { onCancel: () => v
   const [bizName, setBizName] = useState('');
   const [sector, setSector] = useState<Sector>('boutique');
   const [stock, setStock] = useState(false);
+  const [closing, setClosing] = useState('20:00');
   const [err, setErr] = useState<string | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const cfg = COUNTRIES[country];
@@ -268,12 +270,13 @@ export function Onboarding({ onCancel, purpose = 'signup' }: { onCancel: () => v
                 <option value="other">Autre</option>
               </select>
             </div>
+            <ClosingTimeField value={closing} onChange={setClosing} />
             <label className="row" style={{ justifyContent: 'flex-start', gap: 12 }}>
               <input type="checkbox" checked={stock} onChange={(e) => setStock(e.target.checked)} /> Activer le module Stock (facultatif)
             </label>
             {err && <p className="gb-error" role="alert" style={{ margin: 0 }}>{err}</p>}
             <p className="muted" style={{ margin: 0, fontSize: 14 }}>La validation lance votre période d’essai de 7 jours, sans paiement.</p>
-            <button className="gb-btn" disabled={!bizName.trim()} onClick={async () => { const r = await s.createBusiness(bizName, sector, stock); if (!r.ok) return goError(r.error); nav(`/b/${r.value.id}`); }}>Commencer l’essai de 7 jours</button>
+            <button className="gb-btn" disabled={!bizName.trim()} onClick={async () => { const r = await s.createBusiness(bizName, sector, stock, closing); if (!r.ok) return goError(r.error); nav(`/b/${r.value.id}`); }}>Commencer l’essai de 7 jours</button>
           </>
         )}
       </div>

@@ -94,14 +94,12 @@ export function signFedapayWebhook(rawBody: string, secret: string, timestampSec
 
 export function verifyFedapaySignature(rawBody: string, header: string | undefined, secret: string, nowMs: number, toleranceSec = WEBHOOK_TOLERANCE_SEC): boolean {
   if (!header || !secret) return false;
-  let timestamp = -1;
-  const signatures: string[] = [];
-  for (const part of header.split(',')) {
-    const [k, v] = part.split('=');
-    if (k === 't' && v !== undefined) timestamp = Number.parseInt(v, 10);
-    if (k === 's' && v !== undefined) signatures.push(v.trim().toLowerCase());
-  }
-  if (!Number.isFinite(timestamp) || timestamp < 0 || signatures.length === 0) return false;
+  const parts = header.split(',').map((part) => part.trim().split('='));
+  const timestamps = parts.filter(([name]) => name === 't');
+  if (timestamps.length !== 1 || timestamps[0]?.length !== 2 || !/^\d+$/.test(timestamps[0]?.[1] ?? '')) return false;
+  const timestamp = Number(timestamps[0]![1]);
+  const signatures = parts.filter(([name, value, extra]) => name === 's' && extra === undefined && /^[a-f0-9]{64}$/i.test(value ?? '')).map(([, value]) => value!);
+  if (!Number.isSafeInteger(timestamp) || timestamp < 0 || signatures.length === 0) return false;
   const expected = createHmac('sha256', secret).update(`${timestamp}.${rawBody}`, 'utf8').digest();
   const matches = signatures.some((sig) => {
     const given = Buffer.from(sig, 'hex');

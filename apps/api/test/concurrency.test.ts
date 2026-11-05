@@ -16,6 +16,21 @@ describe('security regression', () => {
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)('real PostgreSQL concurrent transactions', () => {
+  it('serializes first migrations across separate connections to a fresh schema', async () => {
+    const { randomUUID } = await import('node:crypto');
+    const { createPgDb, migrate } = await import('../src/db');
+    const admin = await createPgDb(process.env.TEST_DATABASE_URL!);
+    const schema = `migration_test_${randomUUID().replaceAll('-', '')}`;
+    await admin.exec(`create schema ${schema}`);
+    const url = new URL(process.env.TEST_DATABASE_URL!); url.searchParams.set('options', `-c search_path=${schema}`);
+    const first = await createPgDb(url.toString()); const second = await createPgDb(url.toString());
+    try {
+      const result = await Promise.all([migrate(first), migrate(second)]);
+      expect(result.filter(files => files.length > 0)).toHaveLength(1);
+      expect(result.filter(files => files.length === 0)).toHaveLength(1);
+      expect(await migrate(first)).toEqual([]);
+    } finally { await first.close(); await second.close(); await admin.exec(`drop schema ${schema} cascade`); await admin.close(); }
+  });
   it('grants only one trial when same account creates businesses concurrently', async () => {
     const owner = await mkUser(ctx, 'Patron'); const { biz } = services(ctx);
     const results = await Promise.all(Array.from({ length: 5 }, (_, i) => biz.createBusiness(owner.user, owner.deviceRowId, { name: `Business ${i}`, country: 'BJ', sector: 'boutique', stockEnabled: false })));

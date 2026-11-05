@@ -2,15 +2,19 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
-const { chromium } = require('playwright');
+const browserName = process.env.E2E_BROWSER || 'chromium';
+if (!['chromium','firefox','webkit'].includes(browserName)) throw new Error('Invalid E2E browser');
+const browserType = require('playwright')[browserName];
 const { Client } = createRequire(import.meta.url)('pg');
 const apiLog = process.env.API_LOG ?? '/tmp/gobilan-api.log';
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await browserType.launch(browserName === 'chromium' ? { executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] } : {});
 const failures = [];
 const contexts = [];
 const check = (ok, text) => { if (!ok) throw new Error(text); console.log(`PASS ${text}`); };
+const viewportWidth = Number(process.env.E2E_WIDTH || 390);
+if (![320,390,768,1440].includes(viewportWidth)) throw new Error('Invalid E2E viewport');
 const context = async () => {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }); contexts.push(ctx);
+  const ctx = await browser.newContext({ viewport: { width: viewportWidth, height: 844 } }); contexts.push(ctx);
   await ctx.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { value: true }); });
   const page = await ctx.newPage(); page.on('pageerror', e => failures.push(e.message));
   return page;
@@ -48,10 +52,18 @@ try {
   await owner.getByRole('button', { name: 'Ajouter un business', exact: true }).click();
   await owner.getByLabel('Nom du business').fill('GoBilan Test réel');
   await owner.getByRole('checkbox').check();
+  await owner.getByLabel('Heure de fermeture', { exact: true }).selectOption('18:00');
   await owner.getByRole('button', { name: 'Créer', exact: true }).click();
   await owner.getByText('Ton manager n’a pas encore fait son premier bilan.', { exact: false }).waitFor();
   const businessId = new URL(owner.url()).pathname.split('/')[2];
   check(Boolean(businessId), 'signup → profile → business persisted');
+  const closingTime = async () => (await db.query('select reminder_time from businesses where id=$1', [businessId])).rows[0].reminder_time.slice(0, 5);
+  check(await closingTime() === '18:00', 'v1.2 §2 closing time chosen at creation is stored (REC-01)');
+  await owner.goto('http://localhost:5173/profil');
+  await owner.getByLabel('Heure de fermeture', { exact: true }).selectOption('21:30');
+  await owner.getByRole('button', { name: 'Enregistrer l’heure', exact: true }).click();
+  await owner.getByText('Heure de fermeture réglée à 21:30.', { exact: true }).waitFor();
+  check(await closingTime() === '21:30', 'v1.2 §2 closing time changed from profile is stored server-side (REC-01)');
   await owner.goto(`http://localhost:5173/b/${businessId}/stock`);
   await owner.getByLabel('Nom de l’article').fill('Riz');
   await owner.getByLabel('Quantité de départ').fill('10');
@@ -63,6 +75,7 @@ try {
   await owner.reload();
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   await owner.screenshot({ path: '/tmp/gobilan-owner-mobile.png', fullPage: true });
+  check(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `dashboard has no horizontal overflow at ${viewportWidth}px in ${browserName}`);
   check((await owner.locator('body').innerText()).includes('1\u202f000'), 'dashboard survives reload and shows server revenue');
   await owner.goto(`http://localhost:5173/b/${businessId}/equipe`);
   await owner.getByLabel('Nom du rôle').fill('Caissier');
@@ -86,7 +99,7 @@ try {
   await guest.goto(`http://localhost:5173/b/${businessId}/bilan`);
   await fillReport(guest, 400, null, 1);
   await guest.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await guest.getByRole('link', { name: /Voir le détail|octobre/ }).first().click();
+  await guest.locator(`a[href^="/b/${businessId}/bilans/"]`).first().click();
   await guest.getByRole('link', { name: 'Modifier (24 h maximum)' }).click();
   await guest.locator('#f-revenue').fill('600');
   await guest.getByRole('button', { name: 'Enregistrer la modification' }).click();
@@ -94,12 +107,12 @@ try {
   check((await db.query('select count(*)::int n from report_versions v join reports r on r.id=v.report_id where r.business_id=$1', [businessId])).rows[0].n === 3, 'edit preserves original version');
   const leak = await guest.evaluate(async bid => { const r = await fetch(`/v1/businesses/${bid}/workspace`); return r.json(); }, businessId);
   check(leak.reports.length === 1 && leak.users.length === 1 && leak.subscription.payments.length === 0, 'entry permission filters server payload');
-  await owner.reload();
+  // Navigation complète unique (l'ancien reload suivi d'un goto immédiat interrompait les requêtes en cours).
   await owner.goto(`http://localhost:5173/b/${businessId}`);
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   check((await owner.locator('body').innerText()).includes('1\u202f600'), 'dashboard aggregates owner and employee reports after edit');
   await owner.goto(`http://localhost:5173/b/${businessId}/bilans`);
-  await owner.getByRole('link', { name: /octobre/ }).first().click();
+  await owner.locator(`a[href^="/b/${businessId}/bilans/"]`).first().click();
   const downloading = owner.waitForEvent('download');
   await owner.getByRole('button', { name: 'Télécharger le bilan' }).click();
   const download = await downloading; await download.saveAs('/tmp/gobilan-export.pdf');
@@ -108,6 +121,10 @@ try {
   await owner.reload(); await owner.getByRole('button', { name: 'Réessayer', exact: true }).waitFor();
   check(!(await owner.locator('body').innerText()).includes('1\u202f600'), 'network failure clears financial screen and offers retry');
   await owner.unroute('**/v1/**'); await owner.getByRole('button', { name: 'Réessayer', exact: true }).click();
+  // Attendre la fin du rechargement avant de naviguer : une navigation pendant un fetch en cours l'interrompt, et
+  // WebKit signale cette interruption comme erreur de page (« access control checks »), échec CI du run 42039128158.
+  await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
+  check(!(await owner.getByRole('button', { name: 'Réessayer', exact: true }).count()), 'retry restores the dashboard after network recovery');
   await owner.goto(`http://localhost:5173/b/${businessId}`);
   await owner.getByText('Chiffre d’affaires', { exact: true }).waitFor();
   const outsider = await context(); await signup(outsider, national(), 'Autre Test');

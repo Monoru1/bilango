@@ -8,3 +8,4 @@ export * from './subscription';
 export * from './security';
 export * from './commissions';
 export * from './payouts';
+export * from './notifications';
