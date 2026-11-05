@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Logo } from '@gobilan/ui';
-import { demoEnabled, store, useStore } from './app/useStore';
+import { store, useStore } from './app/useStore';
 import { currentEnv } from './lib/env';
 import { BusinessShell } from './screens/BusinessShell';
 import { HelpScreen } from './screens/Help';
@@ -16,13 +16,6 @@ import { InvitationsScreen, ProfileScreen } from './screens/Settings';
 import { StockScreen } from './screens/Stock';
 import { SubscriptionScreen } from './screens/Subscription';
 import { TeamScreen } from './screens/Team';
-
-/**
- * Contournement de la page d'installation, réservé à la DÉMO : `?demo=1` (mémorisé pour l'onglet).
- * Désactivé en construisant avec VITE_ALLOW_DEMO_BYPASS=0. La page d'installation reste une règle
- * d'affichage ; la vraie protection est côté serveur (CDC §3, §13).
- */
-const demoBypass = demoEnabled;
 
 function Splash() {
   return <div className="screen center" style={{ justifyContent: 'center', minHeight: '100dvh' }}><div className="splash"><Logo size={88} /></div></div>;
@@ -54,7 +47,6 @@ function AuthGate() {
 
 export function App() {
   const env = useMemo(currentEnv, []);
-  const bypass = useMemo(demoBypass, []);
   const [ready, setReady] = useState(false);
   const s = useStore();
   useEffect(() => {
@@ -64,16 +56,19 @@ export function App() {
     return () => clearTimeout(t);
   }, []);
   useEffect(() => {
-    if (s.mode !== 'api') return;
+    if (!env.standalone || s.mode !== 'api') return;
     void s.initialize();
     const update = () => { if (document.visibilityState === 'visible' && s.user) void s.refreshIfIdle(); };
     window.addEventListener('focus', update);
     const timer = setInterval(update, 30000);
     return () => { window.removeEventListener('focus', update); clearInterval(timer); };
-  }, [s]);
-  if (!ready || (s.mode === 'api' && !s.initialized)) return <Splash />;
+  }, [s, env.standalone]);
+  if (!ready) return <Splash />;
+  // Le navigateur public ne charge jamais l'API ni les écrans métier.
+  if (!env.standalone) return <BrowserRouter><Routes><Route path="/legal" element={<LegalScreen />} /><Route path="*" element={<InstallPage env={env} />} /></Routes></BrowserRouter>;
+  if (s.mode === 'api' && !s.initialized) return <Splash />;
   if (s.mode === 'api' && s.loadError && !s.user) return <main className="pad stack"><p role="alert">{s.error}</p><button className="gb-btn" onClick={() => void s.refresh()}>Réessayer</button></main>;
-  const installed = env.standalone || bypass;
+  const installed = env.standalone;
   return (
     <BrowserRouter>
       {s.mode === 'api' && (s.loading || s.busy) && <p role="status">Chargement…</p>}
