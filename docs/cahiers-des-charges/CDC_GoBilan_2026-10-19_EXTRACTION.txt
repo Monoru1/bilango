@@ -1,0 +1,1498 @@
+EXTRACTION TEXTUELLE DU PDF FOURNI — les tableaux/images et la mise en page ne remplacent pas le PDF original.
+
+<PARSED TEXT FOR PAGE: 1 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Cahier des charges GoBilan (PWA)
+Société éditrice : Novadis Digital (Cotonou, Bénin) Version révisée du 19 octobre 2026, qui
+remplace la version du 15 octobre 2026 Document destiné au développeur
+
+Les décisions prises figurent en section 15, avec les actions restantes.
+
+
+1. Contexte et objectif
+GoBilan est une Progressive Web App (PWA) installable sur l'écran d'accueil du téléphone.
+Elle permet à un propriétaire de business (bar, restaurant, boutique, e-commerce avec
+livreurs ou closers, tout secteur) de suivre à distance l'activité quotidienne : chiffre
+d'affaires, dépenses, caisse et stock (facultatif). Le gérant ou l'employé sur place saisit un
+bilan simple en fin de journée. Le propriétaire le consulte depuis son téléphone.
+
+     Lancement : Bénin, Côte d'Ivoire, Togo. Devise : FCFA.
+     Interface mobile-first, simple, légère, utilisable par des personnes peu à l'aise avec la
+     technologie.
+     Proposition de valeur : le propriétaire n'a plus besoin d'être sur place, il remplace le
+     cahier papier et dispose d'un outil de contrôle de sa caisse.
+
+Deux populations distinctes :
+
+     Utilisateurs : propriétaires de business (patrons) et employés ou gérants qui saisissent
+     les bilans. Ils utilisent l'application GoBilan installée.
+     Partenaires : agents de terrain, managers et influenceurs. Ils utilisent le portail
+     partenaires, dans le navigateur, pour suivre leurs parrainages et leurs gains.
+
+
+2. Changements par rapport à l'ancien cahier
+Ces points l'emportent sur l'ancien document.
+
+     PWA à la place de l'application Play Store : plus de Play Store, plus de format .aab, plus
+     de règles Google Play.
+     Nom : GoBilan partout.
+     WhatsApp : uniquement pour le code de vérification à 4 chiffres des utilisateurs
+     (création de compte, PIN oublié, nouvel appareil). Aucun message WhatsApp aux
+     partenaires.
+     Partenaires : connexion par e-mail et mot de passe, accès reçu par e-mail. Pas de
+     numéro de téléphone pour eux.
+
+
+
+
+                                                                                           Page 1 of 29
+<PARSED TEXT FOR PAGE: 2 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Commissions : montants fixes dans l'accord. Plus de montants variables saisis par
+     l'administrateur.
+     Paiement : directement dans la PWA, via FedaPay.
+     Essai : 7 jours, sans paiement pendant cette période (remplace 30 jours).
+     Versements aux partenaires : le 1er et le 15 de chaque mois, effectués manuellement
+     par l'administrateur.
+     Plateforme admin : distincte du portail partenaires, avec son propre lien.
+     Notifications : web push à la place de Firebase Cloud Messaging.
+     Design : nouvelle direction visuelle (section 11) et nouveau logo.
+
+
+3. Accès à l'application : installation obligatoire
+L'installation est obligatoire pour l'application GoBilan des utilisateurs (patrons et
+employés). Le portail partenaires est un site séparé, accessible directement dans le
+navigateur, sans installation (section 10).
+
+Cette page d'installation est une règle d'affichage, pas une protection. La sécurité repose
+sur les contrôles côté serveur (section 13).
+
+
+3.1 Page d'accueil du site (visiteur dans le navigateur)
+     Le site détecte s'il est ouvert dans le navigateur ou en application installée (mode
+     standalone).
+     Dans le navigateur, l'application n'est pas accessible. La page affiche uniquement le
+     logo, un message court et un bouton « Installer l'application ».
+     En bas de page : les pages légales (section 12), publiques.
+     L'inscription et les tableaux de bord des utilisateurs ne s'ouvrent que depuis
+     l'application installée.
+
+
+3.2 Android (Chrome)
+Le bouton déclenche l'installation en un clic : l'événement d'installation du navigateur est
+capturé, puis relancé par le bouton. Manifest, service worker et HTTPS sont obligatoires.
+
+
+3.3 iPhone (Safari)
+Le bouton d'installation automatique n'existe pas sur iPhone. Un guide s'affiche
+uniquement sur iPhone avec Safari :
+
+     une flèche animée qui pointe vers le bouton Partager ;
+
+
+
+
+                                                                                         Page 2 of 29
+<PARSED TEXT FOR PAGE: 3 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     quatre étapes avec capture d'écran : 1. Appuie sur Partager, 2. Fais défiler, 3. Appuie sur
+     « Sur l'écran d'accueil », 4. Appuie sur « Ajouter » ;
+     une mini vidéo en boucle, d'environ 10 secondes, qui montre le geste complet ;
+     la mention que l'installation est nécessaire pour recevoir les notifications ;
+     si la personne ferme le guide sans installer, il se réaffiche à chaque visite.
+
+Aucun mécanisme ne doit tenter d'automatiser l'installation à la place de l'utilisateur.
+
+
+3.4 Navigateurs intégrés (TikTok, Instagram, WhatsApp, Facebook)
+L'installation y est impossible. Le site détecte ce cas et affiche : « Ouvre ce lien dans
+Chrome / Safari ».
+
+
+4. Inscription et connexion des utilisateurs
+
+4.1 Parcours d'onboarding (un écran, une action)
+ 1. Choix du pays : trois gros boutons avec drapeaux (Bénin, Côte d'Ivoire, Togo). Le choix
+     configure la devise et la passerelle FedaPay locale.
+ 2. Numéro WhatsApp : indicatif pré-rempli et bloqué selon le pays (+229, +225, +228).
+    Champ : « Entrez un numéro WhatsApp ».
+ 3. Validation OTP : code à 4 chiffres envoyé par WhatsApp. Champ : « Entrez le code à 4
+     chiffres reçu par WhatsApp ».
+ 4. Code de parrainage (optionnel) : « Avez-vous un code de parrainage ? » Il relie
+     l'utilisateur à un agent ou à un influenceur.
+ 5. Identité : « Entrez votre nom ».
+ 6. Choix du rôle :
+          « Ajouter un business » (patron) : saisie du nom du business. La validation lance la
+          période d'essai de 7 jours.
+          « Rejoindre un business » (employé) : ouvre l'onglet des invitations. Sans invitation : «
+          Aucune invitation pour le moment. Votre patron doit vous ajouter depuis son
+          tableau de bord. »
+
+Après l'écran 3, l'utilisateur crée son code PIN à 4 chiffres (4.2).
+
+
+4.2 Code PIN
+     Le numéro WhatsApp est l'identifiant unique. Les utilisateurs n'ont ni e-mail ni mot de
+     passe.
+     Sur un appareil déjà connu, l'utilisateur saisit son PIN. L'application s'ouvre dès le 4e
+     chiffre, sans bouton de validation. La session reste persistante.
+
+
+
+                                                                                            Page 3 of 29
+<PARSED TEXT FOR PAGE: 4 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Quatre erreurs de PIN déclenchent un blocage de 5 minutes avec compte à rebours. Le
+     blocage est appliqué par le serveur, pas par l'application. Le blocage s'allonge à chaque
+     nouvelle série d'erreurs.
+     Aucun code n'est envoyé automatiquement lors d'un blocage.
+     Un bouton « PIN oublié ? » reste visible en permanence. Il envoie un code WhatsApp,
+     puis permet de créer un nouveau PIN.
+
+
+4.3 Nouvel appareil
+     Pour un compte existant, l'utilisateur saisit son numéro sur le nouvel appareil, puis
+     reçoit un code OTP WhatsApp. Après validation, il accède à son compte.
+     L'application propose ensuite de déconnecter l'ancien appareil.
+     Un changement de téléphone suit exactement la même procédure.
+
+
+4.4 Protection des codes OTP
+     Quatre saisies maximum par code. Après quatre échecs, un lien « Mot de passe oublié »
+     apparaît en bas de l'écran pour recevoir un nouveau code.
+     Deux codes OTP maximum par période de 24 heures pour un même numéro. Au-delà,
+     l'envoi est bloqué pendant 24 heures, avec un message explicatif et un contact
+     support. contact@gobilan.com
+     Un code est à usage unique et expire après 10 minutes.
+     Vérification anti-robot (CAPTCHA) avant l'envoi, et limitation complémentaire par
+     appareil et par adresse IP.
+
+
+4.5 Invitation en attente
+Si un patron invite un numéro qui n'a pas encore de compte, l'invitation est enregistrée
+avec le statut « En attente ». Dès que la personne crée son compte et valide son numéro, la
+liaison se fait automatiquement. L'invitation apparaît alors dans « Rejoindre un business »,
+avec le nom du business et le rôle proposé. L'accès n'est effectif qu'après acceptation.
+
+
+5. Business, rôles et permissions
+
+5.1 Un seul type de compte
+Le rôle est une propriété de la relation entre un compte et un business précis. Une même
+personne peut être patron de son propre business et gérant d'autres business, avec un
+seul compte.
+
+
+
+
+                                                                                        Page 4 of 29
+<PARSED TEXT FOR PAGE: 5 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+5.2 Création d'un business
+Nom du business, secteur d'activité (qui suggère des rôles, tout reste modifiable), module
+Stock activable (facultatif).
+
+
+5.3 Rôles personnalisables
+Le propriétaire crée autant de rôles qu'il veut : un nom libre (Caissier, Gérant, DG,
+Comptable…) associé à un niveau de permission fixe, puis le numéro de la personne.
+
+     Saisie seule : remplit uniquement le bilan du jour.
+     Gestion complète : voit l'historique complet, gère le stock, invite ou retire des
+     personnes de niveau inférieur uniquement.
+     Lecture seule : consultation uniquement (utile pour un comptable externe).
+
+
+5.4 Règles de sécurité
+     Personne ne peut retirer ni modifier quelqu'un de rang égal ou supérieur.
+     Le propriétaire (celui qui a créé le business et paie l'abonnement) a un pouvoir absolu.
+     Personne ne peut le retirer.
+     Retrait d'un membre (suppression logique) : il perd son accès futur, mais ses bilans
+     restent conservés avec son nom. Jamais de suppression en cascade.
+
+
+5.5 Navigation
+     Menu latéral (icône à trois traits) : liste des business avec le CA du jour, business actif
+     marqué, lien « Faire le bilan du jour » pour le propriétaire, bouton « + Ajouter un business
+     », nombre de jours restants de l'abonnement, et en bas « Mentions légales & Politiques
+     de confidentialité ».
+     Barre du bas, propriétaire : Accueil / Bilans / Équipe.
+     Barre du bas, manager : Accueil / Historique. Aucun accès à la gestion.
+
+
+6. Saisie du bilan
+
+6.1 Accueil du manager
+En haut : grande carte sombre « Faire le bilan du jour » avec son statut (« Pas encore
+envoyé »). Dessous : caisse disponible en gros chiffre, puis la liste des bilans précédents
+(date et montant).
+
+
+6.2 Bilan quotidien
+     Chiffre d'affaires : montant global (pas de calcul prix × quantité).
+
+
+                                                                                          Page 5 of 29
+<PARSED TEXT FOR PAGE: 6 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Dépenses du jour : montant global.
+     Ajout à la caisse : argent déposé hors vente, distinct du CA.
+     Stock (si le module est activé) : quantité vendue par article ; le reste se déduit
+     automatiquement.
+     Note du jour : champ libre facultatif.
+     Détail optionnel : bouton « Détailler (optionnel) », lignes composées d'un nom et d'un
+     montant, sans quantité. Le manager peut aussi ne saisir que le total.
+
+
+6.3 Plusieurs contributeurs par jour
+Chaque bilan est horodaté et lié à son auteur. Le CA du jour affiché au propriétaire est la
+somme de tous les bilans du jour.
+
+
+6.4 Caisse théorique (contrôle)
+     Le premier jour, le manager déclare le montant de départ une seule fois.
+     Ensuite : caisse du jour = caisse de la veille + CA + ajouts à la caisse − dépenses.
+     Visible côté manager et côté propriétaire.
+     Aucune alerte automatique en cas d'écart : l'écart reste visible dans l'historique.
+
+
+6.5 Historique personnel
+Le manager consulte ses propres bilans passés, sans accès aux données globales s'il est
+en « Saisie seule ».
+
+
+6.6 Modification d'un bilan
+     Bouton « Modifier » visible 24 heures maximum après l'envoi.
+     Le propriétaire reçoit une notification et peut consulter la version originale et la
+     version modifiée, avec leurs horodatages.
+     Une modification recalcule la caisse théorique de ce jour et des jours suivants.
+
+
+6.7 Rappel automatique
+Si le bilan n'est pas envoyé à l'heure définie, le manager reçoit une notification. L'heure est
+fixée par le propriétaire (20 h par défaut).
+
+
+
+
+                                                                                            Page 6 of 29
+<PARSED TEXT FOR PAGE: 7 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+7. Consultation (côté propriétaire)
+
+7.1 Tableau de bord
+     Chiffre d'affaires en gros, avec une mini-sparkline. S'il n'existe pas encore pour
+     aujourd'hui, le dernier bilan complet s'affiche avec sa date. Jamais un écran à zéro.
+     Variation par rapport à la veille dans une petite pastille (rouge atténué si négative, vert
+     atténué si positive).
+     Onglets de période : Aujourd'hui / 7 jours / 30 jours.
+     Caisse théorique et dépenses sur une rangée compacte.
+     Badge discret « En attente du bilan » tant que le bilan du jour n'est pas arrivé.
+     Section « Détail du jour » : ajouts à la caisse, caisse de la veille, contributeur et heure.
+     Bouton « Faire le bilan du jour ».
+
+
+7.2 Détail du bilan
+Détail par contributeur (qui, quoi, à quelle heure). Si le manager n'a pas détaillé : « Votre
+manager n'a pas détaillé le bilan aujourd'hui ». Bouton « Télécharger le bilan » : PDF texte
+pur, généré à la volée, jamais stocké sur le serveur.
+
+
+7.3 État vide
+Avant le premier bilan : « Ton manager n'a pas encore fait son premier bilan. Dès qu'il le
+fera, tu verras tout apparaître ici. »
+
+
+7.4 Mon abonnement
+Statut (« Actif jusqu'au [date] » ou « Expiré depuis [date] »), jours restants, historique des
+paiements, bouton Renouveler.
+
+
+7.5 Section d'aide
+Accessible depuis le menu, organisée par rôle (manager et propriétaire) : faire le bilan,
+comprendre la caisse théorique, gérer les rôles, gérer l'abonnement.
+
+
+8. Abonnement et paiement
+
+8.1 Modèle économique
+     2 000 FCFA pour 30 jours par business. Toujours exprimé en « 30 jours », jamais en «
+     mois ».
+
+
+
+
+                                                                                             Page 7 of 29
+<PARSED TEXT FOR PAGE: 8 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Période d'essai de 7 jours, lancée à la création du business. Aucun paiement n'est
+     demandé pendant cette période. Limitation anti-abus : par numéro, et par appareil si
+     c'est possible.
+     Pas de prélèvement automatique : le renouvellement est toujours volontaire.
+     Renouvellement anticipé : les 30 jours s'ajoutent aux jours restants. Paiement après
+     expiration : les 30 jours partent de la date du paiement.
+     GoBilan n'encaisse que son abonnement. L'application ne fait jamais transiter l'argent
+     des utilisateurs entre eux.
+
+
+8.2 Intégration FedaPay (dans la PWA)
+     Passerelle locale selon le pays choisi. Moyens : MTN Mobile Money, Moov Money,
+     Orange Money, Wave, TMoney, carte bancaire selon la disponibilité du pays.
+     Chaque transaction utilise un merchant_reference unique, jamais réutilisé (exemple :
+     SUB-BUSINESS0234-2026-11), et un custom_metadata (ID du business, type «
+     renouvellement_abonnement »).
+     Flux : Renouveler, le serveur crée la transaction FedaPay, le paiement se fait dans la
+     PWA, FedaPay envoie un webhook, et le serveur prolonge l'abonnement.
+     Vérification de la signature du webhook, plus une vérification périodique de secours
+     (par exemple toutes les heures).
+     Compte FedaPay Business requis pour la production (RCCM et IFU de la société).
+
+
+8.3 Pop-ups d'abonnement (propriétaire)
+     À partir de J-3 : pop-up à l'ouverture « Votre abonnement se termine dans X jours »,
+     avec OK et Renouveler. chaque jour à partir de J-3
+     Trois jours de grâce après expiration, avec accès complet : pop-up à chaque ouverture,
+     avec OK et Renouveler. Jour 1 : « Votre abonnement a expiré. » Jour 2 : « Votre
+     abonnement a expiré il y a 2 jours. » Jour 3 : « Votre abonnement a expiré il y a 3 jours.
+     Veuillez renouveler. »
+     À partir du 4e jour : le bouton OK disparaît, seul Renouveler reste, et le tableau de bord
+     n'est plus visible. Les données restent conservées et figées ; tout se réactive dès le
+     paiement.
+
+
+8.3 bis Écran de l'employé en cas de blocage
+À partir du 4e jour, la saisie des bilans est coupée pour l'employé. Message neutre, sans
+mention de l'abonnement ni de l'impayé, et sans bouton de paiement :
+
+
+
+
+                                                                                           Page 8 of 29
+<PARSED TEXT FOR PAGE: 9 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+« Saisie momentanément indisponible. L'accès à la saisie des bilans de [Nom du business]
+est en pause. Vos bilans précédents sont conservés. Merci de contacter le responsable
+du business pour rétablir l'accès. »
+
+
+8.4 Pas de rattrapage
+Après un renouvellement tardif, les jours manqués ne peuvent pas être saisis après coup,
+ni par l'employé, ni par le patron. Cette règle figure aussi dans les CGV (section 12).
+
+
+9. Notifications
+
+9.1 WhatsApp
+WhatsApp ne sert qu'à l'envoi du code OTP à 4 chiffres des utilisateurs : création de
+compte, PIN oublié, nouvel appareil. Aucun message WhatsApp n'est envoyé aux
+partenaires.
+
+
+9.2 Notifications push
+     Événements : bilan envoyé et bilan modifié (au propriétaire), rappel de bilan (au
+     manager), expiration proche (au propriétaire), connexion sur un nouvel appareil (à
+     l'ancien appareil).
+     Texte sans montant, puisqu'il s'affiche sur l'écran verrouillé : « Nouveau bilan reçu —
+     Boutique Étoile ».
+     Pastille rouge sur l'icône (API de badge) à chaque bilan envoyé par un employé ; elle
+     s'efface à l'ouverture.
+     Icône monochrome (blanc sur fond transparent, 96 px, annexe C) pour le badge ; logo
+     vert pour la grande icône.
+
+
+9.3 Conditions techniques
+     Android (Chrome) : fonctionne application fermée. Certains téléphones économes en
+     batterie peuvent retarder les notifications.
+     iPhone : iOS 16.4 minimum, application installée depuis Safari, permission accordée. Un
+     iPhone plus ancien ne reçoit pas les notifications.
+     Demande de permission : juste après la création du PIN sur Android ; sur iPhone, par un
+     bouton « Activer les notifications » après ouverture de l'application installée. Jamais
+     dès l'arrivée sur le site.
+     Filet de sécurité : les pop-ups à l'ouverture restent le moyen fiable de signaler
+     l'expiration.
+
+
+
+
+                                                                                          Page 9 of 29
+<PARSED TEXT FOR PAGE: 10 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+10. Programme partenaires
+
+10.1 Deux plateformes distinctes
+Portail partenaires (agents, managers et influenceurs) :
+
+     Un seul lien principal pour tous, dans le navigateur, sans installation.
+     Connexion par e-mail et mot de passe.
+     Le tableau de bord affiché dépend du rôle attribué. Un e-mail ne correspond qu'à un
+     seul rôle : une personne qui a deux rôles utilise deux adresses, donc deux comptes.
+     Aucune double authentification.
+     Mot de passe oublié : un code à 6 chiffres est envoyé par e-mail, valable 10 minutes et à
+     usage unique. Le message affiché ne dit jamais si une adresse existe. mêmes limites
+     que pour l'OTP : 4 saisies, 2 codes par 24 heures
+     Le code par e-mail n'est demandé que pour le mot de passe oublié.
+
+Plateforme admin : distincte, avec son propre lien. Ce lien n'est jamais proposé ni affiché
+dans le portail partenaires.
+
+     Les pages admin ne font pas partie du front du portail partenaires.
+     Accès réservé aux adresses e-mail autorisées, que le développeur ajoute à la liste.
+     Connexion : e-mail et mot de passe, puis double authentification à chaque connexion.
+     code envoyé par e-mail
+     Le serveur vérifie à chaque requête que le compte est un compte admin autorisé.
+
+Les deux plateformes partagent le même back-end et la même base de données.
+
+
+10.2 Création des comptes partenaires
+     Admin : crée les managers et les influenceurs (nom, pays, e-mail, rôle, et code promo
+     pour l'influenceur).
+     Manager : crée ses agents (e-mail et code promo). Un agent n'est jamais créé
+     directement par l'admin.
+     Format du code promo d'un agent : [PRÉNOM][CODE PAYS], par exemple KOFFI225.
+     Chaque code est unique.
+     Accès : chaque partenaire reçoit un e-mail d'activation. Le lien est à usage unique et
+     expire après [7 jours]. Il mène à la page où la personne crée son mot de passe, puis à la
+     liste des accords à accepter. Aucun mot de passe n'apparaît dans l'e-mail.
+
+
+
+
+                                                                                       Page 10 of 29
+<PARSED TEXT FOR PAGE: 11 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+10.3 Accords et acceptation
+     Trois accords : agent, manager, influenceur. Chacun comprend une partie commune et
+     une partie propre à son rôle (section 10.11).
+     À la première connexion, le partenaire coche une case par accord : « J'ai lu et j'accepte
+     l'accord [rôle], version [X] ». Sans acceptation, il n'accède pas à son tableau de bord.
+     GoBilan conserve la date, l'heure, la version et l'identifiant de chaque acceptation.
+     Une nouvelle version d'accord doit être acceptée à nouveau. Elle n'a aucun effet sur les
+     parrainages déjà en cours (section 10.8).
+
+
+10.4 Tableau de bord admin
+     Liste des partenaires, avec filtres par période (calendrier) et par pays.
+     Calendrier des versements (section 10.9).
+     Statistiques globales de l'application et des partenaires.
+     Ajout et retrait des managers et des influenceurs. Aucune modification de statut ou de
+     code promo ne change les montants d'un accord en vigueur.
+     Aucune modification des montants de commission : ils sont fixés par l'accord.
+
+
+10.5 Tableau de bord manager
+     Bouton « + Enregistrer un agent » : e-mail, nom et code promo. L'agent reçoit son e-mail
+     d'activation.
+     Compteurs de l'équipe : essais démarrés, abonnements payés.
+     Mes gains : 800 F pour le premier paiement d'un abonnement généré par un agent de
+     son équipe, puis 500 F pour chaque renouvellement (section 10.8). Un gain n'apparaît
+     qu'après paiement de la personne parrainée.
+     Tableau de l'équipe : agents, statut de chaque parrainage et statistiques de conversion.
+     Le manager n'a pas de code promo personnel. S'il doit en avoir un, il est créé comme
+     influenceur, avec sa propre adresse e-mail et son propre accord.
+
+
+10.6 Tableau de bord agent
+     Mon code promo et mon lien en haut, avec copie rapide.
+     Compteurs : parrainages, abonnements payés, gains.
+     Suivi des parrainages : nom du business, date d'inscription, statut (« Payé », « En essai »,
+     « Expiré ») et jours restants avant expiration.
+     Aucun numéro de téléphone n'est affiché, ni complet ni partiel. Seuls le nom du
+     business, la date et le statut apparaissent.
+
+
+
+
+                                                                                          Page 11 of 29
+<PARSED TEXT FOR PAGE: 12 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Gains : 1 000 F pour le premier paiement, puis 500 F pour chaque renouvellement
+     (section 10.8). Un gain n'apparaît qu'après paiement de la personne parrainée.
+
+
+10.7 Tableau de bord influenceur
+     Mon code promo en gros, créé par l'administrateur.
+     Compteurs : inscriptions via le code, abonnements actifs, revenus validés.
+     Pour chaque abonné : mois en cours (de 1 à 12), gain du mois et total cumulé.
+     Gains : 1 800 F le premier mois, puis 1 000 F pour chacun des 11 mois suivants, tant que
+     l'abonné renouvelle. Les montants sont nets des frais de transaction (section 10.10).
+
+
+10.8 Parrainage et commissions
+Parrainage : l'inscription d'une personne avec un code promo.
+
+     Un parrainage ne donne droit à aucune commission en soi.
+     La personne parrainée doit payer son premier abonnement dans les 30 jours suivant
+     son inscription. Passé ce délai, le parrainage expire et n'ouvre plus de commission.
+     Une personne parrainée n'a qu'un seul code.
+
+Montants, fixés par l'accord, bruts avant frais de transaction :
+
+
+  Partenaire                                                Premier    Chaque           Durée
+                                                            paiement   renouvellement   maximale
+
+  Agent                                                     1 000 F    500 F            12 mois
+
+  Manager (sur les agents de son                            800 F      500 F            12 mois
+  équipe)
+
+  Influenceur                                               1 800 F    1 000 F          12 mois
+
+
+     Le plafond de 12 mois se compte à partir du premier paiement de la personne
+     parrainée.
+     Un renouvellement ne donne droit à commission que si l'abonnement est actif. Si le
+     client cesse de renouveler, aucune commission n'est due pour les mois suivants.
+     Aucune commission sur les essais, ni sur les paiements annulés, remboursés ou
+     contestés. Aucune commission non plus sur un abonnement payé par le partenaire lui-
+     même, un membre de sa famille, ou un commerce dont il est propriétaire ou gérant.
+     Les montants d'une personne parrainée sont figés à la date de son parrainage, pour
+     toute la durée de sa rémunération. Une nouvelle version d'accord ne concerne que les
+     nouveaux parrainages.
+
+
+
+
+                                                                                                  Page 12 of 29
+<PARSED TEXT FOR PAGE: 13 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Un agent qui quitte une équipe garde les commissions dues pour ses parrainages,
+     versées au prochain versement.
+
+
+10.9 Versements et calendrier
+     Versements les 1er et 15 de chaque mois. Les jours fériés et les week-ends sont
+     compris : un paiement est un paiement.
+     Un paiement client confirmé du 1er au 14 est versé le 15 du même mois. Un paiement
+     confirmé du 15 au dernier jour du mois est versé le 1er du mois suivant.
+     Aucun délai d'attente au-delà de ce calendrier.
+     Les versements sont effectués manuellement par l'administrateur, en dehors de
+     l'application. Aucun versement automatique et aucun rapprochement automatique.
+     Calendrier admin : pour chaque date de versement, il affiche les paiements confirmés
+     sur la période, le total par partenaire et le montant net à verser. L'administrateur
+     consulte ce calendrier, effectue le paiement, puis le valide dans l'application.
+     Validation : seul l'administrateur valide un paiement effectué. Une ligne validée ne se
+     modifie plus ; une erreur se corrige par une ligne d'annulation. Chaque validation est
+     enregistrée avec son auteur, sa date, le montant et la référence du transfert
+     (facultative).
+     Historique du partenaire : il n'affiche que les versements validés (date, commission
+     brute, frais, montant net reçu). Les commissions dues et en attente apparaissent dès
+     que le client a payé, sans figurer encore dans l'historique.
+     Seuil : un versement n'est effectué qu'à partir de 2 000 F cumulés ; en dessous, le
+     solde est reporté au cycle suivant.
+     Annulation : si un paiement est remboursé, annulé ou contesté après un versement,
+     son montant est déduit des versements suivants.
+     Motif de retard : un retard ne peut venir que d'une panne de l'agrégateur ou d'un
+     virement échoué. En cas de virement échoué, le versement est reporté au cycle
+     suivant, le partenaire est prévenu et l'administrateur corrige les coordonnées.
+
+
+10.10 Frais de transaction et bloc Paiement
+     Les frais de transaction facturés par l'opérateur pour effectuer le versement sont
+     déduits du montant versé. Le montant net est le montant brut moins ces frais.
+     Chaque ligne de versement indique le montant brut, les frais et le montant net.
+     Une hausse des frais est supportée par le partenaire, puisqu'elle est déduite du
+     versement.
+
+Bloc Paiement, identique dans les dashboards agent, manager et influenceur :
+
+     Numéro qui reçoit les versements. Il peut être différent du numéro de connexion.
+
+
+
+                                                                                            Page 13 of 29
+<PARSED TEXT FOR PAGE: 14 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Réseau mobile, dans un menu fermé : MTN, Moov, Orange, Wave ou TMoney selon le
+     pays.
+     Nom affiché, qui doit correspondre au nom du compte Mobile Money.
+     Aucun code OTP pour valider ce bloc. Le partenaire peut modifier uniquement ce bloc,
+     et rien d'autre.
+
+
+10.11 Accords partenaires
+Les accords complets figurent en annexe D : un accord commun aux trois rôles, complété
+par l'accord propre à chaque rôle (agent, manager, influenceur). Chaque partenaire
+accepte son accord à la première connexion (section 10.3). Une adresse e-mail ne
+correspond qu'à un seul rôle.
+
+
+10.12 Messages aux partenaires
+     Canal unique : e-mail. Plus aucun message WhatsApp pour les partenaires.
+     Message aux managers et influenceurs : bienvenue, bouton « Activer mon accès »,
+     présentation de l'espace partenaire. Aucun identifiant ni mot de passe dans le
+     message.
+     Message aux agents : bouton « Activer mon accès », accompagné du code promo : « Ton
+     code promo unique : [CODE]. Il ouvre 7 jours d'essai pour les commerçants. » Aucun
+     montant de commission dans ce message : l'agent consulte sa propre rémunération
+     dans son accord et dans son tableau de bord.
+
+
+11. Design et expérience utilisateur
+
+11.1 Principes
+Rendu fintech B2B sobre (références : Mercury, Ramp, Stripe Dashboard) : beaucoup de
+blanc, une couleur presque absente, réservée à quelques signaux, typographie nette. La
+confiance vient de la précision. Un seul chiffre fort par écran, le reste en support discret.
+
+
+11.2 Palette
+     Fond : #FFFFFF. Texte principal et montants : #14181A. Textes secondaires : #6B7280 et
+     #9AA09C.
+     Accent de marque, très limité (logo, soulignement d'onglet, sparkline) : #0F6E56.
+     Signal négatif : #B54B3A sur fond #FBEDEA.
+     Séparateurs : #F0F0EE, traits de 1 px.
+     Bouton d'action : #14181A, coins arrondis de 12 px.
+
+
+
+
+                                                                                       Page 14 of 29
+<PARSED TEXT FOR PAGE: 15 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+11.3 Typographie
+Une seule police sans-serif (Inter, Helvetica Neue ou SF Pro). Montants en gras (700), 48
+px pour le chiffre principal, avec l'unité « FCFA » plus légère. Labels de section : petites
+capitales d'environ 11 px, espacement d'environ 1,2 px, couleur #9AA09C.
+
+
+11.4 Accueil manager
+Grande carte sombre « Faire le bilan du jour » en haut (statut « Pas encore envoyé »), badge
+de rôle discret, caisse en gros chiffre, historique en liste épurée, navigation à deux
+onglets.
+
+
+11.5 Logo et navigation du bas
+     Logo d'en-tête : à gauche du nom du business, en haut de l'écran (annexe C).
+     Navigation du bas : chaque onglet a une icône et un libellé. L'onglet actif prend le vert
+     du logo (#25D366), les inactifs restent gris (#9AA09C). Propriétaire : Accueil / Bilans /
+     Équipe. Manager : Accueil / Historique.
+
+
+11.6 Chargement et poids
+Écran de chargement de moins de 2 secondes, logo centré, animation minimale.
+Application légère, sans multimédia superflu.
+
+
+12. Pages légales
+Une page unique, accessible par le lien « Mentions légales & Politiques de confidentialité »
+en bas du menu latéral, et en bas de la page d'installation. Elle contient trois blocs : CGU et
+mentions légales, Politique de confidentialité, CGV. Le texte intégral est en annexe A.
+
+Corrections à appliquer au texte d'origine :
+
+     Supprimer les étiquettes « [civics] » (CGU article 5 et Politique article 4).
+     CGU article 3 : remplacer la mention des « mots de passe » par le code PIN et le code de
+     vérification WhatsApp (les utilisateurs de l'application n'ont pas de mot de passe).
+     CGV article 2 : remplacer « par mois calendaire » par « pour une période de 30 jours ».
+     CGV article 3 : remplacer la période de 30 jours par une période d'essai de sept (7)
+     jours, pendant laquelle aucun paiement n'est demandé.
+     CGV article 5 : remplacer « essai gratuit ou mois payé » par « période d'essai ou mois
+     payé », et ajouter : « Après régularisation d'un abonnement suspendu, la saisie des
+     bilans correspondant à la période de suspension n'est pas possible. »
+
+
+
+
+                                                                                         Page 15 of 29
+<PARSED TEXT FOR PAGE: 16 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Politique de confidentialité : ajouter le jeton d'abonnement aux notifications push
+     parmi les données techniques, et ajouter les données de paiement des partenaires
+     (nom, e-mail, numéro et réseau de paiement, nom affiché).
+     Faire relire l'ensemble par un juriste au Bénin avant le lancement, en particulier la
+     renonciation à poursuites et la clause de réquisition judiciaire.
+
+
+13. Sécurité
+
+13.1 Principes généraux
+     HTTPS partout.
+     Permissions vérifiées côté serveur, à chaque requête. Un utilisateur n'accède jamais
+     aux données d'un business auquel il n'est pas rattaché. Chaque business est cloisonné.
+     Aucun secret (clé d'API, clé de versement, mot de passe de base de données) dans le
+     code envoyé au navigateur. Variables d'environnement côté serveur uniquement.
+     Source maps désactivées en production.
+     Sauvegardes automatiques, et restauration testée au moins une fois par mois.
+     Limitation du nombre de requêtes sur l'API, en particulier pour la connexion, les codes
+     et les réinitialisations de mot de passe.
+     Dépendances : vérification des paquets avant installation, et npm audit régulier.
+
+
+13.2 Utilisateurs de l'application
+     PIN vérifié côté serveur, stocké haché. Blocage de 5 minutes appliqué par le serveur
+     après 4 erreurs, doublé à chaque nouvelle série.
+     Codes OTP : 4 saisies maximum par code, 2 codes par 24 heures, usage unique,
+     expiration après 10 minutes (section 4.4).
+     Nouvel appareil : numéro, puis code OTP WhatsApp, puis notification à l'ancien
+     appareil.
+     Webhooks FedaPay : signature vérifiée, plus une vérification périodique de secours.
+     Essai : anti-abus sur le numéro, et sur l'appareil si c'est techniquement possible.
+
+
+13.3 Partenaires
+     Mots de passe stockés hachés, longueur minimale de 8 caractères.
+     Code de réinitialisation par e-mail : usage unique, expiration rapide, limite de demandes
+     par jour.
+     Un changement de mot de passe déconnecte toutes les autres sessions.
+     Un partenaire n'accède qu'à ses propres données.
+
+
+
+                                                                                           Page 16 of 29
+<PARSED TEXT FOR PAGE: 17 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Les montants sont calculés à partir des paiements validés par le serveur, jamais à partir
+     de données saisies par le partenaire.
+     Le partenaire ne modifie que son bloc Paiement.
+
+
+13.4 Administration
+     Plateforme admin séparée, adresse distincte, jamais affichée dans le portail
+     partenaires.
+     Liste d'administrateurs autorisés, vérifiée côté serveur à chaque requête. Au minimum
+     deux adresses : une principale et une de secours.
+     Double authentification à chaque connexion admin. code envoyé par e-mail
+     Blocage temporaire après plusieurs tentatives. E-mail d'alerte à chaque changement
+     de mot de passe ou nouvelle connexion. Expiration automatique de la session.
+     Ajout ou retrait d'un administrateur : réservé à un administrateur déjà autorisé, avec
+     confirmation par e-mail.
+     Journal des actions admin : validation d'un versement, changement d'un bloc Paiement,
+     ajout ou retrait d'un partenaire, changement de rôle. Chaque entrée indique l'auteur, la
+     date et l'ancienne valeur.
+     Journal des commissions : un journal ajouté. Aucune ligne n'est modifiée ni supprimée ;
+     une correction se fait par une ligne d'annulation.
+     Les versements sont consultés et validés manuellement par l'administrateur. Aucun
+     versement n'est déclenché automatiquement.
+
+
+13.5 Propriété et accès
+     Nom de domaine, hébergement, base de données, FedaPay et autres services créés au
+     nom de Novadis Digital, jamais au nom du développeur.
+     Accès à la base limité à des comptes nommés, avec double authentification. Aucune
+     modification manuelle des données sans trace.
+     Accès du développeur révoqué à la fin de sa mission, avec changement des clés.
+     Accord de confidentialité (NDA) et clause de cession de propriété intellectuelle du
+     code dans le contrat du développeur.
+
+
+13.6 Données personnelles
+     Données de paiement des partenaires (numéro, réseau, nom affiché) chiffrées au
+     repos. Affichées en clair uniquement au partenaire lui-même et à l'administrateur au
+     moment du versement.
+     Collecte limitée à ce qui est nécessaire à l'authentification, aux versements et aux
+     notifications.
+
+
+
+                                                                                       Page 17 of 29
+<PARSED TEXT FOR PAGE: 18 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+14. Priorisation
+
+V1 : indispensable au lancement
+     Page d'installation PWA obligatoire, guide iPhone, détection des navigateurs intégrés.
+     Onboarding en 6 écrans, OTP WhatsApp à 4 chiffres, PIN, nouvel appareil, « PIN oublié
+     ».
+     Création de business, rôles personnalisables, invitations en attente.
+     Bilan quotidien, caisse théorique, multi-contributeurs, modification sous 24 h avec
+     double version.
+     Dashboard propriétaire, accueil manager, navigation multi-business, section d'aide,
+     téléchargement du bilan en PDF.
+     Paiement FedaPay dans la PWA, pop-ups d'abonnement, période de grâce, blocage et
+     écran employé.
+     Notifications push et pastille rouge.
+     Portail partenaires : connexion, activation, mot de passe oublié, tableaux de bord
+     agent, manager et influenceur, bloc Paiement, accords et acceptation, historique des
+     versements validés.
+     Plateforme admin séparée : création des partenaires, calendrier des versements,
+     validation des paiements, journal des actions.
+     Pages légales publiées.
+
+
+V2 : après validation par les premiers utilisateurs
+     Photo de profil et personnalisation visuelle.
+     Détection automatique d'anomalies (écarts de stock et de CA).
+     Graphiques et comparaisons avancées.
+     Multi-langues, mode hors-ligne avancé.
+     Numéro de service client séparé, dès le recrutement d'une personne dédiée.
+
+
+15. Décisions prises et actions restantes
+Décisions prises
+
+     Double authentification admin : code envoyé par e-mail.
+     PIN : quatre erreurs, blocage de 5 minutes, doublé à chaque nouvelle série d'erreurs,
+     contrôlé par le serveur.
+     Codes OTP : 4 saisies par code, 2 codes par 24 heures, puis message avec
+     contact@gobilan.com.
+
+
+
+                                                                                      Page 18 of 29
+<PARSED TEXT FOR PAGE: 19 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Pop-ups d'abonnement : chaque jour à partir de J-3.
+     Anti-abus de l'essai : par numéro, et par appareil si c'est possible.
+     Seuil de versement : 2 000 F, avec report du solde.
+     Virement échoué : versement reporté au cycle suivant, partenaire prévenu,
+     coordonnées corrigées par l'administrateur.
+     Mot de passe oublié des partenaires : mêmes limites que l'OTP.
+     Accords : un an, préavis de 30 jours, droit de la République du Bénin, tribunaux de
+     Cotonou. Validité juridique à confirmer par un juriste avant signature.
+
+Actions restantes
+
+     Vérifier auprès de FedaPay les versements vers Mobile Money et leurs frais.
+     Choisir séparément l'adresse du portail partenaires et celle de la plateforme admin.
+     Renseigner le RCCM et l'IFU pour le compte FedaPay Business. La société est en cours
+     d'immatriculation.
+
+
+Annexes
+
+Annexe A : textes juridiques
+Textes à intégrer tels quels sur la page unique « Mentions légales & Politiques de
+confidentialité ». Les corrections de la section 12 sont incluses. Date de mise à jour : 19
+octobre 2026.
+
+Section 1 : Conditions générales d'utilisation (CGU) et mentions légales
+
+PRÉAMBULE
+
+Les présentes Conditions Générales d'Utilisation (ci-après dénommées « CGU »)
+soumettent à un cadre légal strict l'accès, la consultation et l'utilisation de la Progressive
+Web App (ci-après dénommée « GoBilan » ou « la PWA ») éditée par la société désignée aux
+Mentions Légales. Tout utilisateur, qu'il agisse en qualité de Propriétaire de Business (ci-
+après « le Patron ») ou d'utilisateur invité (ci-après « l'Employé » ou « le Gérant »), reconnaît
+sans réserve avoir pris connaissance, compris et accepté l'intégralité des présentes
+clauses.
+
+ARTICLE 1 : MENTIONS LÉGALES ET PROPRIÉTÉ ÉDITORIALE
+
+L'infrastructure logicielle, le site web et la marque GoBilan sont exploités de manière
+exclusive par la société Novadis Digital, entreprise en cours d'immatriculation officielle au
+Registre du Commerce et du Crédit Mobilier (RCCM), dont le siège social est situé à
+Cotonou, République du Bénin.
+
+Directeur de la publication : Le Représentant Légal de la société Novadis Digital.
+
+
+                                                                                         Page 19 of 29
+<PARSED TEXT FOR PAGE: 20 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Contact d'assistance officiel : contact@gobilan.com
+
+Hébergement des infrastructures : L'ensemble des serveurs applicatifs, bases de données
+relationnelles et systèmes de stockage chiffrés sont hébergés sur les infrastructures de
+serveurs cloud sécurisés sélectionnés par l'éditeur, garantissant un taux de disponibilité
+technique optimal et une protection maximale contre les intrusions.
+
+ARTICLE 2 : DÉFINITIONS ET ARCHITECTURE DU SERVICE
+
+Pour l'exécution des présentes, les termes suivants s'entendent comme suit :
+
+     GoBilan (Progressive Web App) : solution applicative web mobile déployable
+     directement sur l'écran d'accueil des terminaux mobiles, sans passer par un magasin
+     d'applications natif tiers.
+     Espace Business : environnement virtuel cloisonné et privé représentant l'entité
+     commerciale du Patron.
+     Bilan Journalier : rapport financier et d'état des stocks consolidé, saisi manuellement
+     par l'Employé à des fins de consultation exclusive par le Patron.
+
+ARTICLE 3 : ACCÈS AU SERVICE ET CONFIGURATION DES COMPTES
+
+L'accès à GoBilan nécessite une connexion internet et l'utilisation d'un navigateur mobile
+moderne supportant les technologies de Service Workers.
+
+Exactitude des identifiants : lors du processus d'onboarding, l'utilisateur s'engage à
+fournir des données d'identification rigoureusement exactes. Le numéro WhatsApp
+fourni fait office d'identifiant unique vérifié.
+
+Sécurité des accès : chaque compte est strictement personnel. Le Patron et l'Employé
+sont seuls responsables de la confidentialité de leur code PIN et des codes de vérification
+reçus par WhatsApp. Toute action effectuée depuis un compte utilisateur est légalement
+réputée avoir été accomplie par le titulaire de ce compte.
+
+ARTICLE 4 : PROPRIÉTÉ INTELLECTUELLE ET DROITS DE LICENCE
+
+L'architecture technique, le code source, le design graphique, les algorithmes de calcul de
+trésorerie, la charte visuelle et les logos de la PWA GoBilan sont la propriété intellectuelle
+exclusive de la société Novadis Digital. Il est concédé à l'utilisateur une licence
+d'utilisation personnelle, temporaire, révocable et non transférable. Toute tentative de
+rétro-ingénierie, de copie du code ou de reproduction des interfaces sans accord écrit
+préalable exposera le contrevenant à des poursuites judiciaires immédiates.
+
+ARTICLE 5 : PROPRIÉTÉ DES DONNÉES ET CONFIDENTIALITÉ DES CHIFFRES
+
+Garantie de non-exploitation : la société Novadis Digital affirme de manière absolue que
+l'intégralité des données commerciales (chiffres d'affaires, flux de trésorerie, inventaires
+de stocks) reste la propriété exclusive du Patron.
+
+
+
+                                                                                       Page 20 of 29
+<PARSED TEXT FOR PAGE: 21 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Secret commercial : aucune donnée relative à la santé financière d'un commerce ne sera
+exploitée, vendue, analysée à des fins marketing ou divulguée à des tiers, y compris à des
+entités concurrentes.
+
+ARTICLE 6 : CLAUSE DE LIMITATION DE RESPONSABILITÉ ET EXONÉRATION
+JURIDIQUE
+
+La société Novadis Digital agit exclusivement en qualité de prestataire technique de
+fournitures logicielles. En conséquence, sa responsabilité ne saurait être engagée dans
+les cas suivants :
+
+ 1. Erreurs de saisie humaine : dysfonctionnements, incohérences ou erreurs manifestes
+     dans les calculs découlant d'une mauvaise saisie ou d'une omission volontaire ou
+     involontaire de l'Employé ou du Gérant.
+ 2. Actes malveillants internes (coulage de caisse) : vols physiques, détournements de
+     fonds, fraudes sur les stocks réels ou manipulations frauduleuses commis au sein de
+     l'établissement du Patron. GoBilan est un outil de constatation numérique et ne se
+     substitue pas à la surveillance physique et légale du chef d'entreprise.
+ 3. Pannes de réseaux télécoms : interruptions temporaires d'accès découlant des
+     défaillances des opérateurs de réseaux mobiles ou de connexions internet locales
+     (MTN, Moov, Orange, Wave, Telecel, TMoney, etc.).
+ 4. Cas de force majeure : pertes de données ou indisponibilité du service résultant de
+     catastrophes naturelles, coupures électriques nationales, cyberattaques d'envergure
+     internationale ou instabilités géopolitiques.
+
+ARTICLE 7 : SUSPENSION ET RÉSILIATION DU COMPTE
+
+Le Patron conserve le droit de mettre fin à l'utilisation du service à tout moment. En cas
+de non-respect manifeste des présentes CGU ou d'activité suspecte s'apparentant à du
+piratage informatique, la société Novadis Digital se réserve le droit de suspendre ou de
+clôturer le compte de l'utilisateur de plein droit, sans préavis ni indemnité.
+
+Section 2 : Politique de confidentialité et de traitement des données personnelles
+
+ARTICLE 1 : CADRE JURIDIQUE ET CONFORMITÉ RÉGIONALE
+
+La présente Politique de Confidentialité décrit de manière exhaustive les protocoles de
+collecte, de traitement, de stockage et de sécurisation des données à caractère personnel
+mis en œuvre par la société Novadis Digital. Ce document est rédigé et exécuté en stricte
+conformité avec les réglementations nationales et communautaires africaines les plus
+rigoureuses, notamment :
+
+     la loi n° 2017-20 portant code du numérique en République du Bénin (encadrée par
+     l'APDP) ;
+
+
+
+
+                                                                                     Page 21 of 29
+<PARSED TEXT FOR PAGE: 22 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     la loi n° 2013-450 relative à la protection des données à caractère personnel en Côte
+     d'Ivoire (encadrée par l'ARTCI) ;
+     la loi n° 2019-014 relative à la protection des données à caractère personnel en
+     République Togolaise (encadrée par l'IPDCP) ;
+     l'acte additionnel A/SA.1/01/10 relatif à la protection des données à caractère personnel
+     dans l'espace CEDEAO.
+
+ARTICLE 2 : NATURE DES DONNÉES COLLECTÉES ET FINALITÉS
+
+La collecte des données est strictement limitée aux éléments nécessaires à la fourniture,
+à l'amélioration et à la sécurisation des services applicatifs :
+
+ 1. Données d'identité de l'administrateur (le Patron) : nom, prénoms, numéro de
+     téléphone mobile actif, dénomination commerciale du ou des business gérés.
+ 2. Données d'identité des tiers invités (les Employés) : nom, prénom, numéro WhatsApp
+     d'invitation.
+ 3. Données d'exploitation technique : adresse IP de connexion, logs d'horodatage des
+     validations de clôture de caisse, cookies techniques de session, métadonnées du
+     terminal mobile utilisé, identifiant d'abonnement aux notifications push.
+ 4. Données des partenaires (agents de terrain, managers, influenceurs) : nom, adresse
+     e-mail, numéro, réseau et nom affiché pour les versements de commissions, historique
+     des parrainages et des commissions.
+
+Finalités exclusives : ces informations ont pour but unique l'authentification des accès, la
+prévention des fraudes informatiques, l'envoi des notifications d'alerte, le calcul
+transparent des indicateurs de gestion financière et le paiement des commissions aux
+partenaires.
+
+ARTICLE 3 : PROTOCOLES DE SÉCURITÉ ET CHIFFREMENT
+
+La société Novadis Digital déploie des standards de sécurité renforcés pour préserver
+l'intégrité des informations confidentielles.
+
+Chiffrement des liaisons : tous les échanges de flux entre le terminal mobile de
+l'utilisateur et nos infrastructures d'hébergement sont protégés par des protocoles de
+chiffrement SSL/TLS (HTTPS) de niveau industriel.
+
+Cloisonnement des bases de données : les architectures de nos bases de données
+appliquent des règles de sécurité strictes empêchant toute fuite de données inter-
+entreprises. Chaque Espace Business possède son propre token d'isolation numérique
+unique.
+
+ARTICLE 4 : CLAUSE DE COOPÉRATION ET DE RÉQUISITION JUDICIAIRE (BLINDAGE
+ÉTAT/POLICE)
+
+
+
+
+                                                                                        Page 22 of 29
+<PARSED TEXT FOR PAGE: 23 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Par dérogation expresse aux principes de confidentialité et de secret commercial
+énoncés dans les présentes, la société Novadis Digital se réserve le droit de communiquer
+l'intégralité des données collectées (historiques de caisse, écritures comptables,
+mouvements de stocks, données d'identification) dans les conditions strictes définies ci-
+après :
+
+ 1. Injonction légale et judiciaire : en cas de réception d'une réquisition judiciaire formelle,
+     d'un mandat d'amener, d'une ordonnance d'un juge d'instruction, ou de toute injonction
+     écrite et signée émanant d'une autorité étatique, judiciaire, policière ou fiscale
+     compétente et assermontée (Police Républicaine au Bénin, Gendarmerie ou Brigades
+     Économiques et Financières en Côte d'Ivoire ou au Togo).
+ 2. Exonération de responsabilité vis-à-vis du client : le transfert des données
+     comptables et personnelles effectué dans le cadre d'une réquisition légale ne pourra
+     en aucun cas engager la responsabilité civile ou pénale de la société Novadis Digital. Le
+     client renonce expressément à toute poursuite ou demande d'indemnisation
+     découlant de cette divulgation légale.
+ 3. Refus des demandes informelles : la société s'engage à rejeter systématiquement
+     toute demande d'accès aux chiffres formulée de manière verbale, informelle ou
+     dénuée de base légale écrite et dûment authentifiée par un magistrat ou un officier de
+     police judiciaire.
+
+ARTICLE 5 : CLAUSE DE TRANSFERT TRANSFRONTALIER DE DONNÉES
+
+L'application GoBilan étant déployée simultanément dans plusieurs pays de l'espace
+UEMOA (Bénin, Côte d'Ivoire, Togo), l'utilisateur est expressément informé et accepte que
+ses données techniques et financières puissent transiter par des infrastructures
+serveurs centralisées. Ce transfert transfrontalier s'effectue sous le contrôle de l'éditeur,
+dans le strict respect des accords de coopération de la CEDEAO sur la libre circulation
+des données numériques sécurisées.
+
+ARTICLE 6 : CLOISONNEMENT ET ANONYMISATION DU RÉSEAU DE DISTRIBUTION
+(AGENTS ET MANAGERS)
+
+Dans le cadre du déploiement opérationnel de notre réseau d'apport d'affaires et de
+parrainage sur le terrain :
+
+     Protection des identités : les informations nominatives sensibles concernant les
+     entreprises clientes (numéros de téléphone complets des patrons, identités civiles
+     exactes des employés) sont strictement anonymisées, tronquées et masquées sur les
+     tableaux de bord des Agents de terrain et des Managers. Les agents ne voient ni
+     numéro de téléphone ni identité civile des commerçants : seuls le nom du business, la
+     date et le statut sont affichés.
+
+
+
+
+                                                                                          Page 23 of 29
+<PARSED TEXT FOR PAGE: 24 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+     Visibilité restreinte : seuls les indicateurs indispensables au calcul des commissions
+     (statut d'essai, validation du paiement de l'abonnement, date d'activation) sont visibles
+     pour les partenaires concernés.
+
+ARTICLE 7 : DURÉE DE CONSERVATION ET DROITS DES UTILISATEURS
+
+Les données d'exploitation financière sont conservées aussi longtemps que le compte
+utilisateur demeure actif.
+
+Droit d'accès et de rectification : en conformité avec les réglementations de l'espace
+CEDEAO/UEMOA, chaque utilisateur dispose d'un droit d'accès, de rectification, de
+limitation et d'effacement des données le concernant.
+
+Exercice des droits : pour exercer ces droits, l'utilisateur adresse une demande écrite
+motivée à l'adresse électronique : contact@gobilan.com.
+
+Section 3 : Conditions générales de vente (CGV)
+
+ARTICLE 1 : CHAMP D'APPLICATION ET MODÈLE ÉCONOMIQUE
+
+Les présentes Conditions Générales de Vente (ci-après « CGV ») définissent les termes
+commerciaux applicables à la fourniture de la licence d'exploitation technique de la PWA
+GoBilan par la société Novadis Digital à ses clients professionnels. L'application s'adresse
+exclusivement à un public de professionnels, commerçants, artisans ou chefs
+d'entreprise, agissant dans le cadre de leurs activités économiques.
+
+ARTICLE 2 : TARIF ET STRUCTURE DES REDEVANCES
+
+L'accès aux serveurs de calcul et au tableau de bord de monitoring de GoBilan est soumis
+au paiement d'une redevance forfaitaire, fixée à la somme de 2 000 FCFA (deux mille
+francs CFA) toutes taxes comprises pour une période de 30 jours, par point de vente
+enregistré, et non fractionnable. La société Novadis Digital se réserve le droit de réviser
+sa grille tarifaire à tout moment, sous réserve d'en informer les utilisateurs avec un
+préavis minimal de trente (30) jours. Cette règle ne s'applique pas aux montants de
+commission des partenaires, qui sont fixés par leur accord.
+
+ARTICLE 3 : MODALITÉS DE LA PÉRIODE D'ÉVALUATION INITIALE
+
+Chaque entité commerciale nouvellement créée sur la plateforme bénéficie de plein droit
+d'une période d'essai d'une durée stricte de sept (7) jours consécutifs. Cette période est
+exempte de toute facturation : aucun paiement n'est demandé pendant sa durée. Elle a
+pour but de valider l'adéquation des fonctionnalités du logiciel avec les exigences réelles
+du commerce du client.
+
+ARTICLE 4 : SYSTÈME DE FACTURATION ET EXPÉDITION DES PAIEMENTS
+
+
+
+
+                                                                                         Page 24 of 29
+<PARSED TEXT FOR PAGE: 25 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+L'application étant éditée sous la forme technologique d'une Progressive Web App (PWA)
+indépendante des stores tiers, les transactions financières sont opérées en ligne de
+manière sécurisée.
+
+Passerelle technique sécurisée : les flux de paiement sont administrés via l'infrastructure
+technique de la fintech FedaPay.
+
+Moyens de paiement acceptés : le règlement s'effectue exclusivement par le biais des
+comptes de monnaie électronique locaux (Mobile Money) incluant MTN Mobile Money,
+Moov Money, Orange Money, Wave, TMoney, ou par carte bancaire internationale selon la
+disponibilité géographique du pays sélectionné.
+
+ARTICLE 5 : FRÉQUENCE DE RENOUVELLEMENT, DÉLAI DE GRÂCE ET PROTOCOLE DE
+SUSPENSION
+
+Mécanisme de renouvellement : le contrat ne fait l'objet d'aucun prélèvement
+automatique ou récurrent. Le renouvellement s'effectue par l'action de paiement
+volontaire et manuelle du client toutes les périodes de 30 jours.
+
+Octroi du délai de grâce : à l'expiration de la période valide (période d'essai ou mois payé),
+la société Novadis Digital accorde une tolérance technique commerciale d'une durée
+maximale de trois (3) jours francs. Durant ce sursis, les fonctionnalités de saisie des bilans
+journaliers et de consultation restent pleinement opérationnelles.
+
+Mise en pause automatique : au quatrième (4ème) jour d'impayé, si le versement des 2
+000 FCFA n'a pas été comptabilisé sur les comptes de la société, l'accès aux interfaces de
+contrôle et aux fonctionnalités applicatives est automatiquement suspendu. Les données
+historiques accumulées restent stockées et figées en toute sécurité le temps de la
+régularisation manuelle complète de l'échéance due auprès de notre service client.
+
+Absence de saisie rétroactive : après régularisation d'un abonnement suspendu, la saisie
+des bilans correspondant à la période de suspension n'est pas possible.
+
+ARTICLE 6 : NON-REMBOURSEMENT
+
+En raison de la nature purement numérique du service fourni et de son exécution
+immédiate dès réception des fonds, les redevances versées au titre du renouvellement de
+la licence d'utilisation sont fermes et définitives. Aucun remboursement, prorata ou note
+de crédit ne sera accordé au client en cas d'arrêt d'activité ou de désinstallation en cours
+de période.
+
+
+
+Annexe B : aperçus de référence des écrans
+Ces descriptions reprennent les aperçus validés. Les textes, montants et noms qui y
+figurent sont des exemples.
+
+
+
+
+                                                                                      Page 25 of 29
+<PARSED TEXT FOR PAGE: 26 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+B.1 Tableau de bord propriétaire
+     En haut : logo GoBilan et nom du business à gauche (exemple : « Boutique Étoile », avec
+     « GoBilan » en dessous), avatar aux initiales à droite.
+     Onglets de période : Aujourd'hui / 7 jours / 30 jours. L'onglet actif est souligné en vert
+     (#0F6E56).
+     Carte principale : libellé « CHIFFRE D'AFFAIRES » en petites capitales grises, montant
+     en gros (700, 48 px) suivi de « FCFA » atténué, sparkline à droite, pastille de variation
+     (rouge atténué si négative), puis le lien « Voir le détail ».
+     Rangée compacte : « CAISSE THÉORIQUE » et « DÉPENSES », séparées par un trait
+     vertical.
+     Section « Détail du jour » : ajouts à la caisse, caisse de la veille, contributeur et heure.
+     En bas : bouton noir arrondi « Faire le bilan du jour ».
+     Navigation du bas : Accueil / Bilans / Équipe, onglet actif en vert.
+
+
+B.2 Accueil de l'employé ou du manager
+     En haut : logo GoBilan, nom du business et avatar, comme sur le tableau de bord
+     propriétaire.
+     « Bonjour, [prénom] », avec un badge de rôle discret (exemple : « Caissière »).
+     Grande carte sombre : « AUJOURD'HUI · [date] », titre « Faire le bilan du jour », sous-
+     titre « Pas encore envoyé », flèche à droite.
+     « CAISSE DISPONIBLE » en gros chiffre, avec « FCFA » atténué.
+     « Mes bilans précédents » avec « Tout voir » : liste épurée (date et montant), sans
+     cartes.
+     Navigation du bas : Accueil / Historique, onglet actif en vert.
+
+
+Annexe C : logo et icônes
+     Logo couleur : icône carrée aux coins arrondis, fond vert, loupe blanche entourant trois
+     barres de graphique vert foncé, avec le manche de la loupe à droite. Utilisé pour l'icône
+     de l'application sur l'écran d'accueil et comme grande icône dans les notifications.
+     Icône de notification (champ badge) : version monochrome, blanche sur fond
+     transparent, en 96 px, avec des versions en 72 et 48 px. Affichée dans la barre de
+     notifications (taille réelle : 24 px).
+     Fichiers à fournir au développeur : logo couleur en PNG, et icône de notification en 96,
+     72 et 48 px.
+
+
+
+
+                                                                                            Page 26 of 29
+<PARSED TEXT FOR PAGE: 27 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Annexe D : accords partenaires (version 1.0)
+Chaque partenaire accepte, à sa première connexion, la partie commune et la partie
+propre à son rôle. Les montants sont bruts ; les versements sont nets des frais de
+transaction (article 3).
+
+
+D.1 Partie commune (agents, managers et influenceurs)
+Article 1 : Objet. Le présent accord définit la rémunération du partenaire pour les
+abonnements GoBilan qu'il génère dans le cadre du programme partenaires de la société
+Novadis Digital.
+
+Article 2 : Parrainage et conditions. Le parrainage est l'inscription d'une personne avec le
+code promo du partenaire. Un parrainage seul ne donne droit à aucune commission. La
+commission n'est due que si la personne parrainée paie son premier abonnement dans les
+30 jours suivant son inscription, après sa période d'essai de 7 jours, et que ce paiement est
+encaissé par GoBilan via FedaPay. Aucune commission n'est due sur les périodes d'essai,
+ni sur les paiements annulés, remboursés ou contestés, ni sur un abonnement payé par le
+partenaire lui-même, un membre de sa famille, ou un commerce dont il est propriétaire ou
+gérant.
+
+Article 3 : Calcul, frais de transaction et seuil. Le montant versé correspond au montant
+brut moins les frais de transaction facturés par l'opérateur pour effectuer le versement.
+Chaque versement est accompagné d'un relevé indiquant le montant brut, les frais et le
+montant net. Un versement n'est effectué qu'à partir de 2 000 FCFA cumulés ; en
+dessous, le solde est reporté au cycle suivant.
+
+Article 4 : Calendrier. Les versements sont effectués les 1er et 15 de chaque mois, jours
+fériés et week-ends compris. Un paiement client confirmé du 1er au 14 du mois est versé le
+15 du même mois. Un paiement confirmé du 15 au dernier jour du mois est versé le 1er du
+mois suivant.
+
+Article 5 : Annulation et régularisation. Si un paiement est remboursé, annulé ou
+contesté, la commission correspondante est annulée. Si elle a déjà été versée, son
+montant est déduit des versements suivants.
+
+Article 6 : Vérifications. Avant tout versement, GoBilan peut vérifier la validité d'un
+paiement et suspendre le versement correspondant le temps de la vérification. Le
+partenaire en est informé.
+
+Article 7 : Confidentialité. Le partenaire ne connaît que sa propre rémunération. Les
+conditions des autres partenaires sont confidentielles.
+
+Article 8 : Stabilité des montants. Les montants du présent accord sont fixés pour un an à
+compter de sa signature et ne peuvent pas être modifiés pendant cette période. Chaque
+personne parrainée est rémunérée selon les montants en vigueur à la date de son
+
+
+                                                                                      Page 27 of 29
+<PARSED TEXT FOR PAGE: 28 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+parrainage, pendant 12 mois au maximum à partir de son premier paiement, même si
+l'accord arrive à échéance. Un nouvel accord ne concerne que les personnes parrainées
+après son entrée en vigueur.
+
+Article 9 : Acceptation. L'accès au tableau de bord du partenaire est conditionné à
+l'acceptation du présent accord. GoBilan conserve la date, l'heure, la version et
+l'identifiant de chaque acceptation.
+
+Article 10 : Durée et résiliation. Le présent accord est conclu pour un an à compter de sa
+signature. Il peut être résilié par l'une ou l'autre partie, par écrit, avec un préavis de 30
+jours. La résiliation ne remet pas en cause les commissions dues pour les parrainages
+effectués avant la fin du préavis. À son terme, l'accord cesse de produire effet, sauf
+acceptation d'une nouvelle version.
+
+Article 11 : Droit applicable et litiges. Le présent accord est soumis au droit de la
+République du Bénin. Tout litige est soumis, après une tentative de règlement amiable, aux
+tribunaux de Cotonou.
+
+
+D.2 Accord agent de terrain
+Article A1 : Rémunération. Tu touches 1 000 FCFA pour le premier paiement d'un
+abonnement que tu as généré, validé par GoBilan. Tu touches 500 FCFA pour chacun des
+11 renouvellements suivants de ce même abonnement, tant que le client renouvelle. La
+rémunération est limitée à 12 mois par abonnement. Si le client cesse de renouveler,
+aucune commission n'est due pour les mois suivants.
+
+Article A2 : Obligations. Tu ne reçois jamais d'argent des commerçants : tous les
+paiements passent par FedaPay. Tu déclares chaque prospect avant de le démarcher, pour
+éviter les doublons. Tu ne fais aucune promesse de gains ou de résultats qui ne figure pas
+dans la documentation GoBilan. Tu n'utilises pas ton code pour toi-même ni pour un
+proche.
+
+Article A3 : Tableau de bord. Tu vois tes parrainages : nom du business, date d'inscription,
+statut et jours restants avant expiration. Tu ne vois aucun numéro de téléphone, ni les
+rémunérations d'autres partenaires.
+
+
+D.3 Accord manager
+Article M1 : Rémunération. Tu touches 800 FCFA pour le premier paiement d'un
+abonnement généré par un agent de ton équipe, validé par GoBilan. Tu touches 500 FCFA
+pour chacun des 11 renouvellements suivants de ce même abonnement, tant que le client
+renouvelle. La rémunération est limitée à 12 mois par abonnement. Si le client cesse de
+renouveler, aucune commission n'est due pour les mois suivants.
+
+
+
+
+                                                                                          Page 28 of 29
+<PARSED TEXT FOR PAGE: 29 / 29>
+Cahier des charges GoBilan (PWA) - version du 19 octobre 2026
+
+
+
+
+Article M2 : Périmètre. Tu ne perçois rien sur les abonnements que tu n'as pas générés via
+un agent de ton équipe. Tu n'as pas de code promo personnel : tu attribues des codes
+uniquement à tes agents. Si tu souhaites un code personnel, un compte influenceur
+distinct, avec sa propre adresse e-mail et son propre accord, est nécessaire.
+
+Article M3 : Responsabilité. Tu veilles à ce que les agents de ton équipe respectent
+l'article A2. GoBilan peut suspendre la rémunération liée à un agent qui ne le respecte pas,
+après en avoir informé le manager.
+
+Article M4 : Tableau de bord. Tu vois les agents de ton équipe, le statut de leurs
+parrainages et les gains liés à ton équipe. Tu ne vois aucun numéro de téléphone de
+commerçant.
+
+
+D.4 Accord influenceur
+Article I1 : Rémunération. Tu touches 1 800 FCFA pour le premier mois d'abonnement
+d'une personne inscrite avec ton code promo, validé par GoBilan. Tu touches ensuite 1 000
+FCFA pour chacun des 11 mois suivants, tant que cette personne reste abonnée et
+renouvelle. La rémunération est limitée à 12 mois par abonné. Les montants sont nets des
+frais de transaction (article 3 de la partie commune).
+
+Article I2 : Obligations. Tu ne reçois jamais d'argent des commerçants : tous les
+paiements passent par FedaPay. Tu ne fais aucune promesse de gains ou de résultats qui
+ne figure pas dans la documentation GoBilan. Tu indiques clairement que tu es partenaire
+de GoBilan dans tes publications. Tu n'utilises pas ton code pour toi-même ni pour un
+proche. Tu ne diffuses aucune publicité trompeuse.
+
+Article I3 : Tableau de bord. Pour chaque abonné, tu vois le nom du business, le mois en
+cours (de 1 à 12), le gain du mois et le total cumulé. Tu ne vois aucun numéro de téléphone
+de commerçant.
+
+
+D.5 Formule d'acceptation
+Les partenaires cochent, à leur première connexion, une case par accord :
+
+     « J'ai lu et j'accepte l'accord agent de terrain, version 1.0. »
+     « J'ai lu et j'accepte l'accord manager, version 1.0. »
+     « J'ai lu et j'accepte l'accord influenceur, version 1.0. »
+
+Ces textes sont rédigés pour servir de base de travail. Leur validité juridique doit être
+confirmée par un juriste avant toute signature.
+
+
+
+
+                                                                                      Page 29 of 29
