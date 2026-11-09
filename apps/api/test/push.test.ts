@@ -298,6 +298,23 @@ describe('rappels quotidiens et expiration proche', () => {
 });
 
 describe('ordonnanceur', () => {
+  it('exécute les tâches même sans fonction de compte rendu', async () => {
+    const t = await mkTeam(ctx);
+    const employee = await t.addMember('Caissière', t.roles.entry);
+    await ctx.db.query('update businesses set reminder_time = $2 where id = $1', [t.businessId, '18:00']);
+    ctx.clock.set(Date.parse('2026-10-19T17:05:00Z'));
+    const stop = startScheduler(ctx.deps, { tickMs: 15 });
+    try {
+      const deadline = Date.now() + 3000;
+      while (!ctx.providers.push.sent.some((p) => p.userId === employee.user.id && p.payload.type === 'reminder') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(ctx.providers.push.sent.some((p) => p.userId === employee.user.id && p.payload.type === 'reminder')).toBe(true);
+    } finally {
+      stop();
+    }
+  });
+
   it('exécute les tâches périodiquement, sans chevauchement, et ne rapproche pas à chaque cycle', async () => {
     const summaries: JobSummary[] = [];
     const stop = startScheduler(ctx.deps, { tickMs: 15, reconcileEveryMs: 3_600_000, onSummary: (s) => summaries.push(s) });

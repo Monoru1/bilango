@@ -143,7 +143,8 @@ export function startScheduler(deps: Deps, opts: SchedulerOptions = {}): () => v
       const now = deps.clock.now();
       const reconcile = now - lastReconcile >= reconcileEveryMs;
       if (reconcile) lastReconcile = now;
-      opts.onSummary?.(await jobs.runOnce({ reconcile }));
+      const summary = await jobs.runOnce({ reconcile });
+      opts.onSummary?.(summary);
     } finally {
       running = false;
     }
