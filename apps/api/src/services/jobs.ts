@@ -1,4 +1,4 @@
-import { COUNTRIES, REMINDER_DAYS_BEFORE, daysRemaining, subscriptionStatus, toDayKey, type CountryCode } from '@gobilan/domain';
+import { COUNTRIES, REMINDER_DAYS_BEFORE, daysRemaining, minutesSinceClosing, subscriptionStatus, toDayKey, type CountryCode } from '@gobilan/domain';
 import { iso } from '../clock';
 import type { Deps } from '../deps';
 import { subscriptionOf } from './access';
@@ -26,8 +26,6 @@ interface BusinessRow {
   paid_until: Date | null;
 }
 
-const toMinutes = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-
 /**
  * Tâches périodiques (cahier §8.2 rapprochement, §9 notifications). Chaque tâche est idempotente :
  * l'exécuter deux fois, ou depuis deux instances, n'envoie pas deux notifications (clé de
@@ -51,10 +49,11 @@ export class ScheduledJobs {
     for (const b of businesses) {
       const offset = COUNTRIES[b.country].utcOffsetMinutes;
       const localMinutes = Math.floor((((this.now + offset * MINUTE_MS) % DAY_MS) + DAY_MS) % DAY_MS / MINUTE_MS);
-      const start = toMinutes(b.reminder_time);
-      if (localMinutes < start || localMinutes >= start + REMINDER_WINDOW_MINUTES) continue;
+      const elapsed = minutesSinceClosing(localMinutes, b.reminder_time);
+      if (elapsed >= REMINDER_WINDOW_MINUTES) continue;
       if (subscriptionStatus(subscriptionOf(b), this.now) === 'blocked') continue; // saisie impossible : pas de rappel
-      const day = toDayKey(this.now, offset);
+      // Après minuit, le bilan et la déduplication restent liés au jour de fermeture.
+      const day = toDayKey(this.now - elapsed * MINUTE_MS, offset);
       const done = await this.deps.db.query('select 1 from reports where business_id = $1 and day = $2 limit 1', [b.id, day]);
       if (done.rows.length > 0) continue;
       const recipients = (

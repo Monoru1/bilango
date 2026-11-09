@@ -17,6 +17,31 @@ const reminderTimeOf = async (id: string) => (await ctx.db.query<{ reminder_time
 const reminders = () => ctx.providers.push.sent.filter((p) => p.payload.type === 'reminder');
 
 describe('REC-01 — heure de fermeture choisie à la création puis modifiée (v1.2 §2)', () => {
+  it('rattrape une fermeture tardive après minuit sans doublon et pour le jour correct', async () => {
+    const t = await mkTeam(ctx, { country: 'CI' });
+    await t.addMember('Employé', t.roles.entry);
+    await ctx.db.query('update businesses set reminder_time = $2 where id = $1', [t.businessId, '23:30']);
+    const jobs = new ScheduledJobs(ctx.deps);
+    at('2026-10-20T00:15:00Z');
+    expect((await jobs.runOnce({ reconcile: false })).reminders).toBe(1);
+    const log = await ctx.db.query<{ dedupe_key: string }>("select dedupe_key from notification_log where kind = 'reminder'");
+    expect(log.rows[0]?.dedupe_key).toContain(':2026-10-19:');
+    at('2026-10-20T01:00:00Z');
+    expect((await jobs.runOnce({ reconcile: false })).reminders).toBe(0);
+    at('2026-10-20T02:30:00Z');
+    expect((await jobs.runOnce({ reconcile: false })).reminders).toBe(0);
+  });
+
+  it('après minuit, ne rappelle pas si le bilan du jour de fermeture existe déjà', async () => {
+    const t = await mkTeam(ctx, { country: 'CI' });
+    await t.addMember('Employé', t.roles.entry);
+    await ctx.db.query('update businesses set reminder_time = $2 where id = $1', [t.businessId, '23:30']);
+    at('2026-10-19T22:00:00Z');
+    await services(ctx).reports.submit(t.owner.user, t.businessId, reportInput(1000, { openingCash: 0 }));
+    at('2026-10-20T00:15:00Z');
+    expect((await new ScheduledJobs(ctx.deps).runOnce({ reconcile: false })).reminders).toBe(0);
+  });
+
   it('enregistre 18:00 à la création, puis 21:30 ; les rappels internes suivent la nouvelle heure', async () => {
     const { biz } = services(ctx);
     const owner = await mkUser(ctx, 'Patron');
