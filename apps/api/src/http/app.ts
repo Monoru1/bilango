@@ -17,6 +17,7 @@ import { PartnerService, type PartnerSession } from '../services/partners';
 import { PushService } from '../services/push';
 import { ReportService } from '../services/reports';
 import { SubscriptionService } from '../services/subscriptions';
+import { OwnerReferralService } from '../services/owner-referrals';
 
 /**
  * Trois audiences, trois cookies distincts : une session partenaire ne peut jamais servir
@@ -235,6 +236,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/push/unsubscribe', async (req) => new PushService(deps).unregister((await user(req)).user, pushUnsubscribeSchema.parse(req.body).endpoint));
 
   // ================= Abonnement =================
+  app.post('/v1/me/owner-referral-code', async (req) => new OwnerReferralService(deps).generate((await user(req)).user));
   app.get('/v1/businesses/:businessId/subscription', async (req) => subs.view((await user(req)).user, bizParam.parse(req.params).businessId));
   app.post('/v1/subscription/checkout', async (req) => {const input=checkoutSchema.parse(req.body);return subs.createCheckout((await user(req)).user,input.businessId,input.idempotencyKey,input.customerEmail);});
   // Webhook : pas de cookie ni CSRF — authentifié par la signature HMAC du corps brut.

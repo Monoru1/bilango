@@ -16,6 +16,15 @@ describe('security regression', () => {
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)('real PostgreSQL concurrent transactions', () => {
+  it('creates exactly one permanent owner referral code under concurrent requests', async () => {
+    const { OwnerReferralService } = await import('../src/services/owner-referrals');
+    const team = await mkTeam(ctx);
+    await ctx.db.query("insert into payments(business_id,merchant_reference,status,amount,created_at,confirmed_at) values ($1,'fixture-concurrent-referral','confirmed',2000,$2,$2)", [team.businessId, new Date(ctx.clock.now()).toISOString()]);
+    const service = new OwnerReferralService(ctx.deps);
+    const results = await Promise.all(Array.from({ length: 5 }, () => service.generate(team.owner.user)));
+    expect(new Set(results.map((r) => r.code)).size).toBe(1);
+    expect((await ctx.db.query('select code from owner_referral_codes where owner_id=$1', [team.owner.user.id])).rows).toHaveLength(1);
+  });
   it('serializes first migrations across separate connections to a fresh schema', async () => {
     const { randomUUID } = await import('node:crypto');
     const { createPgDb, migrate } = await import('../src/db');
