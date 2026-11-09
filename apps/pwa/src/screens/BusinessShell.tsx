@@ -6,6 +6,7 @@ import { BottomNav } from '../components/BottomNav';
 import { Header } from '../components/Header';
 import { Dialog } from '../components/Popup';
 import { DemoControls } from './Settings';
+import { createClient } from '@gobilan/ui';
 
 /** Contexte passé aux écrans enfants. */
 export interface BizCtx {
@@ -72,6 +73,16 @@ function Drawer({ onClose, bid }: { onClose: () => void; bid: string }) {
   const s = useStore();
   const nav = useNavigate();
   const user = s.user;
+  const [referralEligible, setReferralEligible] = useState(false);
+  const owner = !!user && !!s.accessOf(user.id, bid)?.isOwner;
+  useEffect(() => {
+    if (s.mode !== 'api' || !owner) return;
+    let active = true;
+    void createClient()<{ eligible: boolean }>('/v1/me/owner-referral-code').then((result) => {
+      if (active) setReferralEligible(result.eligible);
+    }).catch(() => { if (active) setReferralEligible(false); });
+    return () => { active = false; };
+  }, [owner, s.mode]);
   if (!user) return null;
   const list = s.businessesOfUser(user.id);
   const go = (to: string) => {
@@ -103,6 +114,7 @@ function Drawer({ onClose, bid }: { onClose: () => void; bid: string }) {
           {access && can(access, 'submitReport') && <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go(`/b/${bid}/bilan`)}>Faire le bilan du jour</button>}
           <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go('/nouveau-business')}>+ Ajouter un business</button>
           {access?.isOwner && <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go(`/b/${bid}/abonnement`)}>Abonnement · {left} jour{left > 1 ? 's' : ''} restant{left > 1 ? 's' : ''}</button>}
+          {referralEligible && <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go(`/b/${bid}/parrainage`)}>Parrainage</button>}
           {access && can(access, 'viewStock') && s.business(bid)?.stockEnabled && <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go(`/b/${bid}/stock`)}>Stock</button>}
           <button className="gb-btn gb-btn--ghost" style={{ minHeight: 48 }} onClick={() => go('/aide')}>Aide</button>
         </div>

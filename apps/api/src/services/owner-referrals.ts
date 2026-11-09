@@ -11,6 +11,16 @@ const randomCode = () => Array.from({ length: 8 }, () => ALPHABET[randomInt(ALPH
 export class OwnerReferralService {
   constructor(private readonly deps: Deps) {}
 
+  async view(actor: SessionUser) {
+    const paid = await this.deps.db.query("select 1 from payments p join businesses b on b.id=p.business_id where b.owner_id=$1 and p.status='confirmed' limit 1", [actor.id]);
+    const code = (await this.deps.db.query<{ code: string; active: boolean }>('select code,active from owner_referral_codes where owner_id=$1', [actor.id])).rows[0] ?? null;
+    const stats = (await this.deps.db.query<{ registrations: number; paid: number; days: number }>(
+      `select count(*)::int registrations, count(r.referred_user_id)::int paid, coalesce(sum(r.days),0)::int days
+       from owner_referral_attributions a left join owner_referral_rewards r on r.referred_user_id=a.referred_user_id where a.owner_id=$1`, [actor.id],
+    )).rows[0]!;
+    return { eligible: canGenerateOwnerReferralCode(paid.rows.length > 0), code, registrations: stats.registrations, paid: stats.paid, days: stats.days };
+  }
+
   async generate(actor: SessionUser): Promise<{ code: string; active: boolean }> {
     return this.deps.db.tx(async (t) => {
       await t.query('select id from users where id=$1 for update', [actor.id]);

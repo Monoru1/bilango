@@ -334,11 +334,28 @@ export class AuthService {
    */
   async updateProfile(userId: string, name: string, referralCode?: string): Promise<void> {
     await this.deps.db.tx(async t => {
+    const account = (await t.query<{ referral_partner_code: string | null }>('select referral_partner_code from users where id=$1 for update', [userId])).rows[0];
+    if (!account) throw new AppError('not_found', 'Compte introuvable.');
     let code: string | null = null;
     if (referralCode) {
-      code = referralCode.trim().toUpperCase();
-      const ok = await t.query(`select 1 from partners where promo_code = $1 and status = 'active' and role in ('agent','influencer') for update`, [code]);
-      if (ok.rows.length === 0) throw new AppError('validation', 'Code de parrainage inconnu.');
+      const entered = referralCode.trim().toUpperCase();
+      const existing = (await t.query<{ code: string }>('select code from owner_referral_attributions where referred_user_id=$1', [userId])).rows[0];
+      if (existing && existing.code !== entered) throw new AppError('conflict', 'Un parrain est déjà associé à ce compte.');
+      if (!existing) {
+        const partner = await t.query(`select 1 from partners where promo_code = $1 and status = 'active' and role in ('agent','influencer') for update`, [entered]);
+        if (partner.rows.length) {
+          if (account.referral_partner_code && account.referral_partner_code !== entered) throw new AppError('conflict', 'Un parrain est déjà associé à ce compte.');
+          code = entered;
+        } else {
+          const owner = (await t.query<{ owner_id: string }>('select owner_id from owner_referral_codes where code=$1 and active=true for update', [entered])).rows[0];
+          if (!owner) throw new AppError('validation', 'Code de parrainage inconnu.');
+          if (account.referral_partner_code) throw new AppError('conflict', 'Un parrain est déjà associé à ce compte.');
+          if (owner.owner_id === userId) throw new AppError('validation', 'Vous ne pouvez pas utiliser votre propre code.');
+          const businesses = await t.query('select 1 from businesses where owner_id=$1 limit 1', [userId]);
+          if (businesses.rows.length) throw new AppError('conflict', 'Le code doit être renseigné à l’inscription.');
+          await t.query('insert into owner_referral_attributions(referred_user_id,owner_id,code,created_at) values($1,$2,$3,$4)', [userId,owner.owner_id,entered,iso(this.now)]);
+        }
+      }
     }
     await t.query('update users set name = $2, referral_partner_code = coalesce(referral_partner_code, $3) where id = $1', [userId, name, code]);
     });

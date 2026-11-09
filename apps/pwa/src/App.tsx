@@ -16,6 +16,7 @@ import { InvitationsScreen, ProfileScreen } from './screens/Settings';
 import { StockScreen } from './screens/Stock';
 import { SubscriptionScreen } from './screens/Subscription';
 import { TeamScreen } from './screens/Team';
+import { OwnerReferralScreen } from './screens/OwnerReferral';
 
 function Splash() {
   return <div className="screen center" style={{ justifyContent: 'center', minHeight: '100dvh' }}><div className="splash"><Logo size={88} /></div></div>;
@@ -92,6 +93,7 @@ export function App() {
                   <Route path="equipe" element={<TeamScreen />} />
                   <Route path="stock" element={<StockScreen />} />
                   <Route path="abonnement" element={<SubscriptionScreen />} />
+                  <Route path="parrainage" element={<OwnerReferralScreen />} />
                 </Route>
                 <Route path="/profil" element={<ProfileScreen />} />
                 <Route path="/invitations" element={<InvitationsScreen />} />

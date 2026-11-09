@@ -16,6 +16,21 @@ describe('security regression', () => {
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)('real PostgreSQL concurrent transactions', () => {
+  it('records one owner reward when two businesses receive their first payments concurrently', async () => {
+    const { OwnerReferralService } = await import('../src/services/owner-referrals');
+    const sponsor = await mkTeam(ctx);
+    expect(await (await payFor(ctx, sponsor.owner, sponsor.businessId)).send()).toBe('confirmed');
+    const { code } = await new OwnerReferralService(ctx.deps).generate(sponsor.owner.user);
+    const referred = await mkUser(ctx, 'Filleul');
+    await new AuthService(ctx.deps).updateProfile(referred.user.id, 'Filleul', code);
+    const { biz } = services(ctx);
+    const first = await biz.createBusiness(referred.user, referred.deviceRowId, { name: 'Premier', country: 'BJ', sector: 'boutique', stockEnabled: false });
+    const second = await biz.createBusiness(referred.user, referred.deviceRowId, { name: 'Second', country: 'BJ', sector: 'boutique', stockEnabled: false });
+    const p1 = await payFor(ctx, referred, first.id);
+    const p2 = await payFor(ctx, referred, second.id);
+    expect(await Promise.all([p1.send(), p2.send()])).toEqual(['confirmed', 'confirmed']);
+    expect((await ctx.db.query('select * from owner_referral_rewards where referred_user_id=$1', [referred.user.id])).rows).toHaveLength(1);
+  });
   it('creates exactly one permanent owner referral code under concurrent requests', async () => {
     const { OwnerReferralService } = await import('../src/services/owner-referrals');
     const team = await mkTeam(ctx);
