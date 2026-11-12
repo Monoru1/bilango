@@ -1,4 +1,3 @@
-import { audienceLabels, type AudienceReport } from '@gobilan/domain';
 import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
 import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
@@ -6,6 +5,7 @@ import { iso } from '../clock';
 import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
 import type { Deps } from '../deps';
+import { audienceLabels, type AudienceReport } from '@gobilan/domain';
 import { AppError, notFound } from '../errors';
 import { subscriptionOf } from './access';
 import { reverseCommissionsForReferral } from './commission-ledger';
@@ -22,6 +22,20 @@ export interface AdminSession {
 
 export class AdminService {
   constructor(private readonly deps: Deps) {}
+
+  async exportAudience(actor: AdminSession, report: AudienceReport, period: { from: string; to: string }) {
+    const fields = [
+      ['Groupe', 'Valeur', ...Object.values(audienceLabels)],
+      ['Période UTC', period.from + ' à ' + period.to],
+      ['Début de couverture', report.collectionStartedOn],
+      ['Total', '', ...Object.values(report.total)],
+      ...report.days.map(({ day, counts }) => ['Jour', day, ...Object.values(counts)]),
+      ...report.sources.map(({ source, counts }) => ['Source', source, counts.visitors, counts.visits]),
+      ...report.platforms.map(({ platform, counts }) => ['Système', platform, ...Object.values(counts)]),
+    ];
+    await this.audit(actor.email, 'admin.audience.export', null, null, period);
+    return fields.map(row => row.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n';
+  }
 
   private get now() {
     return this.deps.clock.now();
@@ -407,20 +421,6 @@ export class AdminService {
       confirmedRevenue: await q(`select coalesce(sum(amount),0) n from payments where status = 'confirmed'`),
       commissionsDue: await q('select coalesce(sum(amount),0) n from commission_ledger'),
     };
-  }
-
-  async exportAudience(actor: AdminSession, report: AudienceReport, period: { from: string; to: string }) {
-    const fields = [
-      ['Groupe', 'Valeur', ...Object.values(audienceLabels)],
-      ['Période UTC', period.from + ' à ' + period.to],
-      ['Début de couverture', report.collectionStartedOn],
-      ['Total', '', ...Object.values(report.total)],
-      ...report.days.map(({ day, counts }) => ['Jour', day, ...Object.values(counts)]),
-      ...report.sources.map(({ source, counts }) => ['Source', source, counts.visitors, counts.visits]),
-      ...report.platforms.map(({ platform, counts }) => ['Système', platform, ...Object.values(counts)]),
-    ];
-    await this.audit(actor.email, 'admin.audience.export', null, null, period);
-    return fields.map(row => row.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n';
   }
 
   async auditLog(limit = 100) {
