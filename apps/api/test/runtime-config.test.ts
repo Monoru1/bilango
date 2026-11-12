@@ -22,3 +22,9 @@ it('permits public binding in Render recette only for the dedicated private data
  expect(developmentRuntime(env).host).toBe('0.0.0.0');
  for(const overrides of [{DATABASE_URL:'postgresql://fixture:fixture@dpg-other-a/gobilan_recette'},{DATABASE_URL:'postgresql://fixture:fixture@dpg-dbopc7brjlhs73bjik8g-a/production'},{SECURE_COOKIES:'false'},{PWA_ORIGIN:'http://localhost:5173'},{PWA_ORIGIN:undefined},{NODE_ENV:'production'}])expect(()=>developmentRuntime({...env,...overrides})).toThrow();
 });
+
+it('validates the explicit WhatsApp OTP policy and defaults to the CDC', () => {
+  expect(developmentRuntime({}).userOtpIssuePolicy).toBe('cdc');
+  expect(developmentRuntime({ GOBILAN_WHATSAPP_OTP_POLICY: 'v1.2' }).userOtpIssuePolicy).toBe('v1.2');
+  expect(() => developmentRuntime({ GOBILAN_WHATSAPP_OTP_POLICY: '5' })).toThrow('invalid_whatsapp_otp_policy');
+});

@@ -76,10 +76,10 @@ export class AuthService {
 
   /**
    * Envoie un code à 4 chiffres. La réponse est IDENTIQUE que le numéro ait un compte ou non :
-   * on n'énumère pas les comptes. Quotas : 2 codes / 24 h par numéro, + plafonds par appareil
+   * on n'énumère pas les comptes. Quotas par numéro selon la politique active, plus plafonds par appareil
    * et par IP, CAPTCHA obligatoire (§4.4).
    */
-  async requestOtp(input: RequestOtp, ip: string | null): Promise<{ sent: true; expiresInSeconds: number }> {
+  async requestOtp(input: RequestOtp, ip: string | null, networkQuota = ip): Promise<{ sent: true; expiresInSeconds: number }> {
     if (!(await this.deps.providers.captcha.verify(input.captchaToken, ip))) {
       throw new AppError('forbidden', 'Vérification anti-robot échouée. Réessayez.');
     }
@@ -95,31 +95,35 @@ export class AuthService {
 
     const row = await this.deps.db.tx(async (t) => {
       // Lock shared device/IP quota buckets as well as phone; sorted to avoid deadlocks.
-      for (const key of [`otp-device:${input.device.deviceId}`, ...(ip ? [`otp-ip:${ip}`] : []), `otp:${phone}`].sort()) {
+      for (const key of [`otp-device:${input.device.deviceId}`, ...(networkQuota ? [`otp-ip:${networkQuota}`] : []), `otp:${phone}`].sort()) {
         await t.query('select pg_advisory_xact_lock(hashtext($1))', [key]);
       }
       // Sérialise les demandes d'un même numéro (course : 3 demandes simultanées pour 2 codes).
       await t.query('select pg_advisory_xact_lock(hashtext($1))', [`otp:${phone}`]);
       const issued = (await t.query<{ issued_at: Date }>('select issued_at from otp_codes where subject = $1 and issued_at > $2', [phone, iso(now - DAY)])).rows.map((r) => r.issued_at.getTime());
-      const decision = evaluateOtpIssue(issued, now);
-      if (!decision.allowed) {
+      const decision = evaluateOtpIssue(issued, now, this.deps.config.userOtpIssuePolicy);
+      if (decision.retryAt !== null) {
+        const retryAfter = Math.max(1, Math.ceil((decision.retryAt - now) / 1000));
+        if (decision.reason === 'cadence') {
+          throw new AppError('rate_limited', 'Patientez deux minutes entre deux demandes de code.', retryAfter);
+        }
         throw new AppError(
           'otp_quota',
           'Vous avez atteint la limite de codes pour 24 heures. Contactez le support : contact@gobilan.com',
-          Math.max(1, Math.ceil(((decision.retryAt as number) - now) / 1000)),
+          retryAfter,
         );
       }
       const byDevice = await t.query<{ n: string }>('select count(*) n from otp_codes where device_key = $1 and issued_at > $2', [input.device.deviceId, iso(now - DAY)]);
       if (Number(byDevice.rows[0]?.n) >= OTP_MAX_PER_DEVICE_24H) throw new AppError('rate_limited', 'Trop de demandes depuis cet appareil. Réessayez plus tard.', 3600);
-      if (ip) {
-        const byIp = await t.query<{ n: string }>('select count(*) n from otp_codes where ip = $1 and issued_at > $2', [ip, iso(now - DAY)]);
+      if (networkQuota) {
+        const byIp = await t.query<{ n: string }>('select count(*) n from otp_codes where ip = $1 and issued_at > $2', [networkQuota, iso(now - DAY)]);
         if (Number(byIp.rows[0]?.n) >= OTP_MAX_PER_IP_24H) throw new AppError('rate_limited', 'Trop de demandes depuis ce réseau. Réessayez plus tard.', 3600);
       }
       const code = demoCode ?? randomDigits(OTP_USER_LENGTH);
       const id = (
         await t.query<{ id: string }>(
           `insert into otp_codes(subject, channel, purpose, code_hash, device_key, ip, issued_at) values ($1,'whatsapp',$2,$3,$4,$5,$6) returning id`,
-          [phone, input.purpose, otpDigest(code, phone, this.deps.secrets.pepper), input.device.deviceId, ip, iso(now)],
+          [phone, input.purpose, otpDigest(code, phone, this.deps.secrets.pepper), input.device.deviceId, networkQuota, iso(now)],
         )
       ).rows[0]!.id;
       return { id, code };
