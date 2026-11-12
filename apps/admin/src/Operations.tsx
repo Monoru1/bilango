@@ -13,6 +13,41 @@ export function SubscriptionsView() {
     <div className="row"><button className="gb-btn gb-btn--ghost" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Précédent</button><span>Page {page + 1}</span><button className="gb-btn gb-btn--ghost" disabled={rows.length < 50} onClick={() => setPage(p => p + 1)}>Suivant</button></div>
   </section>;
 }
+export function OwnerReferralCodesView() {
+  const limit = 50;
+  const [page, setPage] = useState(0);
+  const [result, setResult] = useState<{ codes: { code: string; ownerName: string; active: boolean }[]; hasNext: boolean } | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let current = true;
+    void api<NonNullable<typeof result>>(`/v1/admin/owner-referral-codes?limit=${limit}&offset=${page * limit}`).then(
+      data => { if (current) setResult(data); },
+      err => { if (current) setError(errorText(err)); },
+    );
+    return () => { current = false; };
+  }, [page]);
+
+  function changePage(next: number) {
+    setResult(null);
+    setError('');
+    setPage(next);
+  }
+
+  return <section className="card stack">
+    <h2 className="h2">Codes de parrainage propriétaire</h2>
+    {error ? <p role="alert">{error}</p> : !result && <p role="status">Chargement…</p>}
+    {result && (result.codes.length === 0 ? <p>Aucun code de parrainage sur cette page.</p> :
+      <div className="scroll"><table>
+        <thead><tr><th>Code</th><th>Propriétaire</th><th>Statut</th></tr></thead>
+        <tbody>{result.codes.map(row => <tr key={row.code}><td>{row.code}</td><td>{row.ownerName || '—'}</td><td>{row.active ? 'Actif' : 'Inactif'}</td></tr>)}</tbody>
+      </table></div>)}
+    <div className="row">
+      <button className="gb-btn gb-btn--ghost" disabled={page === 0} onClick={() => changePage(page - 1)}>Précédent</button>
+      <span>Page {page + 1}</span>
+      <button className="gb-btn gb-btn--ghost" disabled={!result?.hasNext} onClick={() => changePage(page + 1)}>Suivant</button>
+    </div>
+  </section>;
+}
 export function ReferralExclusions() {
   const [rows, setRows] = useState<{ id: string; businessName: string; partnerName: string; excludedReason: string | null }[]>([]);
   const [id, setId] = useState(''); const [reason, setReason] = useState(''); const [message, setMessage] = useState('');

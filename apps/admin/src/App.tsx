@@ -1,4 +1,4 @@
-import { PartnerRoleChange, PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
+import { OwnerReferralCodesView, PartnerRoleChange, PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
 import { formatFcfa, nextPayoutDate, toDayKey, type CountryCode } from '@gobilan/domain';
 import { ApiError, createClient, Logo } from '@gobilan/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -170,11 +170,11 @@ function AllowlistView() {
   </section>;
 }
 
-type Tab = 'stats' | 'partners' | 'payouts' | 'audit' | 'allowlist' | 'subscriptions';
+type Tab = 'stats' | 'partners' | 'payouts' | 'audit' | 'allowlist' | 'subscriptions' | 'owner-referral-codes';
 function Shell({ email, onLogout }: { email: string; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>('stats');
-  const tabs: [Tab, string][] = [['stats', 'Statistiques'], ['partners', 'Partenaires'], ['payouts', 'Versements'], ['audit', 'Audit'], ['allowlist', 'Administrateurs'], ['subscriptions', 'Abonnements']];
-  const body: Record<Tab, ReactNode> = { stats: <StatsView />, partners: <PartnersView />, payouts: <PayoutsView />, audit: <AuditView />, allowlist: <AllowlistView />, subscriptions: <SubscriptionsView /> };
+  const tabs: [Tab, string][] = [['stats', 'Statistiques'], ['partners', 'Partenaires'], ['payouts', 'Versements'], ['audit', 'Audit'], ['allowlist', 'Administrateurs'], ['subscriptions', 'Abonnements'], ['owner-referral-codes', 'Parrainages propriétaires']];
+  const body: Record<Tab, ReactNode> = { stats: <StatsView />, partners: <PartnersView />, payouts: <PayoutsView />, audit: <AuditView />, allowlist: <AllowlistView />, subscriptions: <SubscriptionsView />, 'owner-referral-codes': <OwnerReferralCodesView /> };
   return (
     <>
       <header className="topbar"><div className="wrap"><Logo size={34} /><strong style={{ flex: 1 }}>GoBilan · Administration</strong><span className="muted" style={{ fontSize: 14 }}>{email}</span><button className="link" onClick={onLogout}>Se déconnecter</button></div></header>

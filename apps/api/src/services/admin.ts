@@ -221,6 +221,18 @@ export class AdminService {
     return (await this.deps.db.query<{ id: string; business_name: string; partner_name: string; excluded_reason: string | null }>('select r.id,b.name as business_name,p.name as partner_name,r.excluded_reason from referrals r join businesses b on b.id=r.business_id join partners p on p.id=r.partner_id order by r.registered_at desc')).rows.map(r => ({ id: r.id, businessName: r.business_name, partnerName: r.partner_name, excludedReason: r.excluded_reason }));
   }
 
+  async listOwnerReferralCodes(offset: number, limit: number) {
+    const { rows } = await this.deps.db.query<{ code: string; owner_name: string; active: boolean }>(
+      `select r.code, u.name as owner_name, r.active
+       from owner_referral_codes r join users u on u.id = r.owner_id
+       order by r.created_at desc, r.owner_id limit $1 offset $2`, [limit + 1, offset],
+    );
+    return {
+      codes: rows.slice(0, limit).map(row => ({ code: row.code, ownerName: row.owner_name, active: row.active })),
+      hasNext: rows.length > limit,
+    };
+  }
+
   async listSubscriptions(offset: number, limit: number) {
     const rows = (await this.deps.db.query<{ id: string; name: string; country: string; owner_name: string; trial_ends_at: Date | null; paid_until: Date | null }>('select b.id,b.name,b.country,u.name as owner_name,b.trial_ends_at,b.paid_until from businesses b join users u on u.id=b.owner_id order by b.created_at desc,b.id limit $1 offset $2', [limit, offset])).rows;
     return rows.map(b => ({ id: b.id, name: b.name, country: b.country, ownerName: b.owner_name, status: subscriptionStatus(subscriptionOf(b), this.now), ...subscriptionOf(b) }));
