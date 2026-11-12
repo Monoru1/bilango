@@ -1,3 +1,4 @@
+import { MetricsView } from './Metrics';
 import { OwnerReferralCodesView, PartnerRoleChange, PayoutCorrection, ReferralExclusions, SubscriptionsView } from './Operations';
 import { formatFcfa, nextPayoutDate, toDayKey, type CountryCode } from '@gobilan/domain';
 import { ApiError, createClient, Logo } from '@gobilan/ui';
@@ -46,10 +47,13 @@ function StatsView() {
   if (!s) return <p className="muted">Chargement…</p>;
   const Stat = ({ l, v }: { l: string; v: string | number }) => <div className="card"><div className="gb-label">{l}</div><div className="gb-amount gb-amount--md" style={{ marginTop: 8 }}>{v}</div></div>;
   return (
-    <div className="grid3">
-      <Stat l="Utilisateurs" v={s.users} /><Stat l="Business" v={s.businesses} /><Stat l="Partenaires actifs" v={s.partners} />
-      <Stat l="Essai / Actif" v={`${s.subscriptions.trial ?? 0} / ${s.subscriptions.active ?? 0}`} /><Stat l="Grâce / Bloqués" v={`${s.subscriptions.grace ?? 0} / ${s.subscriptions.blocked ?? 0}`} />
-      <Stat l="Encaissé (abonnements)" v={formatFcfa(s.confirmedRevenue)} /><Stat l="Commissions dues (brut)" v={formatFcfa(s.commissionsDue)} />
+    <div className="stack">
+      <div className="grid3">
+        <Stat l="Utilisateurs" v={s.users} /><Stat l="Business" v={s.businesses} /><Stat l="Partenaires actifs" v={s.partners} />
+        <Stat l="Essai / Actif" v={`${s.subscriptions.trial ?? 0} / ${s.subscriptions.active ?? 0}`} /><Stat l="Grâce / Bloqués" v={`${s.subscriptions.grace ?? 0} / ${s.subscriptions.blocked ?? 0}`} />
+        <Stat l="Encaissé (abonnements)" v={formatFcfa(s.confirmedRevenue)} /><Stat l="Commissions dues (brut)" v={formatFcfa(s.commissionsDue)} />
+      </div>
+      <MetricsView />
     </div>
   );
 }
