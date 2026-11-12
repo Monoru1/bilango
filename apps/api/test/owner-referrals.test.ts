@@ -32,6 +32,22 @@ describe('génération du code de parrainage propriétaire', () => {
     await expect(ctx.db.query('delete from referral_code_registry where code=$1', [first.code])).rejects.toThrow();
   });
 
+  it('génère deux codes distincts en parallèle après paiement et déduplique chaque propriétaire (REC-11)', async () => {
+    const first = await mkTeam(ctx);
+    const second = await mkTeam(ctx);
+    expect(await (await payFor(ctx, first.owner, first.businessId)).send()).toBe('confirmed');
+    expect(await (await payFor(ctx, second.owner, second.businessId)).send()).toBe('confirmed');
+    const service = new OwnerReferralService(ctx.deps);
+    const [a, b, repeatedA, repeatedB] = await Promise.all([
+      service.generate(first.owner.user), service.generate(second.owner.user),
+      service.generate(first.owner.user), service.generate(second.owner.user),
+    ]);
+    expect(a).toEqual(repeatedA);
+    expect(b).toEqual(repeatedB);
+    expect(a.code).not.toBe(b.code);
+    expect((await ctx.db.query("select code from referral_code_registry where kind='owner'")).rows).toHaveLength(2);
+  });
+
   it('interdit la collision entre un code owner et un code partenaire', async () => {
     const t = await mkTeam(ctx);
     await ctx.db.query("insert into payments(business_id,merchant_reference,status,amount,created_at,confirmed_at) values ($1,'fixture-owner-payment','confirmed',2000,$2,$2)", [t.businessId, new Date(ctx.clock.now()).toISOString()]);
@@ -49,10 +65,13 @@ describe('génération du code de parrainage propriétaire', () => {
     await auth.updateProfile(referred.user.id, 'Filleul', code);
     await expectCode(auth.updateProfile(sponsor.owner.user.id, 'Parrain', code), 'validation');
     const business = await services(ctx).biz.createBusiness(referred.user, referred.deviceRowId, { name: 'Test', country: 'BJ', sector: 'boutique', stockEnabled: false });
+    const sponsorEndsAt = (await services(ctx).subs.view(sponsor.owner.user, sponsor.businessId)).endsAt;
     const payment = await payFor(ctx, referred, business.id);
     expect((await ctx.db.query('select * from owner_referral_rewards')).rows).toHaveLength(0);
     expect(await payment.send()).toBe('confirmed');
     expect(await payment.send()).toBe('duplicate');
+    expect(await (await payFor(ctx, referred, business.id)).send()).toBe('confirmed');
+    expect((await services(ctx).subs.view(sponsor.owner.user, sponsor.businessId)).endsAt).toBe(sponsorEndsAt);
     const rewards = await ctx.db.query<{ referred_user_id: string; days: number }>('select referred_user_id,days from owner_referral_rewards');
     expect(rewards.rows).toEqual([{ referred_user_id: referred.user.id, days: 30 }]);
     expect(await new OwnerReferralService(ctx.deps).view(sponsor.owner.user)).toMatchObject({ eligible: true, code: { code, active: true }, registrations: 1, paid: 1, days: 30 });

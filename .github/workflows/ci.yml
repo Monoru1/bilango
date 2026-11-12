@@ -102,6 +102,8 @@ jobs:
           docker compose -f compose.acceptance.yml up -d --force-recreate --wait --wait-timeout 120
           curl --fail http://127.0.0.1:8787/ready
           test "$(docker compose -f compose.acceptance.yml exec -T db psql -U gobilan -d gobilan_acceptance -tAc "select count(*) from users where name='Persistence fixture'")" = "1"
+      - name: Test encrypted backup export with temporary keys
+        run: sh scripts/test-encrypt-backup-export.sh
       - name: Exercise operational backup and isolated restore
         run: |
           docker compose -f compose.acceptance.yml run --rm backups backup

@@ -2,7 +2,7 @@ import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
-  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, inviteMemberSchema,
+  adminMetricsQuerySchema, adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, inviteMemberSchema,
   loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, pushSubscriptionSchema, pushUnsubscribeSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
@@ -342,6 +342,25 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     await admin.confirmAllowlistChange(actor.admin, input.requestId, input.code); return { ok: true };
   });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
+  async function adminMetricsSession(req: FastifyRequest) {
+    const session = await adminSession(req);
+    const origin = req.headers.origin ?? (req.headers['sec-fetch-site'] === 'same-origin'
+      ? req.headers['x-gobilan-admin-origin'] : undefined);
+    if (req.headers[CSRF_HEADER] !== '1' || typeof origin !== 'string' || !deps.config.origins.admin.includes(origin)) {
+      throw new AppError('forbidden', 'Requête refusée.');
+    }
+    return session.admin;
+  }
+  app.get('/v1/admin/metrics', async req => {
+    await adminMetricsSession(req);
+    return admin.metrics(adminMetricsQuerySchema.parse(req.query));
+  });
+  app.get('/v1/admin/metrics.csv', async (req, reply) => {
+    const actor = await adminMetricsSession(req);
+    const csv = await admin.exportMetrics(actor, adminMetricsQuerySchema.parse(req.query));
+    return reply.type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="statistiques-gobilan.csv"').send(csv);
+  });
   app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });
   const ownerReferralFilters = z.object({ q: z.string().trim().min(1).max(160).optional(), date: z.iso.date().optional() });
   app.get('/v1/admin/owner-referral-codes', async req => {

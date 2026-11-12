@@ -26,19 +26,5 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 | V12-EVENING / §5 | Un seul rapport patron, business à jour uniquement | À implémenter | REC-07 | Ouvert | Décision V1, horaire, Meta |
 | V12-IOS / §6 | Guide fermé ne revient qu'à la demande | P0-IOS ci-dessus | REC-08 + écrans/E2E installation | Partiel : tests représentatifs à consigner | Installation physique |
 | V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Politique WhatsApp configurable, CDC par défaut | auth.test.ts, runtime-config.test.ts | Test local de la v1.2 ; recette hébergée ouverte | Arbitrage CDC / v1.2 |
-| V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | À implémenter dans domain/contracts/API/PWA/admin | REC-09/10/11/12/13 | Ouvert | Nature des jours/plafond/essai |
-| V12-METRICS / §12/13 | Analytics anonymes, funnel, CSV, admins seuls, audit accès | À implémenter | Tests isolation/agrégats/CSV à créer | Ouvert | Politique anonymat/APDP, exclusions équipe |
-
-## REC-01 à REC-14
-
-Le lot P0 cible REC-08. Le lot P1 du 5 novembre (voir `demo-15-novembre.md`, section « Lot P1 ») automatise :
-
-| REC | Résultat automatisé | Limite |
-| --- | --- | --- |
-| REC-01 | 18:00 à la création puis 21:30 : stocké côté serveur (E2E trois moteurs) ; le rappel interne part à 18:05 puis plus à l'ancienne heure, et à 21:35 après modification (API, PGlite + PostgreSQL) | Volet « rappels WhatsApp » non implémenté (décision §9) |
-| REC-05 | Un employé : `report_available`, texte « Le bilan de [Business] est disponible » | Transport Push Dev ; réception physique non testée |
-| REC-06 | Trois employés : trois notifications `report_sent` avec prénom, sans montant ni tag commun | Idem |
-
-REC-02/03/04/07 (WhatsApp) et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.
-
-Preuve transversale du lot : commit `2eba05d`, [CI six jobs réussis](https://github.com/Monoru1/bilango/actions/runs/42032534589), preview et captures référencées dans `demo-15-novembre.md`. Les limites physiques et fournisseurs ne sont pas levées par ces résultats.
+| V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | Registre, attribution et journal de crédit présents ; liste et CSV sur #19 | REC-09/10/11/12/13 | Recette hébergée ouverte | Nature des jours/plafond/essai |
+| V12-METRICS / §12/13 | Acquisition, activation, conversion, revenu et export admin | Agrégats §13 sur le schéma existant, filtres UTC, CSV réservé aux admins et journalisé | metrics.test.ts, admin-metrics.test.ts, portals-smoke.mjs | Partiel | Audience et entonnoir §12, consentement/anonymat, exclusions équipe ; recette hébergée à faire |

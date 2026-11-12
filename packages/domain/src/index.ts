@@ -10,3 +10,5 @@ export * from './commissions';
 export * from './payouts';
 export * from './notifications';
 export * from './owner-referrals';
+
+export * from './metrics';

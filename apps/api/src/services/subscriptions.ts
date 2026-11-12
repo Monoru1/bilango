@@ -11,11 +11,19 @@ import { iso } from '../clock';
 import { randomToken, verifyFedapaySignature } from '../crypto';
 import type { Deps } from '../deps';
 import { AppError, forbidden } from '../errors';
+import type { GatewayTransactionState } from '../providers';
 import { requireAccess, subscriptionOf } from './access';
 import { recordCommissionsForPayment, reverseCommissionsForPayment } from './commission-ledger';
 import type { SessionUser } from './auth';
 
 export type WebhookOutcome = 'confirmed' | 'duplicate' | 'ignored' | 'failed' | 'refunded';
+
+function matchesPayment(remote: GatewayTransactionState, payment: {
+  fedapay_transaction_id: string | null; merchant_reference: string; amount: string;
+}): boolean {
+  return remote.transactionId === payment.fedapay_transaction_id &&
+    remote.merchantReference === payment.merchant_reference && remote.amount === Number(payment.amount);
+}
 
 export class SubscriptionService {
   constructor(private readonly deps: Deps) {}
@@ -134,7 +142,7 @@ export class SubscriptionService {
       if (event.entity.custom_metadata?.business_id !== payment.business_id) return this.finish(event.id, 'ignored');
       const remote = await this.deps.providers.gateway.getTransaction(event.entity.id);
       if (!remote) throw new AppError('internal', 'Vérification passerelle indisponible : réessayez.'); // FedaPay renverra l'évènement
-      if (remote.transactionId !== payment.fedapay_transaction_id || remote.status !== 'approved' || remote.merchantReference !== reference || remote.amount !== Number(payment.amount)) {
+      if (remote.status !== 'approved' || !matchesPayment(remote, { ...payment, merchant_reference: reference })) {
         return this.finish(event.id, 'ignored');
       }
       return this.finish(event.id, await this.confirm(payment.id, event.entity.id, remote.provider));
@@ -204,8 +212,8 @@ export class SubscriptionService {
     let confirmed = 0;
     for (const r of rows) {
       const remote = await this.deps.providers.gateway.getTransaction(r.fedapay_transaction_id).catch(() => null);
-      if (!remote) continue;
-      if (remote.status === 'approved' && remote.merchantReference === r.merchant_reference && remote.amount === Number(r.amount)) {
+      if (!remote || !matchesPayment(remote, r)) continue;
+      if (remote.status === 'approved') {
         if ((await this.confirm(r.id, r.fedapay_transaction_id, remote.provider)) === 'confirmed') confirmed++;
       } else if (remote.status === 'declined' || remote.status === 'canceled') {
         await this.deps.db.query(`update payments set status = $2 where id = $1 and status = 'pending'`, [r.id, remote.status === 'declined' ? 'failed' : 'cancelled']);
