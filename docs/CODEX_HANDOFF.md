@@ -151,5 +151,8 @@ secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 - OTP de démonstration actif jusqu'au 16 novembre 2026 23:00 UTC pour 20 numéros fictifs
   (variables `RECETTE_DEMO_*` du service Render ; le code n'est écrit dans aucun fichier).
 - Preuves : `docs/recette/preuves/2026-11-12-recette-render.md`.
+- Échéance : livraison finale V1 le 15 novembre 2026. Reprise détaillée et tâches ordonnées :
+  `docs/CODEX_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md` (commencer par T1, IP derrière le proxy).
+- Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
 - Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
   stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
