@@ -29,7 +29,9 @@ export function developmentRuntime(env:Record<string,string|undefined>) {
     if((production||recette)&&url.protocol!=='https:')throw new Error('production_https_required');
     return url.origin;
   };
-  return {host,port,secureCookies:env.SECURE_COOKIES==='true',origins:{
+  const proxyKey = env.GOBILAN_PROXY_KEY_HEX;
+  if (proxyKey !== undefined && !/^[a-f0-9]{64}$/.test(proxyKey)) throw new Error('invalid_gobilan_proxy_key');
+  return {host,port,proxyKey,secureCookies:env.SECURE_COOKIES==='true',origins:{
     pwa:[origin(env.PWA_ORIGIN,'http://localhost:5173')],
     partners:[origin(env.PARTNERS_ORIGIN,'http://localhost:5174')],
     admin:[origin(env.ADMIN_ORIGIN,'http://localhost:5175')],
