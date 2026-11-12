@@ -137,6 +137,9 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   }
   const authLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
+  // @fastify/rate-limit s'applique par un hook onRoute installé au chargement du plugin. Les routes doivent donc
+  // être déclarées après ce chargement : sans `after`, aucune limite (globale ou par route) n'était appliquée.
+  app.after(() => {
   app.get('/v1/auth/config',async()=>({payments:{enabled:deps.config.paymentsEnabled===true,mode:deps.config.fedapayMode},captcha:{provider:deps.config.captchaSiteKey?'turnstile':'dev',siteKey:deps.config.captchaSiteKey||null,action:'otp'},demo:{whatsappSimulated:!!deps.config.demoOtp}}));
   app.get('/health', { config: { rateLimit: false } }, async () => ({ ok: true }));
   app.get('/ready', { config: { rateLimit: false } }, async (_req, reply) => {
@@ -389,6 +392,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/admin/payouts/reverse', async (req) => {
     await admin.reversePayout((await adminSession(req)).admin, reversePayoutSchema.parse(req.body));
     return { ok: true };
+  });
   });
 
   return app;
