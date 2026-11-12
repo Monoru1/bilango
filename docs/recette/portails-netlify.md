@@ -35,3 +35,9 @@ sur le même déploiement.
 Contrôle HTTP du 12 novembre sur les deux sites actuels : accueils à 200,
 routes de session sans cookie à 401 JSON. Raccordement Git et parcours admin
 authentifié à confirmer.
+
+## Recette authentifiée après publication Git
+
+Après des connexions approuvées sur des comptes de recette, exporter les états Playwright des deux portails dans des fichiers privés de mode `0600`, hors du dépôt. Ne jamais les joindre à une preuve. Le script ne déclenche ni inscription ni e-mail 2FA. Il utilise les sessions déjà ouvertes par l’opérateur, vérifie leur séparation entre les trois origines, le tableau partenaire, les métriques §13 et le téléchargement CSV.
+
+Le runner autorisé doit avoir Chromium Playwright installé. Renseigner `RECETTE_API_SHA` depuis le déploiement actif Render et `RECETTE_ADMIN_STATE` et `RECETTE_PARTNER_STATE` avec les chemins privés. Exécuter `node e2e/portals-hosted.mjs`. Relever séparément les SHA des builds Netlify, puis supprimer les fichiers de session à la fin. Les parcours de connexion et de 2FA eux-mêmes restent à consigner à partir de l’ouverture des sessions.
