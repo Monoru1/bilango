@@ -1,6 +1,6 @@
-import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
+import { adminMetricsRows, calculateAdminMetrics, metricsUtcBounds, type CountryCode, agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
-import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
+import type { AdminMetricsQuery, adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
 import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
@@ -14,6 +14,16 @@ const MIN = 60_000;
 /** 5 mots de passe erronés -> blocage de 15 minutes (cahier §13.4 : « blocage temporaire », durée D-016). */
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_LOCK_MS = 15 * MIN;
+
+function csvDocument(fields: (string | number)[][]) {
+  const csvCell = (value: string | number) => {
+    const text = String(value);
+    // Spreadsheet software can interpret a user-controlled owner name as a formula.
+    const safe = /^[\s\uFEFF]*[=+@-]|^[\t\r\n]/u.test(text) ? "'" + text : text;
+    return '"' + safe.replaceAll('"', '""') + '"';
+  };
+  return fields.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
 
 export interface AdminSession {
   email: string;
@@ -274,12 +284,6 @@ export class AdminService {
 
   async exportOwnerReferralCodes(filters: { q?: string; date?: string }) {
     const rows = await this.ownerReferralRows(filters, 0, null);
-    const csvCell = (value: string | number) => {
-      const text = String(value);
-      // Spreadsheet software can interpret a user-controlled owner name as a formula.
-      const safe = /^[\s\uFEFF]*[=+@-]|^[\t\r\n]/u.test(text) ? "'" + text : text;
-      return '"' + safe.replaceAll('"', '""') + '"';
-    };
     const fields = [
       ['Code', 'Propriétaire', 'Statut', 'Créé le (UTC)', 'Inscriptions', 'Premiers abonnements payés', 'Jours crédités'],
       ...rows.map(row => [
@@ -287,7 +291,7 @@ export class AdminService {
         row.registrations, row.firstPayments, row.rewardDays,
       ]),
     ];
-    return fields.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+    return csvDocument(fields);
   }
 
   async listSubscriptions(offset: number, limit: number) {
@@ -406,6 +410,70 @@ export class AdminService {
       confirmedRevenue: await q(`select coalesce(sum(amount),0) n from payments where status = 'confirmed'`),
       commissionsDue: await q('select coalesce(sum(amount),0) n from commission_ledger'),
     };
+  }
+
+  async metrics(period: AdminMetricsQuery) {
+    const now = this.now;
+    const { start, end } = metricsUtcBounds(period.from, period.to);
+    const db = this.deps.db;
+    const range = [iso(start), iso(Math.min(end, now + 1))];
+    const snapshot = iso(now);
+    const [accounts, businesses, subscriptions, revenue, commissions] = await Promise.all([
+      db.query<{ created_at: Date; referred: boolean; first_payment_at: Date | null }>(
+        `select u.created_at,
+           (u.referral_partner_code is not null or exists (
+             select 1 from owner_referral_attributions a where a.referred_user_id = u.id and a.created_at <= $3
+           )) as referred,
+           (select min(p.confirmed_at) from payments p join businesses b on b.id = p.business_id
+            where b.owner_id = u.id and p.status = 'confirmed' and p.confirmed_at >= u.created_at
+              and p.confirmed_at <= $3) as first_payment_at
+         from users u where u.created_at >= $1 and u.created_at < $2`, [...range, snapshot]),
+      db.query<{ created_at: Date; owner_created_at: Date; trial_ends_at: Date | null;
+        first_invite_at: Date | null; first_report_at: Date | null; first_payment_at: Date | null }>(
+        `select b.created_at, u.created_at as owner_created_at, b.trial_ends_at,
+           (select min(i.created_at) from invitations i where i.business_id = b.id and i.created_at >= b.created_at) as first_invite_at,
+           (select min(r.submitted_at) from reports r where r.business_id = b.id and r.submitted_at >= b.created_at) as first_report_at,
+           (select min(p.confirmed_at) from payments p where p.business_id = b.id and p.status = 'confirmed'
+              and p.confirmed_at >= b.created_at and p.confirmed_at <= $3) as first_payment_at
+         from businesses b join users u on u.id = b.owner_id
+         where b.created_at >= $1 and b.created_at < $2`, [...range, snapshot]),
+      db.query<{ trial_ends_at: Date | null; paid_until: Date | null }>(
+        'select trial_ends_at, paid_until from businesses where created_at <= $1', [snapshot]),
+      db.query<{ country: CountryCode; amount: string }>(
+        `select b.country, sum(p.amount) as amount from payments p join businesses b on b.id = p.business_id
+         where p.status = 'confirmed' and p.confirmed_at >= $1 and p.confirmed_at < $2 group by b.country`, range),
+      db.query<{ role: PartnerRole; due: string; paid: string }>(
+        `with settled as (
+           select pe.ledger_key, min(p.validated_at) as validated_at
+           from payout_entries pe join payouts p on p.id = pe.payout_id
+           where p.validated_at <= $3
+             and not exists (select 1 from payout_reversals r where r.payout_id = p.id and r.reversed_at <= $3)
+           group by pe.ledger_key
+         )
+         select c.role,
+           coalesce(sum(c.amount) filter (where s.ledger_key is null), 0) as due,
+           coalesce(sum(c.amount) filter (where s.validated_at >= $1 and s.validated_at < $2), 0) as paid
+         from commission_ledger c left join settled s on s.ledger_key = c.key
+         where c.created_at <= $3 group by c.role`, [...range, snapshot]),
+    ]);
+    return calculateAdminMetrics({
+      ...period, now,
+      accounts: accounts.rows.map(row => ({ createdAt: row.created_at, referred: row.referred, firstPaymentAt: row.first_payment_at })),
+      businesses: businesses.rows.map(row => ({
+        createdAt: row.created_at, ownerCreatedAt: row.owner_created_at, trialEndsAt: row.trial_ends_at,
+        firstInviteAt: row.first_invite_at, firstReportAt: row.first_report_at, firstPaymentAt: row.first_payment_at,
+      })),
+      subscriptionDates: subscriptions.rows.map(subscriptionOf),
+      revenue: revenue.rows.map(row => ({ country: row.country, amount: Number(row.amount) })),
+      commissions: commissions.rows.map(row => ({ role: row.role, due: Number(row.due), paid: Number(row.paid) })),
+    });
+  }
+
+  async exportMetrics(actor: AdminSession, period: AdminMetricsQuery) {
+    const metrics = await this.metrics(period);
+    const csv = csvDocument([['Famille', 'Indicateur', 'Valeur'], ...adminMetricsRows(metrics)]);
+    await this.audit(actor.email, 'admin.metrics.export', null, null, period);
+    return csv;
   }
 
   async auditLog(limit = 100) {

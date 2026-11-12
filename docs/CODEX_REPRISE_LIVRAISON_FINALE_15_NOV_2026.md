@@ -1,5 +1,9 @@
 # REPRISE CODEX — GOBILAN, LIVRAISON FINALE DU 15 NOVEMBRE 2026
 
+> **Document historique — ne pas exécuter.** Cet état est dépassé : les PR #21, #19, #18 et #22 sont fusionnées dans
+> `fix/gobilan-livraison-15-novembre` (`8a3ad83`), SEC-48 et le correctif du limiteur de débit sont en place.
+> Reprise à suivre : [`CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md`](CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md).
+
 Tu es Codex. Tu reprends GoBilan (SaaS de Novadis Digital : Bénin, Togo, Côte d'Ivoire) là où
 Claude s'est arrêté le 12 novembre 2026. **Ta mission est de produire du code, de terminer les
 fonctionnalités V1 et de préparer la livraison — pas de refaire un audit ni de rendre un rapport.**
