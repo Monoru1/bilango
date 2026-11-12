@@ -61,9 +61,13 @@ export async function createPgDb(connectionString: string): Promise<Db & { close
   return { ...wrap(pool, false), close: () => pool.end() };
 }
 
+export async function migrationFiles(): Promise<string[]> {
+  return (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
+}
+
 /** Applique, dans l'ordre, les fichiers `migrations/*.sql` non encore appliqués. */
 export async function migrate(db: Db): Promise<string[]> {
-  const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
+  const files = await migrationFiles();
   return db.tx(async (t) => {
     // Acquire before the first DDL: concurrent starts must not race even while
     // creating schema_migrations. Scope the lock to this database and schema.

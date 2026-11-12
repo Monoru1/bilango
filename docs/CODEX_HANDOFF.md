@@ -128,3 +128,80 @@ actuelle, ni une validation des comptes fournisseurs. Hébergement API/PostgreSQ
 secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 
 `Dockerfile.api` prépare l’image de lancement avec `NODE_ENV=production` ; la CI vérifie qu’elle refuse le démarrage sans approbation. `Dockerfile.acceptance` reste réservé à la recette. Aucune image n’a été déployée sur une infrastructure production.
+
+## État au 12 novembre 2026 — recette Render opérationnelle (P0.1 et P0.2)
+
+- Branche déployée : `fix/gobilan-livraison-15-novembre`, commit de fusion de la PR #11 `c7894fd`.
+- Cause de l'échec du 9 novembre : `NODE_ENV=production` (défaut Render) alors que le mode
+  `RENDER_RECETTE` exige l'inverse, puis `DATABASE_URL` absente. Corrigé par configuration, sans
+  `PRODUCTION_RELEASE_APPROVED`.
+- API : https://gobilan-recette-api.onrender.com — `/health` et `/ready` répondent 200.
+- Base `gobilan-recette` : inspectée en lecture seule au démarrage (0 table), puis initialisée
+  avec les migrations 001 à 007. Toute migration future sur cette base non vide exige une
+  sauvegarde puis `RECETTE_MIGRATION_APPROVED_UP_TO` (voir `docs/recette/otp-demo-recette.md`).
+- `DATABASE_URL` est injectée par le Blueprint Render `gobilan-recette` (fichier `render.yaml`
+  de la branche `infra/render-recette-blueprint`, synchronisation automatique désactivée) :
+  le mot de passe ne transite ni par Git ni par un poste.
+- PWA de recette : https://deploy-preview-12--gobilan-pwa.netlify.app (PR #12, brouillon, à ne
+  pas fusionner). `API_ORIGIN` est définie sur Netlify ; `PWA_ORIGIN` côté API vaut cette URL
+  exacte. `gobilan-pwa.netlify.app` sert encore l'ancien build de `main`. `gobilan.com`
+  appartient au client et ne doit pas être modifié.
+- Portails partenaires et admin : non déployés ; leurs origines côté API sont des valeurs de
+  réserve en `.invalid`.
+- OTP de démonstration actif jusqu'au 16 novembre 2026 23:00 UTC pour 20 numéros fictifs
+  (variables `RECETTE_DEMO_*` du service Render ; le code n'est écrit dans aucun fichier).
+- Preuves : `docs/recette/preuves/2026-11-12-recette-render.md`.
+- Échéance : livraison finale V1 le 15 novembre 2026. Reprise détaillée et tâches ordonnées :
+  `docs/CODEX_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md` (commencer par T1, IP derrière le proxy).
+- Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
+- Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
+  stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
+
+## 12 novembre — correctif de quotas réseau
+
+Branche `fix/gobilan-proxy-security` depuis `13d63a0`. Le correctif utilise une preuve
+HMAC produite à partir de l’adresse de connexion Netlify et maintient un quota commun
+pour le trafic direct sans preuve. Pas de migration supplémentaire. Tests locaux et
+état de la validation hébergée dans `docs/recette/preuves/2026-11-12-proxy-client-ip.md`.
+La configuration et la séquence d’activation sont dans `docs/SECURITY_MODEL.md`.
+
+## 12 novembre — parcours PWA de recette
+
+Branche `fix/gobilan-pwa-recette` depuis `13d63a0`. Le mode hébergé de `e2e/pwa-smoke.mjs`
+cible exclusivement la preview #12. Il exige les comptes fictifs réservés et le code de
+recette avant de lancer un navigateur, et vérifie les données via l’API. Le mode local
+conserve le test du blocage après expiration sur PostgreSQL isolé. L’accueil, les
+instructions d’installation Chrome et les mentions légales ont été vérifiés sur la
+preview actuelle. Le parcours authentifié reste à exécuter selon
+`docs/recette/preuves/2026-11-12-pwa-hebergee.md`.
+
+## Intégration des cinq PR du 12 novembre
+
+Branche `integration/gobilan-15-novembre`, partie du HEAD de livraison `13d63a0`.
+Ordre appliqué : #14, #15, #16, #17, #13. #15 et #16 descendent de #14 ; seuls
+leurs commits propres sont appliqués. Le conflit de passation a été résolu en
+conservant les notes proxy et PWA. L'API, l'authentification, les tests et les
+configurations Netlify ont été intégrés sans conflit textuel.
+
+Les routes admin restent réservées à la session admin serveur. Les secrets du
+proxy sont des variables d'exécution côté Edge et Render. N'activer la signature
+en recette que lorsque les deux versions correspondantes sont déployées.
+Le service de recette existant et sa base sont à préserver. L'intégration
+dans la branche déployée, l'activation fournisseurs et toute dépense exigent
+une décision séparée. Voir `docs/recette/livraison-15-novembre.md` pour les critères.
+
+### Suite V1 après l'intégration
+
+La PR d'intégration #18 (`c4877d8`) cible la livraison depuis `13d63a0`.
+Le lot suivant ajoute la recherche des codes propriétaires, les compteurs issus
+des attributions et crédits existants et un export CSV réservé aux
+administrateurs. Les jours crédités sont affichés à partir du journal de
+récompenses. Leur application aux abonnements reste soumise à l'arbitrage
+commercial. Le lanceur `e2e/run-hosted-recette.sh` permet de saisir les
+identifiants de recette sans écho, ou de les injecter à l'exécution.
+
+Les portails attendent un accès permettant de lier leurs deux projets Netlify
+au dépôt et de déployer la branche autorisée. Aucun projet vide n'a été créé.
+L'API Render reste liée à la branche de livraison. Les variables de signature
+Edge et Render devront être vérifiées ensemble après déploiement des builds
+correspondants.

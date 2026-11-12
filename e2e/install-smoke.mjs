@@ -49,13 +49,18 @@ try {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
   const page = await ctx.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
-  await page.route('**/v1/me', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<html>Wrong SPA response</html>' }));
+  // Un seul gestionnaire à état pour /v1/me : pas de fenêtre sans interception entre deux `route`, et aucun
+  // appel de ce contexte ne dépend du proxy de développement (aucune API ne tourne pendant ce test).
+  let meMode = 'malformed';
+  await page.route('**/v1/me', route => meMode === 'malformed'
+    ? route.fulfill({ status: 200, contentType: 'text/html', body: '<html>Wrong SPA response</html>' })
+    : route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unauthenticated', message: 'Connexion requise' } }) }));
+  await page.route('**/v1/auth/config', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ payments: { enabled: false, mode: 'sandbox' }, captcha: { provider: 'dev', siteKey: null, action: 'otp' }, demo: { whatsappSimulated: false } }) }));
   await page.goto(base);
   await page.getByRole('button', { name: 'Réessayer', exact: true }).waitFor();
   check(!(await page.locator('body').innerText()).includes('demo=1'), 'malformed API gives controlled error without demo bypass');
   await page.screenshot({ path: join(evidence, `${name}-api-error.png`), fullPage: true });
-  await page.unroute('**/v1/me');
-  await page.route('**/v1/me', route => route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unauthenticated', message: 'Connexion requise' } }) }));
+  meMode = 'unauthenticated';
   await page.getByRole('button', { name: 'Réessayer', exact: true }).click();
   await page.getByRole('button', { name: 'Créer mon compte / nouvel appareil' }).waitFor();
   check(errors.length === 0, 'installed session recovers after malformed API');

@@ -1,7 +1,9 @@
+import type { OtpIssuePolicy } from '@gobilan/domain';
 import type { Clock } from './clock';
 import type { Secrets } from './crypto';
 import type { Db } from './db';
 import type { Providers } from './providers';
+import type { DemoOtpPolicy } from './recette-demo-otp';
 
 export interface AppConfig {
   /** `sandbox` refuse tout webhook `live` et inversement. */
@@ -19,6 +21,9 @@ export interface AppConfig {
   vapidPublicKey: string | null;
   captchaSiteKey?:string|null;
   paymentsEnabled?:boolean;
+  /** Recette Render uniquement : OTP de démonstration pour une liste fermée de numéros fictifs. Jamais défini en production. */
+  demoOtp?: DemoOtpPolicy | null;
+  userOtpIssuePolicy?: OtpIssuePolicy;
 }
 
 export interface Deps {

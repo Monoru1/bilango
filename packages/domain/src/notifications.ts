@@ -21,6 +21,12 @@ export function isClockTime(value: string): boolean {
   return HHMM.test(value);
 }
 
+/** Minutes écoulées depuis la dernière heure de fermeture locale. */
+export function minutesSinceClosing(localMinutes: number, closingTime: string): number {
+  const closing = Number(closingTime.slice(0, 2)) * 60 + Number(closingTime.slice(3, 5));
+  return (localMinutes - closing + 1440) % 1440;
+}
+
 export type OwnerReportNotice = 'available' | 'individual';
 
 /**

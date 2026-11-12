@@ -169,11 +169,18 @@ export class SubscriptionService {
       if (p.status !== 'pending') return 'ignored' as const;
 
       const biz = (await t.query<{ id: string; owner_id: string; name: string; trial_ends_at: Date | null; paid_until: Date | null }>('select id, owner_id, name, trial_ends_at, paid_until from businesses where id = $1 for update', [p.business_id])).rows[0]!;
+      // Serialize first-payment decisions across different businesses of the same owner.
+      await t.query('select id from users where id=$1 for update', [biz.owner_id]);
+      const priorPayment = await t.query("select 1 from payments p join businesses b on b.id=p.business_id where b.owner_id=$1 and p.status='confirmed' limit 1", [biz.owner_id]);
       const sub = subscriptionOf(biz);
       const statusBefore = subscriptionStatus(sub, this.now);
       const until = extendedPaidUntil(sub, this.now);
       await t.query(`update businesses set paid_until = $2 where id = $1`, [biz.id, until]);
       await t.query(`update payments set status = 'confirmed', confirmed_at = $2, extended_until = $3, provider = $4, fedapay_transaction_id = coalesce(fedapay_transaction_id, $5) where id = $1`, [p.id, iso(this.now), until, provider, transactionId]);
+      if (!priorPayment.rows.length) {
+        // The 30-day benefit is recorded but never applied to access while commercial rules remain open.
+        await t.query('insert into owner_referral_rewards(referred_user_id,payment_id,created_at) select referred_user_id,$2,$3 from owner_referral_attributions where referred_user_id=$1 on conflict do nothing', [biz.owner_id,p.id,iso(this.now)]);
+      }
       await recordCommissionsForPayment(t, { id: p.id, businessId: p.business_id, confirmedAt: this.now, amount: Number(p.amount) }, statusBefore);
       notify.push({ ownerId: biz.owner_id, businessName: biz.name });
       return 'confirmed' as const;

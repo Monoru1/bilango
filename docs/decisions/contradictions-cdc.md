@@ -12,3 +12,12 @@ Les sources sont conservées intégralement, PDF compris. Aucun arbitrage client
 | Parrainage : v1.2 §8.4/9 cumul/plafond/essai filleul | Anti-abus et facturation | Un avantage par filleul au premier paiement ; faire confirmer plafond et conservation de l'essai | Décision éditeur requise |
 | v1.2 en en-tête « à valider avant développement » | Portée contractuelle | Mission actuelle autorise le développement, mais pas l'invention des décisions §9 | Points §9 ouverts |
 | Cahier sécurité référencé v1.2 §1/7/8.6 | SEC-21/48 non fournis | Aucun document complémentaire identifié dans le dépôt ; appliquer CDC §13 et demander l'original avant recette sécurité finale | Document externe manquant |
+
+### Configuration du quota WhatsApp
+
+`GOBILAN_WHATSAPP_OTP_POLICY=cdc` conserve le plafond existant de deux codes par numéro
+sur 24 h. C’est le réglage par défaut. Après arbitrage, `v1.2` permet cinq codes sur 24 h
+avec un intervalle minimal de 120 secondes. Toute autre valeur fait échouer le démarrage.
+Ce réglage concerne l’OTP WhatsApp utilisateur. Les plafonds complémentaires par appareil
+et réseau, le CAPTCHA, l’expiration, le nombre de saisies et la politique des codes e-mail
+restent appliqués indépendamment. REC-14 nécessite encore l’arbitrage et un essai hébergé.

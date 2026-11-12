@@ -99,7 +99,7 @@ export class PartnerService {
     } catch (e) {
       const msg = String((e as Error).message);
       if (msg.includes('partners_email_unique')) throw new AppError('conflict', 'Cette adresse e-mail correspond déjà à un partenaire (un e-mail = un seul rôle).');
-      if (msg.includes('promo_code')) throw new AppError('conflict', 'Ce code promo est déjà utilisé.');
+      if (msg.includes('promo_code') || msg.includes('referral_code_registry')) throw new AppError('conflict', 'Ce code promo est déjà utilisé.');
       throw e;
     }
   }
