@@ -124,7 +124,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   }
   const authLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
-  app.get('/v1/auth/config',async()=>({payments:{enabled:deps.config.paymentsEnabled===true,mode:deps.config.fedapayMode},captcha:{provider:deps.config.captchaSiteKey?'turnstile':'dev',siteKey:deps.config.captchaSiteKey||null,action:'otp'}}));
+  app.get('/v1/auth/config',async()=>({payments:{enabled:deps.config.paymentsEnabled===true,mode:deps.config.fedapayMode},captcha:{provider:deps.config.captchaSiteKey?'turnstile':'dev',siteKey:deps.config.captchaSiteKey||null,action:'otp'},demo:{whatsappSimulated:!!deps.config.demoOtp}}));
   app.get('/health', async () => ({ ok: true }));
   app.get('/ready', async (_req, reply) => {
     try { await deps.db.query('select 1'); return {ok:true}; }

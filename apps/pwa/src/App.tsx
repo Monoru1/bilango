@@ -41,6 +41,18 @@ function Landing() {
   );
 }
 
+/** Bandeau de recette : rend visible que WhatsApp n'est pas réellement branché dans cet environnement. */
+function RecetteBanner() {
+  const s = useStore();
+  const [simulated, setSimulated] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (s.mode === 'api') void s.whatsappSimulated().then((value) => { if (active) setSimulated(value); });
+    return () => { active = false; };
+  }, [s]);
+  return simulated ? <div className="gb-demo-banner" role="note">DÉMO — WhatsApp simulé</div> : null;
+}
+
 function AuthGate() {
   const [onboarding, setOnboarding] = useState(false);
   return onboarding ? <Onboarding onCancel={() => setOnboarding(false)} /> : <Welcome onStart={() => setOnboarding(true)} />;
@@ -72,6 +84,7 @@ export function App() {
   const installed = env.standalone;
   return (
     <BrowserRouter>
+      <RecetteBanner />
       {s.mode === 'api' && (s.loading || s.busy) && <p role="status">Chargement…</p>}
       {s.mode === 'api' && s.error && s.user && <p role="alert">{s.error}</p>}
       {s.mode === 'api' && s.otherDevices.length > 0 && <aside className="pad"><p>Vous êtes connecté sur un nouvel appareil.</p><button className="gb-btn" onClick={() => void s.logoutOtherDevices()}>Déconnecter les anciens appareils</button></aside>}

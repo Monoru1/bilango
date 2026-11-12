@@ -86,6 +86,12 @@ export class AuthService {
     const phone = normalizePhone(input.country, input.phone);
     if (!phone) throw new AppError('validation', 'Numéro WhatsApp invalide pour ce pays.');
     const now = this.now;
+    // Recette : aucun fournisseur WhatsApp. Seuls les numéros fictifs de démonstration obtiennent un code ; refus explicite sinon.
+    const demo = this.deps.config.demoOtp;
+    const demoCode = demo ? demo.codeFor(phone, now) : null;
+    if (demo && demoCode === null) {
+      throw new AppError('forbidden', "Envoi WhatsApp non configuré dans cet environnement de démonstration. Seuls les comptes de démonstration peuvent recevoir un code.");
+    }
 
     const row = await this.deps.db.tx(async (t) => {
       // Lock shared device/IP quota buckets as well as phone; sorted to avoid deadlocks.
@@ -109,7 +115,7 @@ export class AuthService {
         const byIp = await t.query<{ n: string }>('select count(*) n from otp_codes where ip = $1 and issued_at > $2', [ip, iso(now - DAY)]);
         if (Number(byIp.rows[0]?.n) >= OTP_MAX_PER_IP_24H) throw new AppError('rate_limited', 'Trop de demandes depuis ce réseau. Réessayez plus tard.', 3600);
       }
-      const code = randomDigits(OTP_USER_LENGTH);
+      const code = demoCode ?? randomDigits(OTP_USER_LENGTH);
       const id = (
         await t.query<{ id: string }>(
           `insert into otp_codes(subject, channel, purpose, code_hash, device_key, ip, issued_at) values ($1,'whatsapp',$2,$3,$4,$5,$6) returning id`,
