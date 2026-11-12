@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/http/app';
+import { OwnerReferralService } from '../src/services/owner-referrals';
 import { signFedapayWebhook } from '../src/crypto';
-import { makeDeps, mkTeam, reportInput, partnerServices, mkPartner, type Ctx } from './helpers';
+import { makeDeps, mkTeam, payFor, reportInput, partnerServices, mkPartner, type Ctx } from './helpers';
 
 let ctx: Ctx;
 let app: FastifyInstance;
@@ -147,7 +148,7 @@ describe('HTTP — partenaires et administration', () => {
     expect(wrongOrigin.statusCode).toBe(403);
   });
 
-  it('connexion admin en 2 étapes puis accès aux statistiques ; un cookie partenaire ne donne pas accès', async () => {
+  it('réserve les statistiques et les codes de parrainage paginés à une session admin vérifiée', async () => {
     const { admin } = partnerServices(ctx);
     await admin.upsertAdmin('admin@novadis.test', 'admin-mot-de-passe-long');
     const s1 = await app.inject({ method: 'POST', url: '/v1/admin/login', headers: AH, payload: { email: 'admin@novadis.test', password: 'admin-mot-de-passe-long' } });
@@ -164,6 +165,27 @@ describe('HTTP — partenaires et administration', () => {
     const pl = await app.inject({ method: 'POST', url: '/v1/partner/login', headers: PH, payload: { email: 'm@ex.test', password: 'motdepasse-solide' } });
     const asAdmin = await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: cookieOf(pl, 'gb_partner')! } });
     expect(asAdmin.statusCode).toBe(401);
+    const referralUrl = '/v1/admin/owner-referral-codes';
+    const cookies = { gb_admin: cookieOf(s2, 'gb_admin')! };
+    const referrals = new OwnerReferralService(ctx.deps);
+    const owners = [];
+    for (const active of [false, true]) {
+      const team = await mkTeam(ctx);
+      expect(await (await payFor(ctx, team.owner, team.businessId)).send()).toBe('confirmed');
+      const { code } = await referrals.generate(team.owner.user);
+      if (!active) await ctx.db.query('update owner_referral_codes set active=false where owner_id=$1', [team.owner.user.id]);
+      owners.unshift({ code, ownerName: team.owner.user.name, active });
+      ctx.clock.advance(1000);
+    }
+    expect((await app.inject({ url: referralUrl })).statusCode).toBe(401);
+    expect((await app.inject({ url: referralUrl, cookies: { gb_admin: cookieOf(pl, 'gb_partner')! } })).statusCode).toBe(401);
+    expect((await app.inject({ url: referralUrl + '?limit=0', cookies })).statusCode).toBe(400);
+    const firstPage = await app.inject({ url: referralUrl + '?limit=1', cookies });
+    expect(firstPage.statusCode).toBe(200);
+    expect(firstPage.json()).toEqual({ codes: [owners[0]], hasNext: true });
+    const secondPage = await app.inject({ url: referralUrl + '?limit=1&offset=1', cookies });
+    expect(secondPage.statusCode).toBe(200);
+    expect(secondPage.json()).toEqual({ codes: [owners[1]], hasNext: false });
   });
 
   it('§13.3 — la réinitialisation du mot de passe partenaire coupe TOUTES les sessions, code à usage unique', async () => {

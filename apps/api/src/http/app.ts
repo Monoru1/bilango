@@ -327,6 +327,11 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
   app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });
+  app.get('/v1/admin/owner-referral-codes', async req => {
+    await adminSession(req);
+    const query = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
+    return admin.listOwnerReferralCodes(query.offset, query.limit);
+  });
   app.get('/v1/admin/subscriptions', async req => {
     await adminSession(req); const q = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
     return { subscriptions: await admin.listSubscriptions(q.offset, q.limit) };
