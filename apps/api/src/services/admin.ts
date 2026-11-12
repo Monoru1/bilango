@@ -1,6 +1,6 @@
 import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
-import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
+import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
 import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
@@ -251,6 +251,25 @@ export class AdminService {
   async listOwnerReferralCodes(offset: number, limit: number, filters: { q?: string; date?: string }) {
     const rows = await this.ownerReferralRows(filters, offset, limit + 1);
     return { codes: rows.slice(0, limit), hasNext: rows.length > limit };
+  }
+
+  /**
+   * SEC-48 — désactive un code de parrainage propriétaire. Le verrou de ligne est le même que celui pris
+   * par l'attribution (`select … where active=true for update` dans AuthService) : une attribution
+   * concurrente passe entièrement avant, ou voit le code inactif. Les attributions et crédits déjà
+   * enregistrés ne sont pas modifiés ; le code n'est ni supprimé ni réattribué.
+   */
+  async deactivateOwnerReferralCode(admin: AdminSession, input: z.infer<typeof deactivateOwnerReferralCodeSchema>): Promise<{ code: string; active: false }> {
+    return this.deps.db.tx(async (t) => {
+      const row = (await t.query<{ active: boolean }>('select active from owner_referral_codes where code = $1 for update', [input.code])).rows[0];
+      if (!row) throw notFound();
+      if (!row.active) throw new AppError('conflict', 'Ce code de parrainage est déjà désactivé.');
+      await t.query('update owner_referral_codes set active = false where code = $1', [input.code]);
+      await t.query('insert into audit_log(at, actor, action, target, old_value, new_value) values ($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [
+        iso(this.now), admin.email, 'owner_referral_code.deactivate', input.code, JSON.stringify({ active: true }), JSON.stringify({ active: false, reason: input.reason }),
+      ]);
+      return { code: input.code, active: false as const };
+    });
   }
 
   async exportOwnerReferralCodes(filters: { q?: string; date?: string }) {

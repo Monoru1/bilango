@@ -13,6 +13,12 @@ export const reversePayoutSchema = z.object({ payoutId: idSchema, reason: z.stri
 
 export const excludeReferralSchema = z.object({ referralId: idSchema, reason: z.string().trim().min(3).max(300) });
 
+/** SEC-48 : désactivation auditée d'un code de parrainage propriétaire. Le motif est obligatoire. */
+export const deactivateOwnerReferralCodeSchema = z.object({
+  code: z.string().regex(/^[A-HJ-NP-Z2-9]{8}$/),
+  reason: z.string().trim().min(3).max(300),
+});
+
 export const adminAllowlistChangeSchema = z.discriminatedUnion('action', [
   z.object({ email: z.string().email().transform(s => s.toLowerCase()), action: z.literal('add'), password: z.string().min(12).max(256) }),
   z.object({ email: z.string().email().transform(s => s.toLowerCase()), action: z.literal('remove') }),
