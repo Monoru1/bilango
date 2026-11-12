@@ -189,3 +189,19 @@ en recette que lorsque les deux versions correspondantes sont déployées.
 Le service de recette existant et sa base sont à préserver. L'intégration
 dans la branche déployée, l'activation fournisseurs et toute dépense exigent
 une décision séparée. Voir `docs/recette/livraison-15-novembre.md` pour les critères.
+
+### Suite V1 après l'intégration
+
+La PR d'intégration #18 (`c4877d8`) cible la livraison depuis `13d63a0`.
+Le lot suivant ajoute la recherche des codes propriétaires, les compteurs issus
+des attributions et crédits existants et un export CSV réservé aux
+administrateurs. Les jours crédités sont affichés à partir du journal de
+récompenses. Leur application aux abonnements reste soumise à l'arbitrage
+commercial. Le lanceur `e2e/run-hosted-recette.sh` permet de saisir les
+identifiants de recette sans écho, ou de les injecter à l'exécution.
+
+Les portails attendent un accès permettant de lier leurs deux projets Netlify
+au dépôt et de déployer la branche autorisée. Aucun projet vide n'a été créé.
+L'API Render reste liée à la branche de livraison. Les variables de signature
+Edge et Render devront être vérifiées ensemble après déploiement des builds
+correspondants.
