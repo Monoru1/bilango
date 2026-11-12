@@ -44,6 +44,15 @@ Ne pas définir `PRODUCTION_RELEASE_APPROVED`, `PROVIDER_MODE`, `EXTERNAL_DELIVE
 Une seule origine PWA est acceptée par l'API : la démonstration doit donc se faire depuis
 l'URL exacte déclarée dans `PWA_ORIGIN`.
 
+## Garde des migrations (recette)
+
+Au démarrage en mode recette, `apps/api/src/recette-migration-guard.ts` inspecte la base en
+lecture seule et journalise uniquement des compteurs (`[recette] base : tables=… decision=…`).
+Les migrations ne partent que si la base est vide (`initialize`), déjà à jour (`up_to_date`), ou
+si les migrations en attente ont été approuvées après sauvegarde avec
+`RECETTE_MIGRATION_APPROVED_UP_TO=<dernier fichier en attente>` (`approved`). Sinon le démarrage
+est refusé (`recette_database_not_empty_backup_required`) sans aucune écriture.
+
 ## Révocation
 
 - Retirer un numéro de `RECETTE_DEMO_PHONES`, ou avancer `RECETTE_DEMO_OTP_EXPIRES_AT`, puis

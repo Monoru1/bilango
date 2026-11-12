@@ -2,6 +2,7 @@ import { systemClock } from './clock';
 import { configuredProviders } from './integrations/configured';
 import { developmentRuntime } from './runtime-config';
 import { recetteDemoOtp, recetteMessageSender } from './recette-demo-otp';
+import { migrateRecette } from './recette-migration-guard';
 import { createPgDb, createPgliteDb, migrate } from './db';
 import { defaultConfig, type Deps } from './deps';
 import { buildApp } from './http/app';
@@ -30,7 +31,8 @@ async function main() {
   // Recette Render : OTP de démonstration (liste fermée, limité dans le temps) ; refuse de démarrer si configuré ailleurs.
   const demoOtp = recetteDemoOtp(process.env, Date.now());
   const db = process.env.DATABASE_URL ? await createPgDb(process.env.DATABASE_URL) : await createPgliteDb();
-  const applied = production ? [] : await migrate(db);
+  // Recette Render : inspection en lecture seule avant toute migration (base vide, à jour, ou migrations approuvées après sauvegarde).
+  const applied = production ? [] : process.env.RENDER_RECETTE === 'true' ? await migrateRecette(db, process.env, (line) => process.stdout.write(`${line}\n`)) : await migrate(db);
   if(production)await db.query('select request_key,checkout_url from payments limit 0'); // deploy migration separately before startup
   if (applied.length) process.stdout.write(`[api] migrations appliquées : ${applied.join(', ')}\n`);
   const providers: Providers = createDevProviders();
