@@ -66,23 +66,30 @@ export const OTP_PARTNER_LENGTH = 6;
 export const OTP_TTL_MS = 10 * 60 * 1000;
 export const OTP_MAX_ATTEMPTS = 4;
 export const OTP_MAX_ISSUES_PER_24H = 2;
+export type OtpIssuePolicy = 'cdc' | 'v1.2';
+const OTP_V12_MAX_ISSUES_PER_24H = 5;
+const OTP_V12_MIN_INTERVAL_MS = 2 * 60 * 1000;
 
 export interface OtpIssueDecision {
   allowed: boolean;
   /** Instant UTC (ms) à partir duquel un nouveau code peut être demandé, `null` si autorisé. */
   retryAt: number | null;
+  reason?: 'daily' | 'cadence';
 }
 
 /**
- * Deux codes maximum par fenêtre glissante de 24 h pour un même numéro / e-mail (§4.4, §10.1).
+ * Le CDC limite le numéro ou l’e-mail à deux codes par fenêtre glissante de 24 h (§4.4, §10.1).
  * Au-delà : envoi bloqué ; le blocage se lève 24 h après l'émission du plus ancien des deux
  * codes (interprétation D-005 — le cahier ne précise pas si la fenêtre est glissante).
  */
-export function evaluateOtpIssue(issuedAt: readonly number[], now: number): OtpIssueDecision {
-  const recent = issuedAt.filter((t) => now - t < DAY_MS).sort((a, b) => a - b);
-  if (recent.length < OTP_MAX_ISSUES_PER_24H) return { allowed: true, retryAt: null };
-  const oldest = recent[recent.length - OTP_MAX_ISSUES_PER_24H] as number;
-  return { allowed: false, retryAt: oldest + DAY_MS };
+export function evaluateOtpIssue(issuedAt: readonly number[], now: number, policy: OtpIssuePolicy = 'cdc'): OtpIssueDecision {
+  const recent = issuedAt.filter(t => now - t < DAY_MS).sort((a, b) => a - b);
+  const limit = policy === 'v1.2' ? OTP_V12_MAX_ISSUES_PER_24H : OTP_MAX_ISSUES_PER_24H;
+  const dailyRetry = (recent.at(-limit) ?? -Infinity) + DAY_MS;
+  const cadenceRetry = policy === 'v1.2' ? (recent.at(-1) ?? -Infinity) + OTP_V12_MIN_INTERVAL_MS : -Infinity;
+  const retryAt = Math.max(dailyRetry, cadenceRetry);
+  if (retryAt <= now) return { allowed: true, retryAt: null };
+  return { allowed: false, retryAt, reason: dailyRetry >= cadenceRetry ? 'daily' : 'cadence' };
 }
 
 export interface OtpCheckInput {

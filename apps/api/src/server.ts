@@ -73,7 +73,7 @@ async function main() {
       fedapayWebhookSecret: requireEnv('FEDAPAY_WEBHOOK_SECRET'),
     },
     providers,
-    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null, demoOtp },
+    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null, demoOtp, userOtpIssuePolicy: runtime.userOtpIssuePolicy },
   };
   if (deps.secrets.pepper.length < 32 || deps.secrets.payoutKey.length !== 32) throw new Error('PIN_PEPPER_HEX (>=32 octets) et PAYOUT_KEY_HEX (32 octets) requis.');
   if (!production && process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {

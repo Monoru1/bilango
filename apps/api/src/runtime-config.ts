@@ -1,3 +1,4 @@
+import type { OtpIssuePolicy } from '@gobilan/domain';
 import { renderRecetteTarget } from './render-recette-target';
 
 /** Separate, explicit release gate; no implicit upgrade from acceptance to production. */
@@ -31,7 +32,10 @@ export function developmentRuntime(env:Record<string,string|undefined>) {
   };
   const proxyKey = env.GOBILAN_PROXY_KEY_HEX;
   if (proxyKey !== undefined && !/^[a-f0-9]{64}$/.test(proxyKey)) throw new Error('invalid_gobilan_proxy_key');
-  return {host,port,proxyKey,secureCookies:env.SECURE_COOKIES==='true',origins:{
+  const configuredOtpPolicy = env.GOBILAN_WHATSAPP_OTP_POLICY ?? 'cdc';
+  if (configuredOtpPolicy !== 'cdc' && configuredOtpPolicy !== 'v1.2') throw new Error('invalid_whatsapp_otp_policy');
+  const userOtpIssuePolicy: OtpIssuePolicy = configuredOtpPolicy;
+  return {host,port,proxyKey,userOtpIssuePolicy,secureCookies:env.SECURE_COOKIES==='true',origins:{
     pwa:[origin(env.PWA_ORIGIN,'http://localhost:5173')],
     partners:[origin(env.PARTNERS_ORIGIN,'http://localhost:5174')],
     admin:[origin(env.ADMIN_ORIGIN,'http://localhost:5175')],

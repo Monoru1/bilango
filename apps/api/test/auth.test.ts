@@ -69,6 +69,20 @@ describe('OTP WhatsApp (§4.4)', () => {
     expect(ctx.providers.messages.whatsapp).toHaveLength(3);
   });
 
+  it('applique cinq codes et la cadence de deux minutes lorsque la v1.2 est sélectionnée', async () => {
+    ctx.deps.config = { ...ctx.deps.config, userOtpIssuePolicy: 'v1.2' };
+    await ask();
+    const cadence = await expectCode(ask(), 'rate_limited');
+    expect(cadence.retryAfterSeconds).toBe(120);
+    for (let i = 0; i < 4; i++) {
+      ctx.clock.advance(2 * MIN);
+      await ask();
+    }
+    const daily = await expectCode(ask(), 'otp_quota');
+    expect(daily.retryAfterSeconds).toBe((DAY - 8 * MIN) / 1000);
+    expect(ctx.providers.messages.whatsapp).toHaveLength(5);
+  });
+
   it("ne compte pas un code dont l'envoi a échoué", async () => {
     ctx.providers.messages.failNext = true;
     await expectCode(ask(), 'internal');
