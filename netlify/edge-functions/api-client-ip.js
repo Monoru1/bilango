@@ -28,7 +28,7 @@ export function createApiProxy(env, forward = fetch, now = Date.now) {
     const signature = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 
     const headers = new Headers();
-    for (const name of ['accept', 'content-type', 'cookie', 'origin', 'user-agent', 'x-gobilan-csrf', 'x-fedapay-signature']) {
+    for (const name of ['accept', 'content-type', 'cookie', 'origin', 'user-agent', 'x-gobilan-csrf', 'x-fedapay-signature', 'sec-fetch-site', 'x-gobilan-admin-origin']) {
       const value = request.headers.get(name);
       if (value !== null) headers.set(name, value);
     }

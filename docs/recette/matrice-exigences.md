@@ -27,7 +27,7 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 | V12-IOS / §6 | Guide fermé ne revient qu'à la demande | P0-IOS ci-dessus | REC-08 + écrans/E2E installation | Partiel : tests représentatifs à consigner | Installation physique |
 | V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Politique WhatsApp configurable, CDC par défaut | auth.test.ts, runtime-config.test.ts | Test local de la v1.2 ; recette hébergée ouverte | Arbitrage CDC / v1.2 |
 | V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | À implémenter dans domain/contracts/API/PWA/admin | REC-09/10/11/12/13 | Ouvert | Nature des jours/plafond/essai |
-| V12-METRICS / §12/13 | Analytics anonymes, funnel, CSV, admins seuls, audit accès | À implémenter | Tests isolation/agrégats/CSV à créer | Ouvert | Politique anonymat/APDP, exclusions équipe |
+| V12-METRICS / §12/13 | Acquisition, activation, conversion, revenu et export admin | Agrégats §13 sur le schéma existant, filtres UTC, CSV réservé aux admins et journalisé | metrics.test.ts, admin-metrics.test.ts, portals-smoke.mjs | Partiel | Audience et entonnoir §12, consentement/anonymat, exclusions équipe ; recette hébergée à faire |
 
 ## REC-01 à REC-14
 
@@ -42,3 +42,9 @@ Le lot P0 cible REC-08. Le lot P1 du 5 novembre (voir `demo-15-novembre.md`, sec
 REC-02/03/04/07 (WhatsApp) et REC-09–14 restent **non recettés**. Aucun transport externe n'est validé par un double HTTP ou un journal Dev. Compléter les résultats un par un avec commit, commande, appareil/environnement et pièce de preuve.
 
 Preuve transversale du lot : commit `2eba05d`, [CI six jobs réussis](https://github.com/Monoru1/bilango/actions/runs/42032534589), preview et captures référencées dans `demo-15-novembre.md`. Les limites physiques et fournisseurs ne sont pas levées par ces résultats.
+
+### Conventions des indicateurs administrateur §13
+
+Les bornes `from` et `to` sont des dates UTC inclusives. Acquisition et activation portent sur les comptes et business créés dans la période. Une activation est le premier bilan dans les 48 heures suivant la création du business, divisé par le nombre de business de la cohorte. Les événements ultérieurs sont observés jusqu'à l'instant du calcul. Les abandons d'essai sont regroupés par semaine UTC de création du compte propriétaire, du lundi au dimanche. La conversion est le premier paiement encore confirmé d'un business ayant bénéficié d'un essai. Le délai moyen prend le premier paiement confirmé par compte, tous ses business confondus.
+
+Les abonnements et jours restants sont un instantané global actuel. Le revenu confirmé par pays et les commissions versées portent sur la période. Le solde brut dû est l'encours net des corrections du journal à l'instant du calcul, hors versements valides, par rôle. Les versements annulés reviennent dans l'encours. L'export CSV contient les mêmes agrégats et un horodatage, et ajoute une entrée `admin.metrics.export` au journal. Aucune collecte d'audience ni modification du schéma.
