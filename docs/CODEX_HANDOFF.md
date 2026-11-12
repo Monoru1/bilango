@@ -129,18 +129,27 @@ secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 
 `Dockerfile.api` prépare l’image de lancement avec `NODE_ENV=production` ; la CI vérifie qu’elle refuse le démarrage sans approbation. `Dockerfile.acceptance` reste réservé à la recette. Aucune image n’a été déployée sur une infrastructure production.
 
-## État au 12 novembre 2026 — recette Render (P0.1)
+## État au 12 novembre 2026 — recette Render opérationnelle (P0.1 et P0.2)
 
-- Cause de l'échec du déploiement du 9 novembre : le service `gobilan-recette-api` tourne avec
-  `NODE_ENV=production`, alors que le mode `RENDER_RECETTE` exige l'inverse. Correctif = configuration
-  (voir `docs/recette/otp-demo-recette.md`), sans toucher à `PRODUCTION_RELEASE_APPROVED`.
-- Variables Render **pas encore appliquées** : en attente de la sauvegarde `pg_dump` de la base
-  `gobilan-recette` par le propriétaire (les migrations partent au démarrage en mode recette).
-- Branche `feat/recette-demo-otp` (basée sur `c89b615`, hors déploiement automatique Render) : OTP de
-  démonstration à liste fermée et durée limitée, plus aucun code/numéro/e-mail dans les journaux de
-  recette, bandeau « DÉMO — WhatsApp simulé ». `npm run check` : 386 tests réussis, 11 PostgreSQL
-  réseau ignorés. Non vérifié sur l'environnement déployé.
-- Démonstration sur `gobilan-pwa.netlify.app` ou une preview isolée ; `gobilan.com` appartient au
-  client et ne doit pas être modifié.
-- Prochaine tâche : après confirmation de la sauvegarde, appliquer les variables, redéployer,
-  vérifier `/health`, `/ready`, migrations et persistance, puis `API_ORIGIN` sur Netlify et nouveau build.
+- Branche déployée : `fix/gobilan-livraison-15-novembre`, commit de fusion de la PR #11 `c7894fd`.
+- Cause de l'échec du 9 novembre : `NODE_ENV=production` (défaut Render) alors que le mode
+  `RENDER_RECETTE` exige l'inverse, puis `DATABASE_URL` absente. Corrigé par configuration, sans
+  `PRODUCTION_RELEASE_APPROVED`.
+- API : https://gobilan-recette-api.onrender.com — `/health` et `/ready` répondent 200.
+- Base `gobilan-recette` : inspectée en lecture seule au démarrage (0 table), puis initialisée
+  avec les migrations 001 à 007. Toute migration future sur cette base non vide exige une
+  sauvegarde puis `RECETTE_MIGRATION_APPROVED_UP_TO` (voir `docs/recette/otp-demo-recette.md`).
+- `DATABASE_URL` est injectée par le Blueprint Render `gobilan-recette` (fichier `render.yaml`
+  de la branche `infra/render-recette-blueprint`, synchronisation automatique désactivée) :
+  le mot de passe ne transite ni par Git ni par un poste.
+- PWA de recette : https://deploy-preview-12--gobilan-pwa.netlify.app (PR #12, brouillon, à ne
+  pas fusionner). `API_ORIGIN` est définie sur Netlify ; `PWA_ORIGIN` côté API vaut cette URL
+  exacte. `gobilan-pwa.netlify.app` sert encore l'ancien build de `main`. `gobilan.com`
+  appartient au client et ne doit pas être modifié.
+- Portails partenaires et admin : non déployés ; leurs origines côté API sont des valeurs de
+  réserve en `.invalid`.
+- OTP de démonstration actif jusqu'au 16 novembre 2026 23:00 UTC pour 20 numéros fictifs
+  (variables `RECETTE_DEMO_*` du service Render ; le code n'est écrit dans aucun fichier).
+- Preuves : `docs/recette/preuves/2026-11-12-recette-render.md`.
+- Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
+  stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
