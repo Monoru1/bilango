@@ -1,5 +1,9 @@
 # GoBilan — reprise Claude Fable 5.2
 
+> **Document historique — ne pas exécuter.** Cet état est dépassé : les PR #21, #19, #18 et #22 sont fusionnées dans
+> `fix/gobilan-livraison-15-novembre` (`8a3ad83`), SEC-48 et le correctif du limiteur de débit sont en place.
+> Reprise à suivre : [`CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md`](CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md).
+
 Tu prends la responsabilité technique de la livraison de la V1 commerciale de GoBilan au client le **15 novembre 2026**. La démo constitue une preuve intermédiaire. Le verdict actuel est **NO-GO commercial**. Reprends les tâches ci-dessous, code et teste. Évite de recommencer un audit général.
 
 ## Point de reprise GitHub

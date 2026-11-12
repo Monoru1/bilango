@@ -70,7 +70,7 @@ sauvegarde et restauration. P1 : SEC-48 et tests des parrainages, puis rappels,
 rapport du soir, statistiques et export après arbitrages applicables. P2 :
 réunir les preuves REC-01 à REC-14, valider les appareils physiques, rédiger les
 guides et consigner surveillance et retour arrière. Les fichiers, scénarios et
-critères détaillés sont dans le [prompt de reprise](../CLAUDE_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md).
+critères détaillés sont dans le [prompt de reprise en vigueur](../CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md) (l'ancien prompt du matin est conservé comme document historique).
 
 L’issue #8 conserve la démo du 15 novembre et la livraison du 1er décembre.
 L’instruction du 12 novembre fixe la V1 finale au 15 novembre. Le complément

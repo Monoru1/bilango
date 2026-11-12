@@ -152,7 +152,8 @@ secrets, recettes fournisseur et approbation de lancement restent nécessaires.
   (variables `RECETTE_DEMO_*` du service Render ; le code n'est écrit dans aucun fichier).
 - Preuves : `docs/recette/preuves/2026-11-12-recette-render.md`.
 - Échéance : livraison finale V1 le 15 novembre 2026. Reprise détaillée et tâches ordonnées :
-  `docs/CODEX_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md` (commencer par T1, IP derrière le proxy).
+  `docs/CODEX_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md` (historique ; remplacé par
+  `docs/CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md`).
 - Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
 - Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
   stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
@@ -285,7 +286,7 @@ La démo HTTP historique sur `c7894fd` est documentée dans
   inventaire SQL distant ni restauration distante n’a été lancé pendant
   cet audit.
 
-Suite exécutable : [prompt Claude](CLAUDE_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md),
+Suite exécutable : [reprise en vigueur](CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md) ; historique : [prompt Claude du matin](CLAUDE_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md),
 [matrice](recette/matrice-exigences.md) et [bilan de livraison](recette/livraison-15-novembre.md).
 
 ## État après intégration — 12 novembre 2026, 16 h (fait foi sur les sections antérieures)
