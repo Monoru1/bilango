@@ -1,0 +1,38 @@
+# Recette Render uniquement (jamais la production). Décrit les ressources EXISTANTES
+# gobilan-recette-api et gobilan-recette pour relier l'API à la base par son URL interne,
+# sans qu'aucun mot de passe ne transite par Git, un poste de travail ou un rapport.
+# Les secrets (PIN_PEPPER_HEX, PAYOUT_KEY_HEX, FEDAPAY_WEBHOOK_SECRET, RECETTE_DEMO_*) restent
+# saisis dans le service Render et ne figurent pas ici. Plans gratuits : aucune dépense.
+databases:
+  - name: gobilan-recette
+    plan: free
+    region: frankfurt
+    databaseName: gobilan_recette
+    user: gobilan_recette_user
+    postgresMajorVersion: "17"
+    ipAllowList: []
+
+services:
+  - type: web
+    name: gobilan-recette-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: fix/gobilan-livraison-15-novembre
+    buildCommand: npm ci --ignore-scripts
+    startCommand: npm run start -w @gobilan/api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: recette
+      - key: RENDER_RECETTE
+        value: "true"
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gobilan-recette
+          property: connectionString
