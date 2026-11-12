@@ -156,3 +156,11 @@ secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 - Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
 - Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
   stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
+
+## 12 novembre — correctif de quotas réseau
+
+Branche `fix/gobilan-proxy-security` depuis `13d63a0`. Le correctif utilise une preuve
+HMAC produite à partir de l’adresse de connexion Netlify et maintient un quota commun
+pour le trafic direct sans preuve. Pas de migration supplémentaire. Tests locaux et
+état de la validation hébergée dans `docs/recette/preuves/2026-11-12-proxy-client-ip.md`.
+La configuration et la séquence d’activation sont dans `docs/SECURITY_MODEL.md`.
