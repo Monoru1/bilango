@@ -8,3 +8,5 @@ export * from './admin';
 export * from './push';
 
 export * from './workspace';
+
+export * from './audience';

@@ -1,3 +1,5 @@
+import { AudienceConsent } from '../components/AudienceConsent';
+import { trackAudience } from '../lib/audience';
 import { Logo } from '@gobilan/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -37,7 +39,7 @@ export function InstallPage({ env }: { env: Env }) {
   // Navigateur intégré (TikTok, Instagram, WhatsApp, Facebook) : installation impossible (§3.4).
   if (env.inAppBrowser) {
     return (
-      <Shell>
+      <Shell env={env}>
         <div className="stack center" style={{ gap: 20, maxWidth: 320 }}>
           <Logo size={88} />
           <p className="h1">Ouvre ce lien dans Chrome / Safari</p>
@@ -48,6 +50,7 @@ export function InstallPage({ env }: { env: Env }) {
   }
 
   const install = async () => {
+    if (location.pathname === '/') trackAudience('install_click', env);
     setHint(null);
     if (env.platform === 'ios') {
       if (env.iosSafari) setGuide(true);
@@ -68,12 +71,12 @@ export function InstallPage({ env }: { env: Env }) {
   };
 
   return (
-    <Shell>
+    <Shell env={env}>
       <div className="stack center" style={{ gap: 20, maxWidth: 340 }}>
         <Logo size={96} />
         <p className="muted" style={{ margin: 0, fontSize: 17 }}>Installez l’application sur votre téléphone pour suivre votre business.</p>
         <button className="gb-btn" onClick={install}>Installer l’application</button>
-        {env.iosSafari && !guide && <button className="link" onClick={() => setGuide(true)}>Comment installer ?</button>}
+        {env.iosSafari && !guide && <button className="link" onClick={() => { if (location.pathname === '/') trackAudience('install_click', env); setGuide(true); }}>Comment installer ?</button>}
         {hint && <p className="gb-error" role="status" style={{ margin: 0 }}>{hint}</p>}
       </div>
       {guide && <IosGuide onClose={closeGuide} />}
@@ -81,10 +84,11 @@ export function InstallPage({ env }: { env: Env }) {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, env }: { children: React.ReactNode; env: Env }) {
   return (
     <div className="screen">
       <main className="pad center" style={{ flex: 1, justifyContent: 'center' }}>{children}</main>
+      {location.pathname === '/' && <AudienceConsent env={env} />}
       <footer className="footer"><Link to="/legal">Mentions légales & Politiques de confidentialité</Link></footer>
     </div>
   );

@@ -1,3 +1,4 @@
+import { audienceRegistration } from '../lib/audience';
 import { COUNTRIES, normalizePhone, type CountryCode, type PermissionLevel, type ReportContent, type Sector } from '@gobilan/domain';
 import { ApiError, createClient } from '@gobilan/ui';
 import type { ApplicationState, Result, Workspace } from '@gobilan/contracts';
@@ -130,7 +131,8 @@ export class RemoteStore extends StoreView<ApplicationState> {
   async createPin(pin: string): Promise<Result> {
     return this.run(async () => {
       if (!this.proof) throw new ApiError('validation', 'Validez votre numéro.', 400);
-      await this.api('/v1/auth/pin/create', { method: 'POST', body: { otpProof: this.proof, pin, device: this.device() } });
+      const audience = audienceRegistration();
+      await this.api('/v1/auth/pin/create', { method: 'POST', body: { otpProof: this.proof, pin, device: this.device(), ...(audience ? { audience } : {}) } });
       this.proof = null; await this.refresh();
     });
   }

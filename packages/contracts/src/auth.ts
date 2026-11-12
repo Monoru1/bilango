@@ -1,3 +1,4 @@
+import { audienceContext } from './audience';
 import { z } from 'zod';
 import { countrySchema, e164Schema, emailSchema, idSchema, otp4Schema, otp6Schema, pinSchema } from './common';
 
@@ -32,6 +33,7 @@ export const verifyOtpSchema = z.object({
 export const createPinSchema = z.object({
   /** Jeton à usage unique rendu par `verifyOtp`, lié au numéro et à l'appareil. */
   otpProof: z.string().min(16).max(256),
+  audience: audienceContext.optional(),
   pin: pinSchema,
   device: deviceInfoSchema,
 });

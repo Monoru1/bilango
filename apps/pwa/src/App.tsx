@@ -1,3 +1,4 @@
+import { AudienceConsent } from './components/AudienceConsent';
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Logo } from '@gobilan/ui';
@@ -76,7 +77,7 @@ export function App() {
     const timer = setInterval(update, 30000);
     return () => { window.removeEventListener('focus', update); clearInterval(timer); };
   }, [s, env.standalone]);
-  // Le navigateur public ne charge jamais l'API ni les écrans métier.
+  // Le navigateur public ne charge pas les écrans métier. La mesure d’audience est facultative.
   if (!env.standalone) return <BrowserRouter><Routes><Route path="/legal" element={<LegalScreen />} /><Route path="*" element={<InstallPage env={env} />} /></Routes></BrowserRouter>;
   if (!ready) return <Splash />;
   if (s.mode === 'api' && !s.initialized) return <Splash />;
@@ -84,6 +85,7 @@ export function App() {
   const installed = env.standalone;
   return (
     <BrowserRouter>
+      {s.mode === 'api' && <AudienceConsent env={env} />}
       <RecetteBanner />
       {s.mode === 'api' && (s.loading || s.busy) && <p role="status">Chargement…</p>}
       {s.mode === 'api' && s.error && s.user && <p role="alert">{s.error}</p>}
