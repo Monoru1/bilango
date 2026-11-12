@@ -1,5 +1,12 @@
 # Reprise GoBilan — intégration Codex, 19 octobre 2026
 
+## Reprise du 12 novembre 2026
+
+- Base du lot `feat/admin-metrics-v12` : `8a3ad832858b5283812d9eeee525721a902e7b8f`.
+- V12-METRICS : les agrégats du §13 sont disponibles dans le portail admin et via l’API, avec export CSV audité. Aucune migration. Voir [la matrice de recette](recette/matrice-exigences.md).
+- Validation locale : 410 tests réussis, 11 tests PostgreSQL réseau ignorés sans base dédiée. La recette du portail hébergé est à réaliser après intégration approuvée.
+- P0-2 : voir [la procédure de raccordement Netlify](recette/portails-netlify.md). P0-7 : poursuivre les assertions hébergées sur le stock et les rôles, puis vérifier le blocage avec une fixture de recette expirée.
+
 ## Branche et point de départ
 
 - Dépôt : https://github.com/Monoru1/bilango

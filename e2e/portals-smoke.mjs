@@ -50,6 +50,13 @@ check(!!code, 'code admin 6 chiffres reçu par e-mail (simulé)');
 await adm.getByLabel('Code à 6 chiffres').fill(code);
 await adm.getByRole('button', { name: 'Se connecter' }).click();
 await adm.getByText('Statistiques').first().waitFor();
+const metrics = adm.getByRole('heading', { name: 'Indicateurs administrateur' });
+await metrics.waitFor();
+await adm.getByRole('cell', { name: 'Comptes créés', exact: true }).waitFor();
+const metricsDownload = adm.waitForEvent('download');
+await adm.getByRole('button', { name: 'Exporter en CSV', exact: true }).click();
+check((await metricsDownload).suggestedFilename() === 'statistiques-gobilan.csv', 'export des indicateurs par session admin');
+
 await adm.getByRole('tab', { name: 'Parrainages propriétaires', exact: true }).click();
 await adm.getByRole('heading', { name: 'Codes de parrainage propriétaire' }).waitFor();
 await adm.getByText('Aucun code de parrainage sur cette page.', { exact: true }).waitFor();
