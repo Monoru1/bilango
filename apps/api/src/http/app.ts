@@ -2,7 +2,7 @@ import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
-  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
+  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, inviteMemberSchema,
   loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, pushSubscriptionSchema, pushUnsubscribeSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
@@ -379,6 +379,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     await admin.changePartnerRole((await adminSession(req)).admin, idParam.parse(req.params).id, changePartnerRoleSchema.parse(req.body)); return { ok: true };
   });
   app.post('/v1/admin/referrals/exclude', async (req) => admin.excludeReferral((await adminSession(req)).admin, excludeReferralSchema.parse(req.body)));
+  app.post('/v1/admin/owner-referral-codes/deactivate', async (req) => admin.deactivateOwnerReferralCode((await adminSession(req)).admin, deactivateOwnerReferralCodeSchema.parse(req.body)));
   app.get('/v1/admin/payouts/calendar', async (req) => {
     await adminSession(req);
     return admin.payoutCalendar(z.object({ cycleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.query).cycleDate);

@@ -24,6 +24,25 @@ export function OwnerReferralCodesView() {
   const [date, setDate] = useState('');
   const [filters, setFilters] = useState('');
   const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [target, setTarget] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function deactivate(code: string) {
+    setBusy(true); setNotice('');
+    try {
+      await api('/v1/admin/owner-referral-codes/deactivate', { method: 'POST', body: { code, reason: reason.trim() } });
+      setNotice(`Code ${code} désactivé.`);
+      setTarget(null); setReason('');
+    } catch (err) {
+      setNotice(errorText(err));
+    } finally {
+      setBusy(false);
+      // L'état affiché vient toujours du serveur, y compris après un refus (code déjà désactivé ailleurs).
+      setReload(n => n + 1);
+    }
+  }
   useEffect(() => {
     let current = true;
     void api<NonNullable<typeof result>>(`/v1/admin/owner-referral-codes?limit=${limit}&offset=${page * limit}&${filters}`).then(
@@ -31,7 +50,7 @@ export function OwnerReferralCodesView() {
       err => { if (current) setError(errorText(err)); },
     );
     return () => { current = false; };
-  }, [page, filters]);
+  }, [page, filters, reload]);
 
   function changePage(next: number) {
     setResult(null);
@@ -55,11 +74,20 @@ export function OwnerReferralCodesView() {
       <button className="gb-btn gb-btn--ghost" type="submit">Rechercher</button>
       <a href={`/v1/admin/owner-referral-codes.csv?${filters}`}>Exporter en CSV</a>
     </form>
+    {notice && <p role="status">{notice}</p>}
+    {target && <form className="stack" onSubmit={event => { event.preventDefault(); void deactivate(target); }}>
+      <p>Désactiver le code <strong>{target}</strong> : il ne pourra plus servir à de nouvelles inscriptions. Les parrainages déjà enregistrés sont conservés. Cette action est journalisée.</p>
+      <label>Motif de désactivation<input className="gb-input" maxLength={300} value={reason} onChange={event => setReason(event.target.value)} /></label>
+      <div className="row">
+        <button className="gb-btn" type="submit" disabled={busy || reason.trim().length < 3}>Confirmer la désactivation</button>
+        <button className="gb-btn gb-btn--ghost" type="button" disabled={busy} onClick={() => { setTarget(null); setReason(''); }}>Annuler</button>
+      </div>
+    </form>}
     {error ? <p role="alert">{error}</p> : !result && <p role="status">Chargement…</p>}
     {result && (result.codes.length === 0 ? <p>Aucun code de parrainage sur cette page.</p> :
       <div className="scroll"><table>
-        <thead><tr><th>Code</th><th>Propriétaire</th><th>Statut</th><th>Créé le</th><th>Inscriptions</th><th>Premiers paiements</th><th>Jours crédités</th></tr></thead>
-        <tbody>{result.codes.map(row => <tr key={row.code}><td>{row.code}</td><td>{row.ownerName || '—'}</td><td>{row.active ? 'Actif' : 'Inactif'}</td><td>{row.createdAt.slice(0, 10)}</td><td>{row.registrations}</td><td>{row.firstPayments}</td><td>{row.rewardDays}</td></tr>)}</tbody>
+        <thead><tr><th>Code</th><th>Propriétaire</th><th>Statut</th><th>Créé le</th><th>Inscriptions</th><th>Premiers paiements</th><th>Jours crédités</th><th>Action</th></tr></thead>
+        <tbody>{result.codes.map(row => <tr key={row.code}><td>{row.code}</td><td>{row.ownerName || '—'}</td><td>{row.active ? 'Actif' : 'Inactif'}</td><td>{row.createdAt.slice(0, 10)}</td><td>{row.registrations}</td><td>{row.firstPayments}</td><td>{row.rewardDays}</td><td>{row.active ? <button className="gb-btn gb-btn--ghost" type="button" aria-label={`Désactiver le code ${row.code}`} onClick={() => { setTarget(row.code); setReason(''); setNotice(''); }}>Désactiver</button> : '—'}</td></tr>)}</tbody>
       </table></div>)}
     <div className="row">
       <button className="gb-btn gb-btn--ghost" disabled={page === 0} onClick={() => changePage(page - 1)}>Précédent</button>
