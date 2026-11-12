@@ -4,7 +4,7 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 
 | ID / source | Exigence | Implémentation | Test | Preuve / statut | Bloqueur |
 | --- | --- | --- | --- | --- | --- |
-| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Tests locaux et E2E CI trois moteurs réussis | Recette déployée |
+| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Navigation publique observée en Chrome sur la preview ; [preuve](preuves/2026-11-12-pwa-hebergee.md) | Installation physique |
 | P0-DEMO / mission §1 | ?demo=1 ne contourne pas le site public | useStore.ts, App.tsx | App.test.tsx, install-smoke.mjs | Flag build explicite, aucun repli API | Démo métier hébergée séparée |
 | P0-ANDROID / CDC §3.2 | beforeinstallprompt, manifest, icônes, SW, HTTPS | Install.tsx, public/, netlify.toml | screens.test.tsx, install-smoke.mjs | Événement synthétique distingué d'une installation réelle | Appareil physique |
 | P0-IOS / v1.2 §6 | Guide visuel trois étapes, fermer puis réouvrir volontairement | Install.tsx | screens.test.tsx, install-smoke.mjs | Unitaires et E2E trois moteurs réussis : fermeture persistée, focus et Échap | Safari physique |
@@ -25,7 +25,7 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 | V12-INTERNAL / §4 | Notification selon nombre employés | domain `ownerReportNotice`, ReportService.submit, contrat push `report_available`/`authorFirstName`, sw.js sans tag commun | api v12-closing-notifications.test.ts, service-worker.test.ts | REC-05/06 automatisés avec transport Push Dev | VAPID + appareil physique pour la réception réelle |
 | V12-EVENING / §5 | Un seul rapport patron, business à jour uniquement | À implémenter | REC-07 | Ouvert | Décision V1, horaire, Meta |
 | V12-IOS / §6 | Guide fermé ne revient qu'à la demande | P0-IOS ci-dessus | REC-08 + écrans/E2E installation | Partiel : tests représentatifs à consigner | Installation physique |
-| V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Auth existante, arbitrage requis | REC-14 | Ouvert | Contradiction 2/24h |
+| V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Politique WhatsApp configurable, CDC par défaut | auth.test.ts, runtime-config.test.ts | Test local de la v1.2 ; recette hébergée ouverte | Arbitrage CDC / v1.2 |
 | V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | À implémenter dans domain/contracts/API/PWA/admin | REC-09/10/11/12/13 | Ouvert | Nature des jours/plafond/essai |
 | V12-METRICS / §12/13 | Analytics anonymes, funnel, CSV, admins seuls, audit accès | À implémenter | Tests isolation/agrégats/CSV à créer | Ouvert | Politique anonymat/APDP, exclusions équipe |
 

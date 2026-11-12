@@ -1,3 +1,4 @@
+import type { OtpIssuePolicy } from '@gobilan/domain';
 import type { Clock } from './clock';
 import type { Secrets } from './crypto';
 import type { Db } from './db';
@@ -22,6 +23,7 @@ export interface AppConfig {
   paymentsEnabled?:boolean;
   /** Recette Render uniquement : OTP de démonstration pour une liste fermée de numéros fictifs. Jamais défini en production. */
   demoOtp?: DemoOtpPolicy | null;
+  userOtpIssuePolicy?: OtpIssuePolicy;
 }
 
 export interface Deps {
