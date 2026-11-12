@@ -58,8 +58,150 @@ Les tests SQL/E2E créent des schémas de test aléatoires et ne suppriment que 
 
 ## Bloqué / non livré
 
-**NO-GO production**, maintenu volontairement dans server.ts. Fournisseurs WhatsApp, CAPTCHA, SMTP, FedaPay et push réels non branchés. Rappels et rapprochement périodique non planifiés. Checkout réel indisponible en mode HTTP. Captures/vidéo iOS, installation sur appareils physiques, tests de charge, restauration, infrastructure, domaines, secrets gérés et revue juridique absents.
+**NO-GO production** : les adaptateurs réels et leur câblage HTTP sont livrés dans le lot décrit ci-dessous, mais les comptes fournisseurs et leur recette externe ne sont pas validés. Ordonnanceur, restauration isolée et image API sont livrés ; hébergement API/PostgreSQL, secrets gérés, copie de sauvegarde hors hôte et autorisation de lancement restent requis. Appareils physiques et charge réelle non validés.
 
 Performance à traiter avant forte volumétrie : le workspace charge tout l'historique autorisé de tous les business. Préférer des agrégats serveur et un historique paginé, sans réintroduire de troncature dans la caisse/stock. Réapprovisionnement stock non livré. Voir REQUIREMENTS_MATRIX.md et DEPLOYMENT_READINESS.md pour les limites détaillées.
 
 Les hypothèses métier documentées par Claude, notamment D-004/D-014/D-018, ne sont pas des validations client. Les conserver visibles jusqu'à arbitrage.
+
+## Livraison : branche existante PR #7 — intégrations configurées
+
+`PROVIDER_MODE=configured` sélectionne les transports réels Meta OTP, SMTP,
+Turnstile, Web Push chiffré et FedaPay REST dans le serveur. Il n'existe aucun
+repli sur les doublures si une clé manque. Les variables sont dans
+`.env.providers.example` (copier vers `.env.providers`, jamais committer ce
+fichier). Pour la recette Docker :
+
+```sh
+docker compose -f compose.acceptance.yml -f compose.providers.yml up -d --build
+```
+
+Laisser `EXTERNAL_DELIVERY_ENABLED=false` et `EXTERNAL_PAYMENTS_ENABLED=false`.
+En recette, une activation ultérieure exige les listes exactes
+`TEST_EMAIL_RECIPIENTS`, `TEST_WHATSAPP_RECIPIENTS`, `TEST_PUSH_ENDPOINTS` ; jamais
+les coordonnées des clients. WhatsApp utilise un template d'authentification
+Meta approuvé (corps OTP et bouton URL OTP). La version Graph doit être celle
+approuvée pour le compte, sans valeur supposée par le code. Aucun appel externe
+réel n'est attesté par les tests HTTP avec doubles.
+
+La PWA demande la configuration CAPTCHA publique puis affiche Turnstile et
+transmet son jeton à l'API. Un échec ne remplace jamais ce jeton par un jeton de
+développement. La CSP autorise uniquement le domaine Turnstile nécessaire.
+Le bouton FedaPay apparaît uniquement si l'API déclare l'activation explicite ;
+il recueille l’e-mail de paiement pour le client FedaPay (nom et téléphone issus de la session authentifiée), sans confirmer aucun abonnement au retour navigateur. La même demande conserve
+sa clé en session et réutilise son identifiant fournisseur après panne du token.
+Une création ambiguë sans identifiant reste bloquée pour contrôle fournisseur.
+
+Netlify : définir `API_ORIGIN=https://<hôte-API-autorisé>` dans le contexte voulu.
+Le build génère un proxy `/v1/*` avant la route SPA. Sans cette origine, les appels
+API restent des erreurs JSON 404 explicites ; aucune donnée de démo n'est injectée.
+Le déploiement courant de production n'a pas été modifié.
+
+### Sauvegarde opérationnelle de recette
+
+```sh
+# Une sauvegarde quotidienne, rétention locale 7 jours ; volume distinct de PostgreSQL.
+docker compose -f compose.acceptance.yml --profile backups up -d backups
+# Sauvegarde ponctuelle
+docker compose -f compose.acceptance.yml run --rm backups backup
+# Contrôle de restauration dans une base TEMPORAIRE distincte, supprimée après contrôle
+docker compose -f compose.acceptance.yml run --rm backups verify /backups/gobilan-<horodatage>.dump
+```
+
+Archives custom PostgreSQL, permissions privées, checksum SHA-256 et validation
+du catalogue. Le script refuse toute base autre que `db/gobilan_acceptance`.
+Ne pas utiliser `down -v` sur une recette à conserver : cela efface les volumes,
+y compris les sauvegardes locales. Ce volume ne remplace pas une copie hors hôte ;
+un stockage durable existant doit être choisi avant lancement, sans souscription
+payante automatique. La CI exerce sauvegarde et restauration isolées.
+
+### Préconditions de lancement (ne pas activer pendant la recette)
+
+Le démarrage production exige `PRODUCTION_RELEASE_APPROVED=true`,
+`PROVIDER_MODE=configured`, PostgreSQL TLS `sslmode=verify-full`,
+`SECURE_COOKIES=true` et trois origines HTTPS explicites. Aucune migration ni
+création d'administrateur de développement n'est exécutée automatiquement en
+production. Appliquer les migrations par la commande dédiée avant démarrage ;
+le serveur vérifie la présence des colonnes de reprise. Le mode Live exige en
+plus `FEDAPAY_LIVE_APPROVED=true`. Ces portes ne constituent ni une autorisation
+actuelle, ni une validation des comptes fournisseurs. Hébergement API/PostgreSQL,
+secrets, recettes fournisseur et approbation de lancement restent nécessaires.
+
+`Dockerfile.api` prépare l’image de lancement avec `NODE_ENV=production` ; la CI vérifie qu’elle refuse le démarrage sans approbation. `Dockerfile.acceptance` reste réservé à la recette. Aucune image n’a été déployée sur une infrastructure production.
+
+## État au 12 novembre 2026 — recette Render opérationnelle (P0.1 et P0.2)
+
+- Branche déployée : `fix/gobilan-livraison-15-novembre`, commit de fusion de la PR #11 `c7894fd`.
+- Cause de l'échec du 9 novembre : `NODE_ENV=production` (défaut Render) alors que le mode
+  `RENDER_RECETTE` exige l'inverse, puis `DATABASE_URL` absente. Corrigé par configuration, sans
+  `PRODUCTION_RELEASE_APPROVED`.
+- API : https://gobilan-recette-api.onrender.com — `/health` et `/ready` répondent 200.
+- Base `gobilan-recette` : inspectée en lecture seule au démarrage (0 table), puis initialisée
+  avec les migrations 001 à 007. Toute migration future sur cette base non vide exige une
+  sauvegarde puis `RECETTE_MIGRATION_APPROVED_UP_TO` (voir `docs/recette/otp-demo-recette.md`).
+- `DATABASE_URL` est injectée par le Blueprint Render `gobilan-recette` (fichier `render.yaml`
+  de la branche `infra/render-recette-blueprint`, synchronisation automatique désactivée) :
+  le mot de passe ne transite ni par Git ni par un poste.
+- PWA de recette : https://deploy-preview-12--gobilan-pwa.netlify.app (PR #12, brouillon, à ne
+  pas fusionner). `API_ORIGIN` est définie sur Netlify ; `PWA_ORIGIN` côté API vaut cette URL
+  exacte. `gobilan-pwa.netlify.app` sert encore l'ancien build de `main`. `gobilan.com`
+  appartient au client et ne doit pas être modifié.
+- Portails partenaires et admin : non déployés ; leurs origines côté API sont des valeurs de
+  réserve en `.invalid`.
+- OTP de démonstration actif jusqu'au 16 novembre 2026 23:00 UTC pour 20 numéros fictifs
+  (variables `RECETTE_DEMO_*` du service Render ; le code n'est écrit dans aucun fichier).
+- Preuves : `docs/recette/preuves/2026-11-12-recette-render.md`.
+- Échéance : livraison finale V1 le 15 novembre 2026. Reprise détaillée et tâches ordonnées :
+  `docs/CODEX_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md` (commencer par T1, IP derrière le proxy).
+- Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
+- Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
+  stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
+
+## 12 novembre — correctif de quotas réseau
+
+Branche `fix/gobilan-proxy-security` depuis `13d63a0`. Le correctif utilise une preuve
+HMAC produite à partir de l’adresse de connexion Netlify et maintient un quota commun
+pour le trafic direct sans preuve. Pas de migration supplémentaire. Tests locaux et
+état de la validation hébergée dans `docs/recette/preuves/2026-11-12-proxy-client-ip.md`.
+La configuration et la séquence d’activation sont dans `docs/SECURITY_MODEL.md`.
+
+## 12 novembre — parcours PWA de recette
+
+Branche `fix/gobilan-pwa-recette` depuis `13d63a0`. Le mode hébergé de `e2e/pwa-smoke.mjs`
+cible exclusivement la preview #12. Il exige les comptes fictifs réservés et le code de
+recette avant de lancer un navigateur, et vérifie les données via l’API. Le mode local
+conserve le test du blocage après expiration sur PostgreSQL isolé. L’accueil, les
+instructions d’installation Chrome et les mentions légales ont été vérifiés sur la
+preview actuelle. Le parcours authentifié reste à exécuter selon
+`docs/recette/preuves/2026-11-12-pwa-hebergee.md`.
+
+## Intégration des cinq PR du 12 novembre
+
+Branche `integration/gobilan-15-novembre`, partie du HEAD de livraison `13d63a0`.
+Ordre appliqué : #14, #15, #16, #17, #13. #15 et #16 descendent de #14 ; seuls
+leurs commits propres sont appliqués. Le conflit de passation a été résolu en
+conservant les notes proxy et PWA. L'API, l'authentification, les tests et les
+configurations Netlify ont été intégrés sans conflit textuel.
+
+Les routes admin restent réservées à la session admin serveur. Les secrets du
+proxy sont des variables d'exécution côté Edge et Render. N'activer la signature
+en recette que lorsque les deux versions correspondantes sont déployées.
+Le service de recette existant et sa base sont à préserver. L'intégration
+dans la branche déployée, l'activation fournisseurs et toute dépense exigent
+une décision séparée. Voir `docs/recette/livraison-15-novembre.md` pour les critères.
+
+### Suite V1 après l'intégration
+
+La PR d'intégration #18 (`c4877d8`) cible la livraison depuis `13d63a0`.
+Le lot suivant ajoute la recherche des codes propriétaires, les compteurs issus
+des attributions et crédits existants et un export CSV réservé aux
+administrateurs. Les jours crédités sont affichés à partir du journal de
+récompenses. Leur application aux abonnements reste soumise à l'arbitrage
+commercial. Le lanceur `e2e/run-hosted-recette.sh` permet de saisir les
+identifiants de recette sans écho, ou de les injecter à l'exécution.
+
+Les portails attendent un accès permettant de lier leurs deux projets Netlify
+au dépôt et de déployer la branche autorisée. Aucun projet vide n'a été créé.
+L'API Render reste liée à la branche de livraison. Les variables de signature
+Edge et Render devront être vérifiées ensemble après déploiement des builds
+correspondants.

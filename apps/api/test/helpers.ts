@@ -24,7 +24,11 @@ export async function makeDeps(over: Partial<Deps> = {}) {
     const pg = await createPgDb(url.toString());
     db = pg;
     cleanup.push(async () => { await pg.close(); await admin.exec(`drop schema ${schema} cascade`); await admin.close(); });
-  } else db = await createPgliteDb();
+  } else {
+    const embedded = await createPgliteDb();
+    db = embedded;
+    cleanup.push(() => embedded.close());
+  }
   await migrate(db);
   const clock = new FakeClock(T0);
   const providers = createDevProviders();

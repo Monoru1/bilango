@@ -1,0 +1,2 @@
+# Preserve original specification bytes; never normalize PDF line endings.
+*.pdf binary

@@ -2,7 +2,7 @@ import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import {
-  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, inviteMemberSchema,
+  adminAllowlistChangeSchema, adminAllowlistConfirmSchema, changePartnerRoleSchema, checkoutSchema, createBusinessSchema, createPartnerSchema, createPinSchema, createRoleSchema, editReportSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, inviteMemberSchema,
   loginPinSchema, partnerActivateSchema, partnerForgotSchema, partnerLoginSchema, partnerResetSchema, payoutBlockSchema, profileSchema, pushSubscriptionSchema, pushUnsubscribeSchema, registerAgentSchema,
   requestOtpSchema, respondInvitationSchema, reversePayoutSchema, stockItemSchema, submitReportSchema, updateBusinessSchema, validatePayoutSchema, verifyOtpSchema,
 } from '@gobilan/contracts';
@@ -17,6 +17,8 @@ import { PartnerService, type PartnerSession } from '../services/partners';
 import { PushService } from '../services/push';
 import { ReportService } from '../services/reports';
 import { SubscriptionService } from '../services/subscriptions';
+import { OwnerReferralService } from '../services/owner-referrals';
+import { normalizeClientIp, verifiedClientIp } from './client-ip';
 
 /**
  * Trois audiences, trois cookies distincts : une session partenaire ne peut jamais servir
@@ -25,10 +27,12 @@ import { SubscriptionService } from '../services/subscriptions';
 const COOKIE = { user: 'gb_user', partner: 'gb_partner', admin: 'gb_admin' } as const;
 type Audience = keyof typeof COOKIE;
 const CSRF_HEADER = 'x-gobilan-csrf';
+const DIRECT_QUOTA_KEY = 'direct-without-verified-client-ip';
 
 declare module 'fastify' {
   interface FastifyRequest {
     rawBody?: string;
+    clientIp: string | null;
   }
 }
 
@@ -36,6 +40,7 @@ export interface AppOptions {
   secureCookies: boolean;
   /** Désactivé dans les tests unitaires pour ne pas dépendre du temps réel. */
   rateLimit: boolean;
+  proxyKey?: string | undefined;
 }
 
 const idParam = z.object({ id: z.string().uuid() });
@@ -60,8 +65,17 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
       done(new AppError('validation', 'Corps JSON invalide.'), undefined);
     }
   });
+  app.decorateRequest('clientIp', null);
+  app.addHook('onRequest', async (req) => {
+    req.clientIp = opts.proxyKey
+      ? verifiedClientIp(req.headers['x-gobilan-proxy'], opts.proxyKey, req.method, req.url, deps.clock.now())
+      : normalizeClientIp(req.ip);
+  });
   void app.register(cookie);
-  if (opts.rateLimit) void app.register(rateLimit, { global: true, max: 300, timeWindow: '1 minute' });
+  if (opts.rateLimit) void app.register(rateLimit, {
+    global: true, max: 300, timeWindow: '1 minute',
+    keyGenerator: req => req.clientIp ?? DIRECT_QUOTA_KEY,
+  });
 
   app.addHook('onSend', async (_req, reply) => {
     reply.header('cache-control', 'no-store');
@@ -123,12 +137,20 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   }
   const authLimit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } };
 
-  app.get('/health', async () => ({ ok: true }));
+  // @fastify/rate-limit s'applique par un hook onRoute installé au chargement du plugin. Les routes doivent donc
+  // être déclarées après ce chargement : sans `after`, aucune limite (globale ou par route) n'était appliquée.
+  app.after(() => {
+  app.get('/v1/auth/config',async()=>({payments:{enabled:deps.config.paymentsEnabled===true,mode:deps.config.fedapayMode},captcha:{provider:deps.config.captchaSiteKey?'turnstile':'dev',siteKey:deps.config.captchaSiteKey||null,action:'otp'},demo:{whatsappSimulated:!!deps.config.demoOtp}}));
+  app.get('/health', { config: { rateLimit: false } }, async () => ({ ok: true }));
+  app.get('/ready', { config: { rateLimit: false } }, async (_req, reply) => {
+    try { await deps.db.query('select 1'); return {ok:true}; }
+    catch { return reply.status(503).send({ok:false}); }
+  });
 
   // ================= Utilisateurs (PWA) =================
   app.post('/v1/auth/otp/request', authLimit, async (req) => {
     csrf(req, 'user');
-    return auth.requestOtp(requestOtpSchema.parse(req.body), req.ip);
+    return auth.requestOtp(requestOtpSchema.parse(req.body), req.clientIp, req.clientIp ?? DIRECT_QUOTA_KEY);
   });
   app.post('/v1/auth/otp/verify', authLimit, async (req, reply) => {
     csrf(req, 'user');
@@ -230,8 +252,10 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/push/unsubscribe', async (req) => new PushService(deps).unregister((await user(req)).user, pushUnsubscribeSchema.parse(req.body).endpoint));
 
   // ================= Abonnement =================
+  app.get('/v1/me/owner-referral-code', async (req) => new OwnerReferralService(deps).view((await user(req)).user));
+  app.post('/v1/me/owner-referral-code', async (req) => new OwnerReferralService(deps).generate((await user(req)).user));
   app.get('/v1/businesses/:businessId/subscription', async (req) => subs.view((await user(req)).user, bizParam.parse(req.params).businessId));
-  app.post('/v1/subscription/checkout', async (req) => subs.createCheckout((await user(req)).user, checkoutSchema.parse(req.body).businessId));
+  app.post('/v1/subscription/checkout', async (req) => {const input=checkoutSchema.parse(req.body);return subs.createCheckout((await user(req)).user,input.businessId,input.idempotencyKey,input.customerEmail);});
   // Webhook : pas de cookie ni CSRF — authentifié par la signature HMAC du corps brut.
   app.post('/v1/webhooks/fedapay', async (req, reply) => {
     const sig = req.headers['x-fedapay-signature'];
@@ -247,7 +271,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/partner/activate', authLimit, async (req, reply) => {
     csrf(req, 'partner');
     const b = partnerActivateSchema.parse(req.body);
-    const r = await partners.activate(b.token, b.password, b.acceptedAgreementVersion, req.ip);
+    const r = await partners.activate(b.token, b.password, b.acceptedAgreementVersion, req.clientIp);
     setSession(reply, 'partner', r.token, deps.config.partnerSessionHours * 3600);
     return { partner: r.partner };
   });
@@ -278,7 +302,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.get('/v1/partner/me', async (req) => ({ partner: (await partner(req)).partner }));
   app.post('/v1/partner/agreement', async (req) => {
     const p = await partner(req);
-    await partners.acceptAgreement(p.partner, z.object({ version: z.string().min(1).max(16) }).parse(req.body).version, req.ip);
+    await partners.acceptAgreement(p.partner, z.object({ version: z.string().min(1).max(16) }).parse(req.body).version, req.clientIp);
     return { ok: true };
   });
   app.get('/v1/partner/dashboard', async (req) => partners.dashboard((await partner(req)).partner));
@@ -319,6 +343,20 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
   app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });
+  const ownerReferralFilters = z.object({ q: z.string().trim().min(1).max(160).optional(), date: z.iso.date().optional() });
+  app.get('/v1/admin/owner-referral-codes', async req => {
+    await adminSession(req);
+    const query = ownerReferralFilters.extend({
+      offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50),
+    }).parse(req.query);
+    return admin.listOwnerReferralCodes(query.offset, query.limit, query);
+  });
+  app.get('/v1/admin/owner-referral-codes.csv', async (req, reply) => {
+    await adminSession(req);
+    const csv = await admin.exportOwnerReferralCodes(ownerReferralFilters.parse(req.query));
+    return reply.type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="parrainages-proprietaires.csv"').send(csv);
+  });
   app.get('/v1/admin/subscriptions', async req => {
     await adminSession(req); const q = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
     return { subscriptions: await admin.listSubscriptions(q.offset, q.limit) };
@@ -344,6 +382,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
     await admin.changePartnerRole((await adminSession(req)).admin, idParam.parse(req.params).id, changePartnerRoleSchema.parse(req.body)); return { ok: true };
   });
   app.post('/v1/admin/referrals/exclude', async (req) => admin.excludeReferral((await adminSession(req)).admin, excludeReferralSchema.parse(req.body)));
+  app.post('/v1/admin/owner-referral-codes/deactivate', async (req) => admin.deactivateOwnerReferralCode((await adminSession(req)).admin, deactivateOwnerReferralCodeSchema.parse(req.body)));
   app.get('/v1/admin/payouts/calendar', async (req) => {
     await adminSession(req);
     return admin.payoutCalendar(z.object({ cycleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.query).cycleDate);
@@ -353,6 +392,7 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/admin/payouts/reverse', async (req) => {
     await admin.reversePayout((await adminSession(req)).admin, reversePayoutSchema.parse(req.body));
     return { ok: true };
+  });
   });
 
   return app;

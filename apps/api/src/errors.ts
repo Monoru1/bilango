@@ -15,6 +15,7 @@ const STATUS: Record<ErrorCode, number> = {
   otp_exhausted: 429,
   otp_quota: 429,
   subscription_blocked: 402,
+  payment_terminal:409,
   edit_window_closed: 403,
   internal: 500,
 };

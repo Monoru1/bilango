@@ -18,7 +18,7 @@ const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'migr
  * Limite : une seule connexion — les vraies courses entre transactions concurrentes ne sont
  * pas reproduites ici et doivent être rejouées sur PostgreSQL en CI (docs/TEST_REPORT.md).
  */
-export async function createPgliteDb(): Promise<Db> {
+export async function createPgliteDb(): Promise<Db & { close(): Promise<void> }> {
   const { PGlite } = await import('@electric-sql/pglite');
   const pg = new PGlite();
   type Queryable = { query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }>; exec: (sql: string) => Promise<unknown> };
@@ -31,7 +31,7 @@ export async function createPgliteDb(): Promise<Db> {
   });
   const nested = (q: Queryable): Db =>
     wrap(q, async (fn) => fn(nested(q))); // pas de sous-transaction : on réutilise celle en cours
-  return wrap(pg as unknown as Queryable, (fn) => pg.transaction((t) => fn(nested(t as unknown as Queryable))));
+  return { ...wrap(pg as unknown as Queryable, (fn) => pg.transaction((t) => fn(nested(t as unknown as Queryable)))), close: () => pg.close() };
 }
 
 export async function createPgDb(connectionString: string): Promise<Db & { close(): Promise<void> }> {
@@ -61,20 +61,26 @@ export async function createPgDb(connectionString: string): Promise<Db & { close
   return { ...wrap(pool, false), close: () => pool.end() };
 }
 
+export async function migrationFiles(): Promise<string[]> {
+  return (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
+}
+
 /** Applique, dans l'ordre, les fichiers `migrations/*.sql` non encore appliqués. */
 export async function migrate(db: Db): Promise<string[]> {
-  await db.query('create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())');
-  const applied = new Set((await db.query<{ name: string }>('select name from schema_migrations')).rows.map((r) => r.name));
-  const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
-  const done: string[] = [];
-  for (const file of files) {
-    if (applied.has(file)) continue;
-    const sql = await readFile(join(MIGRATIONS_DIR, file), 'utf8');
-    await db.tx(async (t) => {
-      await t.exec(sql);
+  const files = await migrationFiles();
+  return db.tx(async (t) => {
+    // Acquire before the first DDL: concurrent starts must not race even while
+    // creating schema_migrations. Scope the lock to this database and schema.
+    await t.query("select pg_advisory_xact_lock(hashtext(current_database()), hashtext(current_schema() || ':gobilan:migrations'))");
+    await t.query('create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())');
+    const applied = new Set((await t.query<{ name: string }>('select name from schema_migrations')).rows.map((r) => r.name));
+    const done: string[] = [];
+    for (const file of files) {
+      if (applied.has(file)) continue;
+      await t.exec(await readFile(join(MIGRATIONS_DIR, file), 'utf8'));
       await t.query('insert into schema_migrations(name) values ($1)', [file]);
-    });
-    done.push(file);
-  }
-  return done;
+      done.push(file);
+    }
+    return done;
+  });
 }

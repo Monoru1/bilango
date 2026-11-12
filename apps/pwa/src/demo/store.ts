@@ -232,17 +232,18 @@ export class DemoStore extends StoreView<DemoState> {
     return { ok: true };
   }
 
-  createBusiness(name: string, sector: Sector, stockEnabled: boolean): Result<{ id: Id }> {
+  createBusiness(name: string, sector: Sector, stockEnabled: boolean, closingTime = '20:00'): Result<{ id: Id }> {
     const u = this.user;
     if (!u) return fail('Session expirée.');
     const n = name.trim();
     if (!n) return fail('Entrez le nom du business.');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(closingTime)) return fail('Heure invalide.');
     const id = nid('b');
     const now = this.now();
     // Essai de 7 jours UNE seule fois par numéro (anti-abus, §8.1) — simulé ici.
     const hadTrial = this.state.businesses.some((b) => b.ownerId === u.id);
     this.set((s) => {
-      s.businesses.push({ id, ownerId: u.id, name: n, country: u.country, sector, stockEnabled, reminderTime: '20:00', openingCash: null, createdAt: new Date(now).toISOString() });
+      s.businesses.push({ id, ownerId: u.id, name: n, country: u.country, sector, stockEnabled, reminderTime: closingTime, openingCash: null, createdAt: new Date(now).toISOString() });
       s.members.push({ id: nid('m'), businessId: id, userId: u.id, roleId: null, status: 'active', joinedAt: new Date(now).toISOString() });
       s.subs.push({ businessId: id, trialEndsAt: hadTrial ? null : trialEndsAtFrom(now), paidUntil: null, payments: [] });
     });

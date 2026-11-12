@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/http/app';
+import { OwnerReferralService } from '../src/services/owner-referrals';
 import { signFedapayWebhook } from '../src/crypto';
-import { makeDeps, mkTeam, reportInput, partnerServices, mkPartner, type Ctx } from './helpers';
+import { makeDeps, mkTeam, payFor, reportInput, partnerServices, mkPartner, type Ctx } from './helpers';
 
 let ctx: Ctx;
 let app: FastifyInstance;
@@ -147,7 +148,7 @@ describe('HTTP — partenaires et administration', () => {
     expect(wrongOrigin.statusCode).toBe(403);
   });
 
-  it('connexion admin en 2 étapes puis accès aux statistiques ; un cookie partenaire ne donne pas accès', async () => {
+  it('réserve les statistiques et les codes de parrainage paginés à une session admin vérifiée', async () => {
     const { admin } = partnerServices(ctx);
     await admin.upsertAdmin('admin@novadis.test', 'admin-mot-de-passe-long');
     const s1 = await app.inject({ method: 'POST', url: '/v1/admin/login', headers: AH, payload: { email: 'admin@novadis.test', password: 'admin-mot-de-passe-long' } });
@@ -164,6 +165,47 @@ describe('HTTP — partenaires et administration', () => {
     const pl = await app.inject({ method: 'POST', url: '/v1/partner/login', headers: PH, payload: { email: 'm@ex.test', password: 'motdepasse-solide' } });
     const asAdmin = await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: cookieOf(pl, 'gb_partner')! } });
     expect(asAdmin.statusCode).toBe(401);
+    const referralUrl = '/v1/admin/owner-referral-codes';
+    const cookies = { gb_admin: cookieOf(s2, 'gb_admin')! };
+    const referrals = new OwnerReferralService(ctx.deps);
+    const owners = [];
+    for (const active of [false, true]) {
+      const team = await mkTeam(ctx);
+      expect(await (await payFor(ctx, team.owner, team.businessId)).send()).toBe('confirmed');
+      const { code } = await referrals.generate(team.owner.user);
+      if (!active) await ctx.db.query('update owner_referral_codes set active=false where owner_id=$1', [team.owner.user.id]);
+      const ownerName = active ? '=Nom de test' : team.owner.user.name;
+      if (active) await ctx.db.query('update users set name=$1 where id=$2', [ownerName, team.owner.user.id]);
+      if (active) {
+        const referred = await mkTeam(ctx);
+        await ctx.db.query('insert into owner_referral_attributions(referred_user_id,owner_id,code,created_at) values ($1,$2,$3,$4)',
+          [referred.owner.user.id, team.owner.user.id, code, new Date(ctx.clock.now()).toISOString()]);
+        expect(await (await payFor(ctx, referred.owner, referred.businessId)).send()).toBe('confirmed');
+      }
+      owners.unshift({ code, ownerName, active, createdAt: new Date(ctx.clock.now()).toISOString(),
+        registrations: Number(active), firstPayments: Number(active), rewardDays: active ? 30 : 0 });
+      ctx.clock.advance(1000);
+    }
+    expect((await app.inject({ url: referralUrl })).statusCode).toBe(401);
+    expect((await app.inject({ url: referralUrl, cookies: { gb_admin: cookieOf(pl, 'gb_partner')! } })).statusCode).toBe(401);
+    expect((await app.inject({ url: referralUrl + '?limit=0', cookies })).statusCode).toBe(400);
+    const firstPage = await app.inject({ url: referralUrl + '?limit=1', cookies });
+    expect(firstPage.statusCode).toBe(200);
+    expect(firstPage.json()).toEqual({ codes: [owners[0]], hasNext: true });
+    const secondPage = await app.inject({ url: referralUrl + '?limit=1&offset=1', cookies });
+    expect(secondPage.statusCode).toBe(200);
+    expect(secondPage.json()).toEqual({ codes: [owners[1]], hasNext: false });
+    const filters = new URLSearchParams({ q: '=Nom de test', date: owners[0]!.createdAt.slice(0, 10) });
+    expect((await app.inject({ url: referralUrl + '?' + filters, cookies })).json()).toEqual({ codes: [owners[0]], hasNext: false });
+    expect((await app.inject({ url: referralUrl + '?date=2026-02-30', cookies })).statusCode).toBe(400);
+    const csvUrl = referralUrl + '.csv?' + filters;
+    expect((await app.inject({ url: csvUrl })).statusCode).toBe(401);
+    const csv = await app.inject({ url: csvUrl, cookies });
+    expect(csv.statusCode).toBe(200);
+    expect(csv.headers['content-disposition']).toContain('attachment');
+    expect(csv.body).toContain(`"'=Nom de test"`);
+    expect(csv.body).toContain(owners[0]!.code);
+    expect(csv.body).not.toContain(owners[1]!.code);
   });
 
   it('§13.3 — la réinitialisation du mot de passe partenaire coupe TOUTES les sessions, code à usage unique', async () => {
@@ -215,4 +257,11 @@ describe('HTTP — partenaires et administration', () => {
     expect((await app.inject({ method: 'GET', url: '/v1/admin/stats', cookies: { gb_admin: session } })).statusCode).toBe(401);
     expect(mails().filter((m) => m === 'Mot de passe administrateur modifié')).toHaveLength(2);
   });
+});
+
+it('readiness checks the database and hides dependency errors', async()=>{
+ expect((await app.inject({method:'GET',url:'/ready'})).statusCode).toBe(200);
+ vi.spyOn(ctx.db,'query').mockRejectedValueOnce(new Error('private database detail'));
+ const response=await app.inject({method:'GET',url:'/ready'});
+ expect(response.statusCode).toBe(503);expect(response.json()).toEqual({ok:false});expect(response.body).not.toContain('private');
 });

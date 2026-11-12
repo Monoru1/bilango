@@ -90,7 +90,7 @@ describe('saisie du bilan (§6)', () => {
     await reports.submit(e.user, t.businessId, reportInput(123456, { openingCash: 0 }));
     const sent = ctx.providers.push.sent.filter((p) => p.userId === t.owner.user.id);
     expect(sent).toHaveLength(1);
-    expect(sent[0]!.payload).toEqual({ type: 'report_sent', businessName: 'Boutique Étoile', badge: true });
+    expect(sent[0]!.payload).toEqual({ type: 'report_available', businessName: 'Boutique Étoile', badge: true }); // un seul employé (v1.2 §4)
     // Aucun montant nulle part dans la charge utile sérialisée (écran verrouillé).
     expect(JSON.stringify(sent[0]!.payload)).not.toContain('123456');
   });

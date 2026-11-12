@@ -7,7 +7,9 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_MODULE_DIR ? `${process.env.PLAYWRIGHT_MODULE_DIR}/package.json` : import.meta.url);
-const { chromium } = require('playwright');
+const browserName = process.env.E2E_BROWSER || 'chromium';
+if (!['chromium','firefox','webkit'].includes(browserName)) throw new Error('Invalid E2E browser');
+const browserType = require('playwright')[browserName];
 const LOG = process.env.API_LOG ?? '/tmp/api.log';
 const TAG = Date.now().toString(36).toUpperCase().replace(/[^A-Z]/g, 'X').slice(-5);
 const MGR = `marie-${TAG.toLowerCase()}@partner.test`;
@@ -15,9 +17,19 @@ const AGT = `koffi-${TAG.toLowerCase()}@partner.test`;
 const CODE = `KOFFI${TAG}225`.slice(0, 20);
 const log = () => readFileSync(LOG, 'utf8');
 const lastMatch = (re) => { const m = [...log().matchAll(re)]; return m.length ? m[m.length - 1] : null; };
+// Le journal de l'API est écrit par un autre processus : l'écran peut s'afficher avant que la ligne
+// de l'e-mail simulé n'atteigne le fichier. On attend donc brièvement au lieu de lire une seule fois.
+const waitMatch = async (re, timeoutMs = 5000) => {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const m = lastMatch(re);
+    if (m || Date.now() >= deadline) return m;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+};
 const check = (cond, msg) => { if (!cond) throw new Error('ÉCHEC : ' + msg); console.log('OK   ' + msg); };
 
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const browser = await browserType.launch(browserName === 'chromium' ? { executablePath: process.env.CHROMIUM, args: ['--no-sandbox', '--disable-dev-shm-usage'] } : {});
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
 const errors = [];
 // Contextes séparés : en production admin et partenaires sont sur des hôtes distincts (cookies « host-only »).
@@ -33,11 +45,15 @@ await adm.getByLabel('Mot de passe').fill('dev-admin-password-123');
 await adm.getByRole('button', { name: 'Continuer' }).click();
 await adm.getByLabel('Code à 6 chiffres').waitFor();
 await adm.waitForTimeout(300);
-const code = lastMatch(/\[DEV EMAIL\] to=admin@novadis\.test[\s\S]*?\b(\d{6})\b/g)?.[1];
+const code = (await waitMatch(/\[DEV EMAIL\] to=admin@novadis\.test[\s\S]*?\b(\d{6})\b/g))?.[1];
 check(!!code, 'code admin 6 chiffres reçu par e-mail (simulé)');
 await adm.getByLabel('Code à 6 chiffres').fill(code);
 await adm.getByRole('button', { name: 'Se connecter' }).click();
 await adm.getByText('Statistiques').first().waitFor();
+await adm.getByRole('tab', { name: 'Parrainages propriétaires', exact: true }).click();
+await adm.getByRole('heading', { name: 'Codes de parrainage propriétaire' }).waitFor();
+await adm.getByText('Aucun code de parrainage sur cette page.', { exact: true }).waitFor();
+await adm.getByRole('tab', { name: 'Statistiques', exact: true }).click();
 check(true, 'connexion admin réussie (cookie httpOnly via proxy, CSRF + Origin acceptés)');
 await adm.getByRole('tab', { name: 'Partenaires' }).click();
 await adm.getByLabel('Nom').fill('Marie Manager');
@@ -47,7 +63,7 @@ await adm.getByText('Partenaire créé').waitFor();
 check(true, 'manager créé par l’admin');
 
 // --- Partenaire : activation, accord, tableau de bord ------------------------------------
-const link = lastMatch(/Activez votre accès : (http:\/\/[^\s]+\/activer\?token=([\w-]+))/g);
+const link = (await waitMatch(/Activez votre accès : (http:\/\/[^\s]+\/activer\?token=([\w-]+))/g));
 check(!!link, 'lien d’activation reçu (à usage unique, sans mot de passe dans le message)');
 check(!/mot de passe\s*:/i.test(log().split(`[DEV EMAIL] to=${MGR}`)[1]?.split('[/DEV EMAIL]')[0] ?? ''), 'aucun mot de passe dans l’e-mail');
 await par.goto(`http://localhost:5174/activer?token=${link[2]}`);
@@ -79,7 +95,7 @@ await adm.getByLabel('Adresse administrateur').fill('backup@novadis.test');
 await adm.getByLabel('Mot de passe initial').fill('backup-test-password-123');
 await adm.getByRole('button', { name: 'Demander la modification' }).click();
 await adm.getByLabel('Code de confirmation').waitFor();
-const confirmation = lastMatch(/Code de confirmation : (\d{6})/g)?.[1];
+const confirmation = (await waitMatch(/Code de confirmation : (\d{6})/g))?.[1];
 check(!!confirmation, 'confirmation allowlist reçue par e-mail simulé');
 await adm.getByLabel('Code de confirmation').fill(confirmation);
 await adm.getByRole('button', { name: 'Confirmer la modification' }).click();

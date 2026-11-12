@@ -9,6 +9,8 @@ import {
   currentVersion,
   employeeBlockedMessage,
   finalizeContent,
+  firstNameOf,
+  ownerReportNotice,
   remainingStockExcluding,
   subscriptionStatus,
   totalsOfDay,
@@ -24,6 +26,7 @@ import type { editReportSchema, submitReportSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
 import type { Db } from '../db';
 import type { Deps } from '../deps';
+import type { PushPayload } from '../providers';
 import { AppError, forbidden, notFound } from '../errors';
 import { requireAccess, subscriptionOf, type AccessContext } from './access';
 import type { SessionUser } from './auth';
@@ -149,7 +152,21 @@ export class ReportService {
       if (!ctx.access.isOwner) {
         const ownerId = ctx.business.owner_id;
         const businessName = ctx.business.name;
-        afterCommit.push(() => this.deps.providers.push.sendToUser(ownerId, { type: 'report_sent', businessName, badge: true }).catch(() => undefined));
+        // v1.2 §4 : un employé → « bilan disponible » ; plusieurs → notification individuelle « [Prénom] a envoyé son bilan ».
+        const employees = Number(
+          (
+            await t.query<{ n: number }>(
+              `select count(*)::int as n from members m join roles r on r.id = m.role_id
+                where m.business_id = $1 and m.status = 'active' and not m.is_owner and r.level in ('entry','full')`,
+              [businessId],
+            )
+          ).rows[0]?.n ?? 0,
+        );
+        const payload: PushPayload =
+          ownerReportNotice(employees) === 'individual'
+            ? { type: 'report_sent', businessName, authorFirstName: firstNameOf(authorName) || 'Un employé', badge: true }
+            : { type: 'report_available', businessName, badge: true };
+        afterCommit.push(() => this.deps.providers.push.sendToUser(ownerId, payload).catch(() => undefined));
       }
       return { id, day, duplicate: false };
     });

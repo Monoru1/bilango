@@ -2,7 +2,7 @@
   "name": "gobilan",
   "private": true,
   "version": "0.1.0",
-  "description": "GoBilan (Novadis Digital) \u2014 monorepo PWA, portail partenaires, administration, API",
+  "description": "GoBilan (Novadis Digital) — monorepo PWA, portail partenaires, administration, API",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -21,7 +21,8 @@
     "dev:partners": "npm run dev -w @gobilan/partners",
     "dev:admin": "npm run dev -w @gobilan/admin",
     "dev:api": "npm run dev -w @gobilan/api",
-    "test:e2e": "node e2e/run-smoke.mjs"
+    "test:e2e": "node e2e/run-smoke.mjs",
+    "test:e2e:install": "npm run build -w @gobilan/pwa && node e2e/run-install.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -30,6 +31,6 @@
     "playwright": "^1.64.1",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.40.0",
-    "vitest": "^3.2.0"
+    "vitest": "4.1.12"
   }
 }

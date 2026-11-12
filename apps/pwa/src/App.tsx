@@ -16,6 +16,7 @@ import { InvitationsScreen, ProfileScreen } from './screens/Settings';
 import { StockScreen } from './screens/Stock';
 import { SubscriptionScreen } from './screens/Subscription';
 import { TeamScreen } from './screens/Team';
+import { OwnerReferralScreen } from './screens/OwnerReferral';
 
 function Splash() {
   return <div className="screen center" style={{ justifyContent: 'center', minHeight: '100dvh' }}><div className="splash"><Logo size={88} /></div></div>;
@@ -38,6 +39,18 @@ function Landing() {
       </main>
     </div>
   );
+}
+
+/** Bandeau de recette : rend visible que WhatsApp n'est pas réellement branché dans cet environnement. */
+function RecetteBanner() {
+  const s = useStore();
+  const [simulated, setSimulated] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (s.mode === 'api') void s.whatsappSimulated().then((value) => { if (active) setSimulated(value); });
+    return () => { active = false; };
+  }, [s]);
+  return simulated ? <div className="gb-demo-banner" role="note">DÉMO — WhatsApp simulé</div> : null;
 }
 
 function AuthGate() {
@@ -63,14 +76,15 @@ export function App() {
     const timer = setInterval(update, 30000);
     return () => { window.removeEventListener('focus', update); clearInterval(timer); };
   }, [s, env.standalone]);
-  if (!ready) return <Splash />;
   // Le navigateur public ne charge jamais l'API ni les écrans métier.
   if (!env.standalone) return <BrowserRouter><Routes><Route path="/legal" element={<LegalScreen />} /><Route path="*" element={<InstallPage env={env} />} /></Routes></BrowserRouter>;
+  if (!ready) return <Splash />;
   if (s.mode === 'api' && !s.initialized) return <Splash />;
   if (s.mode === 'api' && s.loadError && !s.user) return <main className="pad stack"><p role="alert">{s.error}</p><button className="gb-btn" onClick={() => void s.refresh()}>Réessayer</button></main>;
   const installed = env.standalone;
   return (
     <BrowserRouter>
+      <RecetteBanner />
       {s.mode === 'api' && (s.loading || s.busy) && <p role="status">Chargement…</p>}
       {s.mode === 'api' && s.error && s.user && <p role="alert">{s.error}</p>}
       {s.mode === 'api' && s.otherDevices.length > 0 && <aside className="pad"><p>Vous êtes connecté sur un nouvel appareil.</p><button className="gb-btn" onClick={() => void s.logoutOtherDevices()}>Déconnecter les anciens appareils</button></aside>}
@@ -92,6 +106,7 @@ export function App() {
                   <Route path="equipe" element={<TeamScreen />} />
                   <Route path="stock" element={<StockScreen />} />
                   <Route path="abonnement" element={<SubscriptionScreen />} />
+                  <Route path="parrainage" element={<OwnerReferralScreen />} />
                 </Route>
                 <Route path="/profil" element={<ProfileScreen />} />
                 <Route path="/invitations" element={<InvitationsScreen />} />

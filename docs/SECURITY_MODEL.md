@@ -14,7 +14,11 @@ OTP : usage unique, dix minutes, quatre essais, deux demandes/24 h par numéro. 
 
 Toutes les mutations authentifiées exigent x-gobilan-csrf:1 et une Origin autorisée pour l'audience. Aucun CORS permissif : les applications passent par leur proxy de même origine /v1. Les GET ne modifient aucune donnée métier. Les webhooks sont hors CSRF et utilisent une signature sur le corps brut.
 
-trustProxy=false : un client ne peut plus fabriquer son IP via X-Forwarded-For. Toute future confiance proxy doit être limitée aux relais effectivement contrôlés, avec tests avant mise en production. Le rate limiting Fastify reste local au processus ; les quotas OTP sont en base.
+Fastify garde `trustProxy: false`. Une fois le proxy Edge activé, la fonction Netlify récupère l’adresse du client dans `context.ip` et signe l’adresse, l’horodatage, la méthode et l’URL avec HMAC SHA-256. Elle reconstruit les en-têtes envoyés à Render à partir d’une liste fermée. L’API vérifie la signature en temps constant et accepte une preuve pendant 60 secondes, avec 5 secondes de tolérance dans le futur. Les représentations IPv6 équivalentes et les adresses IPv4 encapsulées en IPv6 partagent le même compteur.
+
+Les requêtes directes ou sans preuve valide partagent un quota réseau distinct et aucune adresse distante n’est transmise à Turnstile pour ces requêtes. Les plafonds par numéro et par appareil continuent de s’appliquer. Le quota de débit Fastify reste local au processus et les quotas OTP sont en base. En développement ou sans clé configurée, le serveur utilise seulement l’adresse de la connexion TCP.
+
+Pour activer ce mode en recette, configurer une clé aléatoire de 32 octets encodée en hexadécimal sous `GOBILAN_PROXY_KEY_HEX` sur Render et dans le contexte Deploy Previews de Netlify (portée Functions si disponible). Configurer aussi `GOBILAN_EDGE_API_ORIGIN` côté Netlify avec l’origine HTTPS de l’API de recette. Déployer le code sur les deux plateformes avant d’activer les variables. La réécriture statique reste disponible lorsque les deux variables Edge sont absentes. Utiliser une clé distincte pour chaque environnement.
 
 ## Permissions et données
 

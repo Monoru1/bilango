@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../app/useStore';
+import { ClosingTimeField } from '../components/ClosingTimeField';
 
 /** Outils de démonstration (horloge simulée). Absents d'un build de production. */
 export function DemoControls({ compact = false }: { compact?: boolean }) {
@@ -27,10 +28,8 @@ export function ProfileScreen() {
   const user = s.user;
   const [perm, setPerm] = useState<string>(() => ('Notification' in window ? Notification.permission : 'unsupported'));
   const owned = user ? s.businessesOfUser(user.id).filter((b) => b.ownerId === user.id) : [];
-  const [time, setTime] = useState(owned[0]?.reminderTime ?? '20:00');
-  const [saved, setSaved] = useState(false);
-  if (!user) return null;
   const [pushNote, setPushNote] = useState<string | null>(null);
+  if (!user) return null;
   const enable = async () => {
     if (!('Notification' in window)) return setPerm('unsupported');
     const outcome = await s.enablePush();
@@ -53,17 +52,39 @@ export function ProfileScreen() {
           {s.mode === 'demo' && <p className="demo-note" style={{ margin: 0 }}><strong>DEMO</strong> : aucune notification réelle n’est envoyée (abonnement Web Push non branché au serveur).</p>}
           {pushNote && <p className="muted" role="status" style={{ margin: 0 }}>{pushNote}</p>}
         </section>
-        {owned[0] && (
-          <section className="stack" style={{ gap: 8 }}>
-            <h2 className="h2">Rappel de bilan</h2>
-            <input className="gb-input" type="time" value={time} onChange={(e) => { setTime(e.target.value); setSaved(false); }} aria-label="Heure du rappel" />
-            <button className="gb-btn gb-btn--ghost" onClick={async () => setSaved((await s.setReminder(owned[0]?.id ?? bid ?? '', time)).ok)}>Enregistrer l’heure</button>
-            {saved && <span className="muted" style={{ fontSize: 14 }}>Rappel réglé à {time}.</span>}
+        {owned.length > 0 && (
+          <section className="stack" style={{ gap: 12 }}>
+            <h2 className="h2">Heure de fermeture</h2>
+            {/* Une heure PAR business (v1.2 §2), le business courant en premier. */}
+            {[...owned].sort((a, b) => Number(b.id === bid) - Number(a.id === bid)).map((b) => (
+              <ClosingTimeSetting key={b.id} businessId={b.id} name={b.name} initial={b.reminderTime} showName={owned.length > 1} />
+            ))}
           </section>
         )}
         <DemoControls />
         <button className="gb-btn" onClick={async () => { const r = await s.logout(); if (s.mode === 'demo' || r?.ok) nav('/'); }}>Se déconnecter</button>
       </main>
+    </div>
+  );
+}
+
+function ClosingTimeSetting({ businessId, name, initial, showName }: { businessId: string; name: string; initial: string; showName: boolean }) {
+  const s = useStore();
+  const [time, setTime] = useState(initial);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <ClosingTimeField value={time} onChange={(v) => { setTime(v); setStatus(null); }} label={showName ? `Heure de fermeture — ${name}` : 'Heure de fermeture'} />
+      <button
+        className="gb-btn gb-btn--ghost"
+        onClick={async () => {
+          const r = await s.setReminder(businessId, time);
+          setStatus(r.ok ? { ok: true, text: `Heure de fermeture réglée à ${time}.` } : { ok: false, text: r.error });
+        }}
+      >
+        Enregistrer l’heure
+      </button>
+      {status && <span className={status.ok ? 'muted' : 'gb-error'} role="status" style={{ fontSize: 14 }}>{status.text}</span>}
     </div>
   );
 }

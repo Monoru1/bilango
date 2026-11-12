@@ -16,6 +16,45 @@ describe('security regression', () => {
 });
 
 describe.skipIf(!process.env.TEST_DATABASE_URL)('real PostgreSQL concurrent transactions', () => {
+  it('records one owner reward when two businesses receive their first payments concurrently', async () => {
+    const { OwnerReferralService } = await import('../src/services/owner-referrals');
+    const sponsor = await mkTeam(ctx);
+    expect(await (await payFor(ctx, sponsor.owner, sponsor.businessId)).send()).toBe('confirmed');
+    const { code } = await new OwnerReferralService(ctx.deps).generate(sponsor.owner.user);
+    const referred = await mkUser(ctx, 'Filleul');
+    await new AuthService(ctx.deps).updateProfile(referred.user.id, 'Filleul', code);
+    const { biz } = services(ctx);
+    const first = await biz.createBusiness(referred.user, referred.deviceRowId, { name: 'Premier', country: 'BJ', sector: 'boutique', stockEnabled: false });
+    const second = await biz.createBusiness(referred.user, referred.deviceRowId, { name: 'Second', country: 'BJ', sector: 'boutique', stockEnabled: false });
+    const p1 = await payFor(ctx, referred, first.id);
+    const p2 = await payFor(ctx, referred, second.id);
+    expect(await Promise.all([p1.send(), p2.send()])).toEqual(['confirmed', 'confirmed']);
+    expect((await ctx.db.query('select * from owner_referral_rewards where referred_user_id=$1', [referred.user.id])).rows).toHaveLength(1);
+  });
+  it('creates exactly one permanent owner referral code under concurrent requests', async () => {
+    const { OwnerReferralService } = await import('../src/services/owner-referrals');
+    const team = await mkTeam(ctx);
+    await ctx.db.query("insert into payments(business_id,merchant_reference,status,amount,created_at,confirmed_at) values ($1,'fixture-concurrent-referral','confirmed',2000,$2,$2)", [team.businessId, new Date(ctx.clock.now()).toISOString()]);
+    const service = new OwnerReferralService(ctx.deps);
+    const results = await Promise.all(Array.from({ length: 5 }, () => service.generate(team.owner.user)));
+    expect(new Set(results.map((r) => r.code)).size).toBe(1);
+    expect((await ctx.db.query('select code from owner_referral_codes where owner_id=$1', [team.owner.user.id])).rows).toHaveLength(1);
+  });
+  it('serializes first migrations across separate connections to a fresh schema', async () => {
+    const { randomUUID } = await import('node:crypto');
+    const { createPgDb, migrate } = await import('../src/db');
+    const admin = await createPgDb(process.env.TEST_DATABASE_URL!);
+    const schema = `migration_test_${randomUUID().replaceAll('-', '')}`;
+    await admin.exec(`create schema ${schema}`);
+    const url = new URL(process.env.TEST_DATABASE_URL!); url.searchParams.set('options', `-c search_path=${schema}`);
+    const first = await createPgDb(url.toString()); const second = await createPgDb(url.toString());
+    try {
+      const result = await Promise.all([migrate(first), migrate(second)]);
+      expect(result.filter(files => files.length > 0)).toHaveLength(1);
+      expect(result.filter(files => files.length === 0)).toHaveLength(1);
+      expect(await migrate(first)).toEqual([]);
+    } finally { await first.close(); await second.close(); await admin.exec(`drop schema ${schema} cascade`); await admin.close(); }
+  });
   it('grants only one trial when same account creates businesses concurrently', async () => {
     const owner = await mkUser(ctx, 'Patron'); const { biz } = services(ctx);
     const results = await Promise.all(Array.from({ length: 5 }, (_, i) => biz.createBusiness(owner.user, owner.deviceRowId, { name: `Business ${i}`, country: 'BJ', sector: 'boutique', stockEnabled: false })));

@@ -1,7 +1,9 @@
+import type { OtpIssuePolicy } from '@gobilan/domain';
 import type { Clock } from './clock';
 import type { Secrets } from './crypto';
 import type { Db } from './db';
 import type { Providers } from './providers';
+import type { DemoOtpPolicy } from './recette-demo-otp';
 
 export interface AppConfig {
   /** `sandbox` refuse tout webhook `live` et inversement. */
@@ -17,6 +19,11 @@ export interface AppConfig {
    * clés n'a été générée au nom de Novadis Digital : la PWA n'affiche alors aucune activation de notifications.
    */
   vapidPublicKey: string | null;
+  captchaSiteKey?:string|null;
+  paymentsEnabled?:boolean;
+  /** Recette Render uniquement : OTP de démonstration pour une liste fermée de numéros fictifs. Jamais défini en production. */
+  demoOtp?: DemoOtpPolicy | null;
+  userOtpIssuePolicy?: OtpIssuePolicy;
 }
 
 export interface Deps {
