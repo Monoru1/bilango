@@ -1,6 +1,6 @@
 # GoBilan V1 commerciale — livraison prévue le 15 novembre 2026
 
-**État au 12 novembre — NO-GO commercial.** La preview et l’API de recette sont accessibles. La navigation publique a été vérifiée dans Chrome. Le proxy IP, la politique OTP, le lanceur Playwright et les deux portails sont réunis sur la branche temporaire d’intégration. Le déploiement des changements et leur validation hébergée attendent l’autorisation d’intégration.
+**État au 12 novembre, 16 h — NO-GO commercial.** Les lots Codex (#13 à #19), SEC-48 (#21) et le correctif du limiteur de débit (#22) sont fusionnés dans la branche de livraison (`8a3ad83`) et déployés sur la recette Render. Le proxy signé est actif sur la PWA et les deux portails, désormais en ligne. Un parcours PWA authentifié de 19 étapes a réussi sur la preview (Chromium automatisé). Aucun fournisseur réel, aucune production commerciale, aucun appareil physique : voir `preuves/2026-11-12-integration-proxy-portails.md` et `../CODEX_REPRISE_APRES_CLAUDE_2026-11-12.md`.
 
 - [Validation locale du proxy](preuves/2026-11-12-proxy-client-ip.md)
 - [Contrôles de la preview et commande Playwright](preuves/2026-11-12-pwa-hebergee.md)
@@ -40,3 +40,38 @@
 Pour une infrastructure séparée sur Render, le tarif de calcul de base est de **13 $US/mois** (API 7 $US, PostgreSQL 256 Mo 6 $US). Le stockage additionnel est affiché à 0,30 $US/Go. Confirmer le total dans le devis de la configuration retenue, avec stockage, éventuel plan d’équipe, taxes et dépassements. Fournisseurs, hébergement des interfaces et sauvegarde hors hôte sont à chiffrer séparément. Capacité à valider avant mise en service. Sources [tarifs Render](https://render.com/pricing) et [stockage PostgreSQL](https://render.com/articles/how-much-does-cloud-application-hosting-cost-for-small-businesses).
 
 Avant toute ouverture commerciale, valider les trois origines HTTPS, les secrets distincts, une sauvegarde hors hôte avec restauration testée, les contrôles de disponibilité et le retour arrière. Prévoir un déploiement parallèle séparé de la base de recette. Confirmer le montant et les accès fournisseurs avant engagement.
+
+## Verdict de passation du 12 novembre
+
+**NO-GO commercial.** Render et la preview Netlify servent `13d63a0`, alors
+que les changements de livraison et de suivi sont sur #18 et #19 ouvertes.
+Les preuves HTTP de la recette et les sept CI vertes couvrent deux périmètres
+différents. Aucun paiement Live ni déploiement commercial n’a été vérifié.
+
+| Sujet de sécurité | Constat et vérification restante |
+| --- | --- |
+| IP et HMAC | Vérification par HMAC, comparaison en temps constant, méthode et URL liées à la preuve, fenêtre courte et normalisation IPv4/IPv6. Aucun nonce individuel attesté. La fenêtre de fraîcheur limite le rejeu sans établir un usage unique. Vérifier confidentialité du transport, horloges et absence de preuves dans les journaux de recette. |
+| Quotas et accès direct | Le trafic sans preuve fiable utilise un quota partagé distinct lorsque la clé est active. Les tests isolés couvrent la concurrence et l’indépendance des quotas. Confirmer en recette l’impact opérationnel du quota partagé et la conservation du contrôle par numéro et appareil. |
+| OTP/PIN et sessions | Contrôles serveur et audience vérifiés en CI. Vérifier le mode réel sans OTP fictif, l’expiration, la récupération, la révocation, les cookies et le CSRF avec les origines hébergées. |
+| Business et administration | Tests d’isolation, d’allowlist, de permissions et de refus hors admin verts. Rejouer sur les trois origines. La désactivation auditée SEC-48 reste à coder. |
+| Webhooks et commissions | Signature, événements dédupliqués, transitions transactionnelles et calculs couverts en CI. Vérifier sandbox, doublons reçus côté fournisseur et rapprochement des écritures avant accord Live. |
+| CSV, XSS et secrets | #19 neutralise les formules et réserve l’export aux admins. Le marqueur factice ne figure pas dans les bundles #18. Vérifier CSP et journaux hébergés après intégration, avec sortie expurgée. |
+| Dépendances | Zéro vulnérabilité production signalée dans le job check de #18. Rejouer l’audit sur le SHA réellement livré. |
+
+Aucune vulnérabilité critique démontrée dans le périmètre vérifié pendant cette
+passation. Les vérifications restantes se rejouent via les suites indiquées
+dans la [matrice](matrice-exigences.md) et, après autorisation, sur la recette
+avec des données fictives.
+
+**Dépendances de livraison.** P0 : faire tourner les tests locaux ciblés,
+obtenir l’accord de fusion, déployer les builds correspondants, établir les
+trois origines, vérifier les parcours hébergés et fournisseurs, contrôler
+sauvegarde et restauration. P1 : SEC-48 et tests des parrainages, puis rappels,
+rapport du soir, statistiques et export après arbitrages applicables. P2 :
+réunir les preuves REC-01 à REC-14, valider les appareils physiques, rédiger les
+guides et consigner surveillance et retour arrière. Les fichiers, scénarios et
+critères détaillés sont dans le [prompt de reprise](../CLAUDE_REPRISE_LIVRAISON_FINALE_15_NOV_2026.md).
+
+L’issue #8 conserve la démo du 15 novembre et la livraison du 1er décembre.
+L’instruction du 12 novembre fixe la V1 finale au 15 novembre. Le complément
+sécurité cité par la v1.2 et les arbitrages contractuels restent à obtenir.
