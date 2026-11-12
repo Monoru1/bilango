@@ -103,6 +103,10 @@ export class RemoteStore extends StoreView<ApplicationState> {
   async paymentAvailability():Promise<boolean>{
     try{return (await this.api<{payments:{enabled:boolean}}>('/v1/auth/config')).payments?.enabled===true;}catch{return false;}
   }
+  /** Recette : l'API déclare que l'envoi WhatsApp est simulé. Une erreur réseau n'affiche jamais ce bandeau à tort. */
+  async whatsappSimulated():Promise<boolean>{
+    try{return (await this.api<{demo?:{whatsappSimulated?:boolean}}>('/v1/auth/config')).demo?.whatsappSimulated===true;}catch{return false;}
+  }
   async subscriptionCheckout(businessId:string,customerEmail:string):Promise<Result<{paymentUrl:string}>>{
     return this.run(async()=>{
       if(!await this.paymentAvailability())throw new ApiError('validation','Paiement désactivé dans cet environnement.',503);

@@ -1,6 +1,7 @@
 import { systemClock } from './clock';
 import { configuredProviders } from './integrations/configured';
 import { developmentRuntime } from './runtime-config';
+import { recetteDemoOtp, recetteMessageSender } from './recette-demo-otp';
 import { createPgDb, createPgliteDb, migrate } from './db';
 import { defaultConfig, type Deps } from './deps';
 import { buildApp } from './http/app';
@@ -26,6 +27,8 @@ async function main() {
     throw new Error("Démarrage en production refusé : validation de lancement des fournisseurs requise. Voir docs/CODEX_HANDOFF.md.");
   }
   const runtime = developmentRuntime(process.env);
+  // Recette Render : OTP de démonstration (liste fermée, limité dans le temps) ; refuse de démarrer si configuré ailleurs.
+  const demoOtp = recetteDemoOtp(process.env, Date.now());
   const db = process.env.DATABASE_URL ? await createPgDb(process.env.DATABASE_URL) : await createPgliteDb();
   const applied = production ? [] : await migrate(db);
   if(production)await db.query('select request_key,checkout_url from payments limit 0'); // deploy migration separately before startup
@@ -33,6 +36,10 @@ async function main() {
   const providers: Providers = createDevProviders();
   // Outil de DÉVELOPPEMENT : les « envois » simulés sont écrits sur la sortie standard pour pouvoir tester les parcours.
   if(process.env.PROVIDER_MODE!=='configured'){
+  if (process.env.RENDER_RECETTE === 'true') {
+    // Recette hébergée : jamais de code, de numéro ni de corps d'e-mail dans les journaux.
+    Object.assign(providers.messages, recetteMessageSender((line) => process.stdout.write(`${line}\n`)));
+  } else {
   const wa = providers.messages.sendWhatsAppOtp.bind(providers.messages);
   const em = providers.messages.sendEmail.bind(providers.messages);
   providers.messages.sendWhatsAppOtp = async (phone, code) => {
@@ -43,6 +50,7 @@ async function main() {
     process.stdout.write(`[DEV EMAIL] to=${to} subject=${m.subject}\n${m.text}\n[/DEV EMAIL]\n`);
     return em(to, m);
   };
+  }
   // Web Push : les abonnements sont réellement enregistrés en base, mais le TRANSPORT reste celui de développement
   // (aucun envoi vers un service push). Les points d'accès sont des secrets de capacité : jamais écrits dans les journaux.
   const pushTransport = new DevPushTransport();
@@ -63,7 +71,7 @@ async function main() {
       fedapayWebhookSecret: requireEnv('FEDAPAY_WEBHOOK_SECRET'),
     },
     providers,
-    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null },
+    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null, demoOtp },
   };
   if (deps.secrets.pepper.length < 32 || deps.secrets.payoutKey.length !== 32) throw new Error('PIN_PEPPER_HEX (>=32 octets) et PAYOUT_KEY_HEX (32 octets) requis.');
   if (!production && process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {

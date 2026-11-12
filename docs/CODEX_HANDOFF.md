@@ -128,3 +128,19 @@ actuelle, ni une validation des comptes fournisseurs. Hébergement API/PostgreSQ
 secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 
 `Dockerfile.api` prépare l’image de lancement avec `NODE_ENV=production` ; la CI vérifie qu’elle refuse le démarrage sans approbation. `Dockerfile.acceptance` reste réservé à la recette. Aucune image n’a été déployée sur une infrastructure production.
+
+## État au 12 novembre 2026 — recette Render (P0.1)
+
+- Cause de l'échec du déploiement du 9 novembre : le service `gobilan-recette-api` tourne avec
+  `NODE_ENV=production`, alors que le mode `RENDER_RECETTE` exige l'inverse. Correctif = configuration
+  (voir `docs/recette/otp-demo-recette.md`), sans toucher à `PRODUCTION_RELEASE_APPROVED`.
+- Variables Render **pas encore appliquées** : en attente de la sauvegarde `pg_dump` de la base
+  `gobilan-recette` par le propriétaire (les migrations partent au démarrage en mode recette).
+- Branche `feat/recette-demo-otp` (basée sur `c89b615`, hors déploiement automatique Render) : OTP de
+  démonstration à liste fermée et durée limitée, plus aucun code/numéro/e-mail dans les journaux de
+  recette, bandeau « DÉMO — WhatsApp simulé ». `npm run check` : 386 tests réussis, 11 PostgreSQL
+  réseau ignorés. Non vérifié sur l'environnement déployé.
+- Démonstration sur `gobilan-pwa.netlify.app` ou une preview isolée ; `gobilan.com` appartient au
+  client et ne doit pas être modifié.
+- Prochaine tâche : après confirmation de la sauvegarde, appliquer les variables, redéployer,
+  vérifier `/health`, `/ready`, migrations et persistance, puis `API_ORIGIN` sur Netlify et nouveau build.

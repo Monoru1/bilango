@@ -168,3 +168,9 @@ it('never initiates checkout when disabled and clears only a terminal payment re
  });
  expect((await store.subscriptionCheckout('business-fixture','owner@example.test')).ok).toBe(false);expect(sessionStorage.getItem('gb-checkout-business-fixture-initial')).toBeNull();sessionStorage.clear();
 });
+it('shows the simulated-WhatsApp notice only when the API declares it, never on a network failure',async()=>{
+ const {store,api}=setup();
+ api.mockResolvedValue({demo:{whatsappSimulated:true}});expect(await store.whatsappSimulated()).toBe(true);
+ api.mockResolvedValue({captcha:{provider:'dev',siteKey:null,action:'otp'}});expect(await store.whatsappSimulated()).toBe(false);
+ api.mockRejectedValue(new ApiError('network','Réseau indisponible',0));expect(await store.whatsappSimulated()).toBe(false);
+});
