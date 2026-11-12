@@ -134,7 +134,10 @@ try {
   const versions = hosted ? (await workspace(owner, businessId)).reports.reduce((sum, report) => sum + report.versions.length, 0)
     : (await db.query('select count(*)::int n from report_versions v join reports r on r.id=v.report_id where r.business_id=$1', [businessId])).rows[0].n;
   check(versions === 3, 'edit preserves original version');
-  const leak = await guest.evaluate(async bid => { const r = await fetch(`/v1/businesses/${bid}/workspace`); return r.json(); }, businessId);
+  const stock = (await workspace(owner, businessId)).stockLevels.find(level => level.item.name === 'Riz');
+  check(stock?.item.initialQuantity === 10 && stock.sold === 3 && stock.remaining === 7,
+    'stock reflects both reports and counts only the current version');
+  const leak = await workspace(guest, businessId);
   check(leak.reports.length === 1 && leak.users.length === 1 && leak.subscription.payments.length === 0, 'entry permission filters server payload');
   // Navigation complète unique (l'ancien reload suivi d'un goto immédiat interrompait les requêtes en cours).
   await owner.goto(`${base}/b/${businessId}`);
@@ -160,6 +163,19 @@ try {
   const outsider = await context(); await signup(outsider, national(), 'Autre Test');
   const status = await outsider.evaluate(async bid => (await fetch(`/v1/businesses/${bid}/workspace`)).status, businessId);
   check(status === 404, 'another tenant receives 404');
+  await owner.goto(`${base}/b/${businessId}/equipe`);
+  await owner.getByRole('button', { name: 'Modifier le rôle Caissier test', exact: true }).click();
+  await owner.getByLabel('Permission du rôle modifié').selectOption('readonly');
+  await owner.getByRole('button', { name: 'Enregistrer le rôle', exact: true }).click();
+  await owner.getByText('Rôle modifié.', { exact: true }).waitFor();
+  const updatedAccess = await workspace(guest, businessId);
+  const roleId = updatedAccess.members[0]?.roleId;
+  check(updatedAccess.roles.some(role => role.id === roleId && role.level === 'readonly') &&
+    updatedAccess.reports.length === 2, 'active employee session receives the new read-only role and both reports');
+  await guest.goto(`${base}/b/${businessId}/bilan`);
+  await guest.getByRole('alert').filter({ hasText: 'Bilan introuvable ou modification non autorisée.' }).waitFor();
+  check(await guest.getByRole('button', { name: /Envoyer le bilan/ }).count() === 0,
+    'read-only employee no longer has a report submission form');
   if (hosted) {
     await owner.goto(`${base}/b/${businessId}/abonnement`);
     await owner.getByRole('heading', { name: 'Mon abonnement' }).waitFor();
