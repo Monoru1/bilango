@@ -1,3 +1,4 @@
+import webpush from 'web-push';
 import {describe,it,expect,vi} from 'vitest';
 import {MetaOtpSender,FedaPayGateway} from '../src/integrations/configured';
 const env={NODE_ENV:'test',WHATSAPP_ACCESS_TOKEN:'fixture',WHATSAPP_PHONE_NUMBER_ID:'123',WHATSAPP_GRAPH_VERSION:'v23.0',WHATSAPP_OTP_TEMPLATE:'otp',WHATSAPP_TEMPLATE_LANGUAGE:'fr',TEST_WHATSAPP_RECIPIENTS:'+2290197000000',TEST_EMAIL_RECIPIENTS:'owner@example.test',FEDAPAY_MODE:'sandbox',FEDAPAY_SECRET_KEY:'sk_sandbox_fixture',FEDAPAY_ACCOUNT_ID:'42',PWA_ORIGIN:'https://pwa.example.test'};
@@ -34,7 +35,10 @@ describe('configured external adapters',()=>{
 });
 it('selects actual configured providers without opening deliveries or falling back to dev',async()=>{
  const {configuredProviders}=await import('../src/integrations/configured');const {makeDeps}=await import('./helpers');const ctx=await makeDeps();
- const providers=configuredProviders({...env,PROVIDER_MODE:'configured',SMTP_HOST:'127.0.0.1',SMTP_LOCAL_CAPTURE:'true',SMTP_FROM:'sender@example.test',TEST_EMAIL_RECIPIENTS:'test@example.test',VAPID_SUBJECT:'mailto:test@example.test',VAPID_PUBLIC_KEY:'fixture',VAPID_PRIVATE_KEY:'fixture',TEST_PUSH_ENDPOINTS:'https://fcm.googleapis.com/fixture',TURNSTILE_SECRET_KEY:'fixture',TURNSTILE_HOSTNAME:'localhost'},ctx.db,ctx.clock);
+ const keys=webpush.generateVAPIDKeys();
+ const configured={...env,PROVIDER_MODE:'configured',SMTP_HOST:'127.0.0.1',SMTP_LOCAL_CAPTURE:'true',SMTP_FROM:'sender@example.test',TEST_EMAIL_RECIPIENTS:'test@example.test',VAPID_SUBJECT:'mailto:test@example.test',VAPID_PUBLIC_KEY:keys.publicKey,VAPID_PRIVATE_KEY:keys.privateKey,TEST_PUSH_ENDPOINTS:'https://fcm.googleapis.com/fixture',TURNSTILE_SECRET_KEY:'fixture',TURNSTILE_HOSTNAME:'localhost'};
+ const providers=configuredProviders(configured,ctx.db,ctx.clock);
+ expect(()=>configuredProviders({...configured,VAPID_PRIVATE_KEY:webpush.generateVAPIDKeys().privateKey},ctx.db,ctx.clock)).toThrow('vapid_key_pair_invalid');
  expect(providers.gateway).toBeInstanceOf(FedaPayGateway);
  await expect(providers.messages.sendEmail('test@example.test',{subject:'fixture',text:'fixture'})).rejects.toThrow('disabled');
  await expect(providers.messages.sendWhatsAppOtp('+2290197000000','1234')).rejects.toThrow('disabled');

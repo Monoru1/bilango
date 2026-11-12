@@ -30,3 +30,10 @@ export const changePartnerRoleSchema = z.object({
   managerId: idSchema.optional(),
   promoCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{3,20}$/).optional(),
 });
+
+export const adminMetricsQuerySchema = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+}).refine(({ from, to }) => from <= to, 'La date de fin doit suivre ou égaler la date de début.');
+
+export type AdminMetricsQuery = z.infer<typeof adminMetricsQuerySchema>;

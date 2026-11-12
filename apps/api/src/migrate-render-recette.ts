@@ -1,11 +1,21 @@
-import { createPgDb, migrate } from './db';
+import { createPgDb } from './db';
+import { inspectRecetteDb, migrateRecette } from './recette-migration-guard';
 import { renderRecetteTarget } from './render-recette-target';
 
-// One-shot command, no HTTP listener. The target is limited to the dedicated private database.
+const args = process.argv.slice(2);
+if (args.length > 1 || (args.length === 1 && args[0] !== '--inspect')) {
+  throw new Error('Usage: migrate-render-recette [--inspect]');
+}
+
+// Commande privée sans écoute HTTP, limitée à la base Render de recette.
 const db = await createPgDb(renderRecetteTarget(process.env.DATABASE_URL).toString());
 try {
-  const applied = await migrate(db);
-  process.stdout.write(`[recette] migrations applied: ${applied.length}\n`);
+  if (args[0] === '--inspect') {
+    process.stdout.write(JSON.stringify(await inspectRecetteDb(db)) + '\n');
+  } else {
+    const applied = await migrateRecette(db, process.env, line => process.stdout.write(line + '\n'));
+    process.stdout.write(`[recette] migrations applied: ${applied.length}\n`);
+  }
 } finally {
   await db.close();
 }

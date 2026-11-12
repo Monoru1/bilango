@@ -1,4 +1,5 @@
 /** Opt-in protocol adapters for isolated acceptance. Never selected by default. */
+import { createECDH } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import type { Transporter } from 'nodemailer';
@@ -65,12 +66,30 @@ export class SmtpAcceptanceSender implements MessageSender {
   }
 }
 
+function validateVapidPair(publicKey: string, privateKey: string): void {
+  try {
+    const secret = Buffer.from(privateKey, 'base64url');
+    const point = Buffer.from(publicKey, 'base64url');
+    if (secret.length !== 32 || secret.toString('base64url') !== privateKey ||
+        point.length !== 65 || point.toString('base64url') !== publicKey) {
+      throw new Error();
+    }
+    const curve = createECDH('prime256v1');
+    curve.setPrivateKey(secret);
+    if (!curve.getPublicKey().equals(point)) throw new Error();
+  } catch {
+    throw new Error('vapid_key_pair_invalid');
+  }
+}
+
 const PUSH_HOSTS=new Set(['fcm.googleapis.com','updates.push.services.mozilla.com','web.push.apple.com']);
 /** Actual aes128gcm/VAPID generation; delivery limited to exact test subscriptions. */
 export class AcceptanceWebPushTransport implements PushTransport {
   private readonly endpoints:Set<string>;
   constructor(private readonly vapid:{subject:string;publicKey:string;privateKey:string},endpoints:readonly string[],private readonly fetcher:typeof fetch=fetch,private readonly productionApproved=false) {
-    acceptanceOnly(productionApproved);this.endpoints=new Set(endpoints);
+    acceptanceOnly(productionApproved);
+    validateVapidPair(vapid.publicKey, vapid.privateKey);
+    this.endpoints = new Set(endpoints);
     if (!this.endpoints.size && !(process.env.NODE_ENV==='production'&&productionApproved)) throw new Error('test_push_allowlist_required');
   }
   async send(target:PushTarget,body:string):Promise<{status:number}> {

@@ -47,3 +47,14 @@ La CI rejoue les parcours PWA et portails dans Chromium (320 px), Firefox (390 p
 ## NO-GO conservé
 
 L'API cloud, le câblage complet des fournisseurs, les clés et modèles autorisés, les callbacks fournisseur authentiques, les appareils mobiles physiques, la supervision/sauvegarde d'une infrastructure réelle et les validations métier/juridiques restent à attester. La configuration frontend corrige le 404 en preview existante ; aucune production déployée ou fusion effectuée. Les assertions de tests et leurs doublures ne constituent pas une réception client.
+
+## Préparer une copie chiffrée hors hôte
+
+Après le contrôle d'intégrité et le test de restauration de l'archive, provisionner sur le runner le certificat RSA **public** de restauration. Obtenir son empreinte SHA-256 complète par un canal séparé. La clé privée reste chez les responsables de restauration.
+
+```sh
+sh scripts/encrypt-backup-export.sh /chemin/prive/archive.dump \
+  /chemin/prive/archive.dump.cms /chemin/prive/certificat.pem EMPREINTE_SHA256_APPROUVEE
+```
+
+La commande prépare un fichier chiffré sans écraser une copie existante. La destination distante, ses accès et la rétention restent soumis à approbation. Ne transférer que le fichier chiffré. Pour une répétition de restauration, déchiffrer avec `openssl cms -decrypt -inform DER` dans un répertoire privé sur le runner isolé. Utiliser le fichier déchiffré uniquement si la commande réussit, puis lancer la restauration PostgreSQL. Le test de chiffrement emploie une clé et un contenu jetables. Le job PostgreSQL chiffre puis déchiffre un véritable dump synthétique avant sa restauration isolée.

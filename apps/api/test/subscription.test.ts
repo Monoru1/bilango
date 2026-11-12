@@ -198,6 +198,37 @@ describe('webhook FedaPay (§8.2)', () => {
     expect(p.checkout.paymentUrl).toContain('sandbox.invalid');
   });
 
+  it('le rapprochement laisse en attente un paiement si la réponse ne correspond pas à la transaction', async () => {
+    const t = await mkTeam(ctx);
+    const p = await payFor(ctx, t.owner, t.businessId);
+    const id = p.created.transactionId;
+    const expected = { ...ctx.providers.gateway.states.get(id)! };
+    ctx.clock.advance(10 * 60_000);
+    const { subs } = services(ctx);
+    for (const status of ['approved', 'declined', 'canceled'] as const) {
+      ctx.providers.gateway.states.set(id, { ...expected, status, transactionId: 'other-transaction' });
+      expect(await subs.reconcilePending()).toEqual({ checked: 1, confirmed: 0 });
+      expect(await paidUntil(t.businessId)).toBeNull();
+      expect((await ctx.db.query('select status from payments')).rows).toEqual([{ status: 'pending' }]);
+    }
+    ctx.providers.gateway.states.set(id, expected);
+    expect(await subs.reconcilePending()).toEqual({ checked: 1, confirmed: 1 });
+  });
+
+  it('un renouvellement actif concurrent prolonge de 30 jours et notifie une seule fois', async () => {
+    const t = await mkTeam(ctx);
+    const initial = await payFor(ctx, t.owner, t.businessId);
+    expect(await initial.send()).toBe('confirmed');
+    const previousEnd = (await paidUntil(t.businessId))!.getTime();
+    const renewal = await payFor(ctx, t.owner, t.businessId, { eventId: 'evt_renewal' });
+    ctx.clock.advance(10 * 60_000);
+    const { subs } = services(ctx);
+    const [webhook, reconcile] = await Promise.all([renewal.send(), subs.reconcilePending()]);
+    expect(Number(webhook === 'confirmed') + reconcile.confirmed).toBe(1);
+    expect((await paidUntil(t.businessId))!.getTime()).toBe(previousEnd + 30 * DAY_MS);
+    expect(ctx.providers.push.sent.filter(entry => entry.payload.type === 'payment_confirmed')).toHaveLength(2);
+  });
+
   it('chaque transaction a un merchant_reference unique rattaché au business', async () => {
     const t = await mkTeam(ctx);
     const a = await payFor(ctx, t.owner, t.businessId);
