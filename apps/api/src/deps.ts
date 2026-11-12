@@ -24,6 +24,7 @@ export interface AppConfig {
   /** Recette Render uniquement : OTP de démonstration pour une liste fermée de numéros fictifs. Jamais défini en production. */
   demoOtp?: DemoOtpPolicy | null;
   userOtpIssuePolicy?: OtpIssuePolicy;
+  audience?: { key: string; excludedIps: string[] };
 }
 
 export interface Deps {

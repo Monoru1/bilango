@@ -1,3 +1,4 @@
+import { AudienceService } from './audience';
 import { COUNTRIES, REMINDER_DAYS_BEFORE, daysRemaining, minutesSinceClosing, subscriptionStatus, toDayKey, type CountryCode } from '@gobilan/domain';
 import { iso } from '../clock';
 import type { Deps } from '../deps';
@@ -114,6 +115,7 @@ export class ScheduledJobs {
         summary.errors.push(`${name}: ${e instanceof Error ? e.message : 'erreur'}`);
       }
     };
+    if (this.deps.config.audience && (opts.reconcile ?? true)) await guard('audience_retention', () => new AudienceService(this.deps).prune());
     if (opts.reconcile ?? true) await guard('reconcile', async () => void (summary.reconcile = await new SubscriptionService(this.deps).reconcilePending()));
     await guard('reminders', async () => void (summary.reminders = await this.sendDailyReminders()));
     await guard('expiring', async () => void (summary.expiring = await this.sendExpiryNotices()));

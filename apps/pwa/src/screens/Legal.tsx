@@ -1,3 +1,4 @@
+import { AudienceConsent } from '../components/AudienceConsent';
 import { LegalPage } from '@gobilan/ui';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +9,7 @@ export function LegalScreen() {
     <div className="screen">
       <div className="pad" style={{ paddingTop: 16 }}><button className="link" onClick={() => nav(-1)}>← Retour</button></div>
       <LegalPage />
+      <AudienceConsent settings />
     </div>
   );
 }
