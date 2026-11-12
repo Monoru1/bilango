@@ -1,6 +1,6 @@
 import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
-import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
+import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
 import { iso } from '../clock';
 import { decryptField, encryptField, hashSecret, randomToken, sha256, verifySecret } from '../crypto';
 import type { Db } from '../db';
@@ -219,6 +219,75 @@ export class AdminService {
 
   async listReferrals() {
     return (await this.deps.db.query<{ id: string; business_name: string; partner_name: string; excluded_reason: string | null }>('select r.id,b.name as business_name,p.name as partner_name,r.excluded_reason from referrals r join businesses b on b.id=r.business_id join partners p on p.id=r.partner_id order by r.registered_at desc')).rows.map(r => ({ id: r.id, businessName: r.business_name, partnerName: r.partner_name, excludedReason: r.excluded_reason }));
+  }
+
+  private async ownerReferralRows(filters: { q?: string; date?: string }, offset: number, limit: number | null) {
+    const { rows } = await this.deps.db.query<{
+      code: string; owner_name: string; active: boolean; created_at: Date;
+      registrations: number; firstPayments: number; rewardDays: number;
+    }>(
+      `select r.code, u.name as owner_name, r.active, r.created_at,
+              totals.registrations, totals."firstPayments", totals."rewardDays"
+       from owner_referral_codes r join users u on u.id = r.owner_id
+       cross join lateral (
+         select count(a.referred_user_id)::int as registrations,
+                count(w.payment_id)::int as "firstPayments",
+                coalesce(sum(w.days), 0)::int as "rewardDays"
+         from owner_referral_attributions a
+         left join owner_referral_rewards w on w.referred_user_id = a.referred_user_id
+         where a.owner_id = r.owner_id and a.code = r.code
+       ) totals
+       where ($1::text is null or strpos(lower(r.code), lower($1)) > 0 or strpos(lower(u.name), lower($1)) > 0)
+         and ($2::date is null or (r.created_at at time zone 'UTC')::date = $2::date)
+       order by r.created_at desc, r.owner_id limit $3 offset $4`,
+      [filters.q ?? null, filters.date ?? null, limit, offset],
+    );
+    return rows.map(row => ({
+      code: row.code, ownerName: row.owner_name, active: row.active, createdAt: row.created_at.toISOString(),
+      registrations: row.registrations, firstPayments: row.firstPayments, rewardDays: row.rewardDays,
+    }));
+  }
+
+  async listOwnerReferralCodes(offset: number, limit: number, filters: { q?: string; date?: string }) {
+    const rows = await this.ownerReferralRows(filters, offset, limit + 1);
+    return { codes: rows.slice(0, limit), hasNext: rows.length > limit };
+  }
+
+  /**
+   * SEC-48 — désactive un code de parrainage propriétaire. Le verrou de ligne est le même que celui pris
+   * par l'attribution (`select … where active=true for update` dans AuthService) : une attribution
+   * concurrente passe entièrement avant, ou voit le code inactif. Les attributions et crédits déjà
+   * enregistrés ne sont pas modifiés ; le code n'est ni supprimé ni réattribué.
+   */
+  async deactivateOwnerReferralCode(admin: AdminSession, input: z.infer<typeof deactivateOwnerReferralCodeSchema>): Promise<{ code: string; active: false }> {
+    return this.deps.db.tx(async (t) => {
+      const row = (await t.query<{ active: boolean }>('select active from owner_referral_codes where code = $1 for update', [input.code])).rows[0];
+      if (!row) throw notFound();
+      if (!row.active) throw new AppError('conflict', 'Ce code de parrainage est déjà désactivé.');
+      await t.query('update owner_referral_codes set active = false where code = $1', [input.code]);
+      await t.query('insert into audit_log(at, actor, action, target, old_value, new_value) values ($1,$2,$3,$4,$5::jsonb,$6::jsonb)', [
+        iso(this.now), admin.email, 'owner_referral_code.deactivate', input.code, JSON.stringify({ active: true }), JSON.stringify({ active: false, reason: input.reason }),
+      ]);
+      return { code: input.code, active: false as const };
+    });
+  }
+
+  async exportOwnerReferralCodes(filters: { q?: string; date?: string }) {
+    const rows = await this.ownerReferralRows(filters, 0, null);
+    const csvCell = (value: string | number) => {
+      const text = String(value);
+      // Spreadsheet software can interpret a user-controlled owner name as a formula.
+      const safe = /^[\s\uFEFF]*[=+@-]|^[\t\r\n]/u.test(text) ? "'" + text : text;
+      return '"' + safe.replaceAll('"', '""') + '"';
+    };
+    const fields = [
+      ['Code', 'Propriétaire', 'Statut', 'Créé le (UTC)', 'Inscriptions', 'Premiers abonnements payés', 'Jours crédités'],
+      ...rows.map(row => [
+        row.code, row.ownerName, row.active ? 'Actif' : 'Inactif', row.createdAt,
+        row.registrations, row.firstPayments, row.rewardDays,
+      ]),
+    ];
+    return fields.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
   }
 
   async listSubscriptions(offset: number, limit: number) {

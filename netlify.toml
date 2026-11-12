@@ -4,6 +4,10 @@
 
 # This deploy serves the PWA only. The API requires a separately reviewed host.
 # Never rewrite API calls to index.html or silently substitute demo data.
+[[edge_functions]]
+  path = "/v1/*"
+  function = "api-client-ip"
+
 [[redirects]]
   from = "/v1/*"
   to = "/api-unavailable.json"
