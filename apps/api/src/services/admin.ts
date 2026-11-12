@@ -221,16 +221,54 @@ export class AdminService {
     return (await this.deps.db.query<{ id: string; business_name: string; partner_name: string; excluded_reason: string | null }>('select r.id,b.name as business_name,p.name as partner_name,r.excluded_reason from referrals r join businesses b on b.id=r.business_id join partners p on p.id=r.partner_id order by r.registered_at desc')).rows.map(r => ({ id: r.id, businessName: r.business_name, partnerName: r.partner_name, excludedReason: r.excluded_reason }));
   }
 
-  async listOwnerReferralCodes(offset: number, limit: number) {
-    const { rows } = await this.deps.db.query<{ code: string; owner_name: string; active: boolean }>(
-      `select r.code, u.name as owner_name, r.active
+  private async ownerReferralRows(filters: { q?: string; date?: string }, offset: number, limit: number | null) {
+    const { rows } = await this.deps.db.query<{
+      code: string; owner_name: string; active: boolean; created_at: Date;
+      registrations: number; firstPayments: number; rewardDays: number;
+    }>(
+      `select r.code, u.name as owner_name, r.active, r.created_at,
+              totals.registrations, totals."firstPayments", totals."rewardDays"
        from owner_referral_codes r join users u on u.id = r.owner_id
-       order by r.created_at desc, r.owner_id limit $1 offset $2`, [limit + 1, offset],
+       cross join lateral (
+         select count(a.referred_user_id)::int as registrations,
+                count(w.payment_id)::int as "firstPayments",
+                coalesce(sum(w.days), 0)::int as "rewardDays"
+         from owner_referral_attributions a
+         left join owner_referral_rewards w on w.referred_user_id = a.referred_user_id
+         where a.owner_id = r.owner_id and a.code = r.code
+       ) totals
+       where ($1::text is null or strpos(lower(r.code), lower($1)) > 0 or strpos(lower(u.name), lower($1)) > 0)
+         and ($2::date is null or (r.created_at at time zone 'UTC')::date = $2::date)
+       order by r.created_at desc, r.owner_id limit $3 offset $4`,
+      [filters.q ?? null, filters.date ?? null, limit, offset],
     );
-    return {
-      codes: rows.slice(0, limit).map(row => ({ code: row.code, ownerName: row.owner_name, active: row.active })),
-      hasNext: rows.length > limit,
+    return rows.map(row => ({
+      code: row.code, ownerName: row.owner_name, active: row.active, createdAt: row.created_at.toISOString(),
+      registrations: row.registrations, firstPayments: row.firstPayments, rewardDays: row.rewardDays,
+    }));
+  }
+
+  async listOwnerReferralCodes(offset: number, limit: number, filters: { q?: string; date?: string }) {
+    const rows = await this.ownerReferralRows(filters, offset, limit + 1);
+    return { codes: rows.slice(0, limit), hasNext: rows.length > limit };
+  }
+
+  async exportOwnerReferralCodes(filters: { q?: string; date?: string }) {
+    const rows = await this.ownerReferralRows(filters, 0, null);
+    const csvCell = (value: string | number) => {
+      const text = String(value);
+      // Spreadsheet software can interpret a user-controlled owner name as a formula.
+      const safe = /^[\s\uFEFF]*[=+@-]|^[\t\r\n]/u.test(text) ? "'" + text : text;
+      return '"' + safe.replaceAll('"', '""') + '"';
     };
+    const fields = [
+      ['Code', 'Propriétaire', 'Statut', 'Créé le (UTC)', 'Inscriptions', 'Premiers abonnements payés', 'Jours crédités'],
+      ...rows.map(row => [
+        row.code, row.ownerName, row.active ? 'Actif' : 'Inactif', row.createdAt,
+        row.registrations, row.firstPayments, row.rewardDays,
+      ]),
+    ];
+    return fields.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
   }
 
   async listSubscriptions(offset: number, limit: number) {

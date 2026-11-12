@@ -174,7 +174,16 @@ describe('HTTP — partenaires et administration', () => {
       expect(await (await payFor(ctx, team.owner, team.businessId)).send()).toBe('confirmed');
       const { code } = await referrals.generate(team.owner.user);
       if (!active) await ctx.db.query('update owner_referral_codes set active=false where owner_id=$1', [team.owner.user.id]);
-      owners.unshift({ code, ownerName: team.owner.user.name, active });
+      const ownerName = active ? '=Nom de test' : team.owner.user.name;
+      if (active) await ctx.db.query('update users set name=$1 where id=$2', [ownerName, team.owner.user.id]);
+      if (active) {
+        const referred = await mkTeam(ctx);
+        await ctx.db.query('insert into owner_referral_attributions(referred_user_id,owner_id,code,created_at) values ($1,$2,$3,$4)',
+          [referred.owner.user.id, team.owner.user.id, code, new Date(ctx.clock.now()).toISOString()]);
+        expect(await (await payFor(ctx, referred.owner, referred.businessId)).send()).toBe('confirmed');
+      }
+      owners.unshift({ code, ownerName, active, createdAt: new Date(ctx.clock.now()).toISOString(),
+        registrations: Number(active), firstPayments: Number(active), rewardDays: active ? 30 : 0 });
       ctx.clock.advance(1000);
     }
     expect((await app.inject({ url: referralUrl })).statusCode).toBe(401);
@@ -186,6 +195,17 @@ describe('HTTP — partenaires et administration', () => {
     const secondPage = await app.inject({ url: referralUrl + '?limit=1&offset=1', cookies });
     expect(secondPage.statusCode).toBe(200);
     expect(secondPage.json()).toEqual({ codes: [owners[1]], hasNext: false });
+    const filters = new URLSearchParams({ q: '=Nom de test', date: owners[0]!.createdAt.slice(0, 10) });
+    expect((await app.inject({ url: referralUrl + '?' + filters, cookies })).json()).toEqual({ codes: [owners[0]], hasNext: false });
+    expect((await app.inject({ url: referralUrl + '?date=2026-02-30', cookies })).statusCode).toBe(400);
+    const csvUrl = referralUrl + '.csv?' + filters;
+    expect((await app.inject({ url: csvUrl })).statusCode).toBe(401);
+    const csv = await app.inject({ url: csvUrl, cookies });
+    expect(csv.statusCode).toBe(200);
+    expect(csv.headers['content-disposition']).toContain('attachment');
+    expect(csv.body).toContain(`"'=Nom de test"`);
+    expect(csv.body).toContain(owners[0]!.code);
+    expect(csv.body).not.toContain(owners[1]!.code);
   });
 
   it('§13.3 — la réinitialisation du mot de passe partenaire coupe TOUTES les sessions, code à usage unique', async () => {

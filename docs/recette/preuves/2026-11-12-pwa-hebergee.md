@@ -15,8 +15,10 @@ Exécuter depuis la racine du dépôt. Injecter directement dans le lanceur de c
 | `E2E_BROWSER`, `E2E_WIDTH` | `chromium` / `320`, `firefox` / `390`, `webkit` / `768` |
 
 ```sh
-node e2e/pwa-smoke.mjs
+bash e2e/run-hosted-recette.sh
 ```
+
+Le lanceur demande les valeurs sans écho dans un terminal ou les reçoit d’un lanceur de confiance. Il fixe l’origine de recette, désactive les variables de trace et ne crée aucun fichier de secrets.
 
 Réserver des comptes neufs pour chaque exécution. Le scénario enregistre un propriétaire, un employé et un compte sans accès, crée un business et écrit des données fictives. Il passe par les interfaces et API de recette. Il émule le mode standalone et laisse la base distante intacte côté SQL. Les changements d’heure et les versions de bilan sont vérifiés à la lecture de l’API. Le scénario hébergé vérifie l’essai en cours. Le passage accéléré au blocage J+4 reste dans la suite locale sur PostgreSQL isolé.
 

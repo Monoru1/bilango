@@ -340,10 +340,19 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
   app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });
+  const ownerReferralFilters = z.object({ q: z.string().trim().min(1).max(160).optional(), date: z.iso.date().optional() });
   app.get('/v1/admin/owner-referral-codes', async req => {
     await adminSession(req);
-    const query = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
-    return admin.listOwnerReferralCodes(query.offset, query.limit);
+    const query = ownerReferralFilters.extend({
+      offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50),
+    }).parse(req.query);
+    return admin.listOwnerReferralCodes(query.offset, query.limit, query);
+  });
+  app.get('/v1/admin/owner-referral-codes.csv', async (req, reply) => {
+    await adminSession(req);
+    const csv = await admin.exportOwnerReferralCodes(ownerReferralFilters.parse(req.query));
+    return reply.type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="parrainages-proprietaires.csv"').send(csv);
   });
   app.get('/v1/admin/subscriptions', async req => {
     await adminSession(req); const q = z.object({ offset: z.coerce.number().int().min(0).default(0), limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(req.query);
