@@ -1,3 +1,5 @@
+import { AudienceService } from './services/audience';
+import { normalizeClientIp } from './http/client-ip';
 import { systemClock } from './clock';
 import { configuredProviders } from './integrations/configured';
 import { developmentRuntime } from './runtime-config';
@@ -64,6 +66,15 @@ async function main() {
   providers.push = new DbPushSender(db, systemClock, pushTransport);
   }
   if(process.env.PROVIDER_MODE==='configured')Object.assign(providers,configuredProviders(process.env,db,systemClock));
+  const audience = process.env.GOBILAN_AUDIENCE_ENABLED === 'true' ? (() => {
+    const key = requireEnv('GOBILAN_AUDIENCE_KEY_HEX');
+    const excludedIps = requireEnv('GOBILAN_AUDIENCE_EXCLUDED_IPS').split(',').map(ip => normalizeClientIp(ip.trim()));
+    if (!/^[a-f0-9]{64}$/.test(key) || excludedIps.some(ip => !ip) ||
+        ((production || process.env.RENDER_RECETTE === 'true') && !runtime.proxyKey) || process.env.SCHEDULER === '0') {
+      throw new Error('invalid_audience_configuration');
+    }
+    return { key, excludedIps: excludedIps.filter(ip => ip !== null) };
+  })() : null;
   const deps: Deps = {
     db,
     clock: systemClock,
@@ -73,13 +84,14 @@ async function main() {
       fedapayWebhookSecret: requireEnv('FEDAPAY_WEBHOOK_SECRET'),
     },
     providers,
-    config: { ...defaultConfig,paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null, demoOtp, userOtpIssuePolicy: runtime.userOtpIssuePolicy },
+    config: { ...defaultConfig, ...(audience ? { audience } : {}),paymentsEnabled:process.env.PROVIDER_MODE==='configured'&&process.env.EXTERNAL_PAYMENTS_ENABLED==='true',fedapayMode:process.env.FEDAPAY_MODE==='live'?'live':'sandbox',captchaSiteKey:process.env.PROVIDER_MODE==='configured'?requireEnv('TURNSTILE_SITE_KEY'):null, origins:runtime.origins, partnersPortalUrl:runtime.origins.partners[0]!, vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? null, demoOtp, userOtpIssuePolicy: runtime.userOtpIssuePolicy },
   };
   if (deps.secrets.pepper.length < 32 || deps.secrets.payoutKey.length !== 32) throw new Error('PIN_PEPPER_HEX (>=32 octets) et PAYOUT_KEY_HEX (32 octets) requis.');
   if (!production && process.env.DEV_SEED_ADMIN_EMAIL && process.env.DEV_SEED_ADMIN_PASSWORD) {
     await new AdminService(deps).upsertAdmin(process.env.DEV_SEED_ADMIN_EMAIL, process.env.DEV_SEED_ADMIN_PASSWORD);
     process.stdout.write(`[api] administrateur de développement créé : ${process.env.DEV_SEED_ADMIN_EMAIL}\n`);
   }
+  if (audience) await new AudienceService(deps).start();
   if (process.env.SCHEDULER !== '0') {
     startScheduler(deps, {
       onSummary: (s) => {

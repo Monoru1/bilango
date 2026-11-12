@@ -32,6 +32,9 @@ export function createApiProxy(env, forward = fetch, now = Date.now) {
       const value = request.headers.get(name);
       if (value !== null) headers.set(name, value);
     }
+    for (const name of ['sec-gpc', 'dnt']) {
+      if (request.headers.get(name) === '1') headers.set(name, '1');
+    }
     headers.set('x-gobilan-proxy', `v1;${issuedAt};${context.ip};${signature}`);
 
     return forward(target, { method: request.method, headers, body: request.body, redirect: 'manual' });

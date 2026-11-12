@@ -212,7 +212,7 @@ export class AuthService {
 
   // --- PIN ----------------------------------------------------------------------------------
 
-  async createPin(input: CreatePin): Promise<IssuedSession> {
+  async createPin(input: CreatePin): Promise<IssuedSession & { created: boolean }> {
     const now = this.now;
     const proofHash = sha256(input.otpProof);
     const pinHash = await hashSecret(input.pin, this.deps.secrets.pepper);
@@ -228,6 +228,7 @@ export class AuthService {
       if (!proof) throw new AppError('unauthenticated', 'Validation expirée. Recommencez avec votre numéro.');
 
       let user = (await t.query<UserRow>('select * from users where phone = $1 for update', [proof.subject])).rows[0];
+      const created = !user;
       if (!user) {
         const country = countryOfPhone(proof.subject);
         if (!country) throw new AppError('validation', 'Pays non pris en charge.');
@@ -240,7 +241,7 @@ export class AuthService {
         await t.query('update user_sessions set revoked_at = $2 where user_id = $1 and revoked_at is null', [user.id, iso(now)]);
       }
       const device = await this.registerDevice(t, user.id, input.device);
-      return this.issueSession(t, user, device);
+      return { ...await this.issueSession(t, user, device), created };
     });
   }
 

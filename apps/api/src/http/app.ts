@@ -1,3 +1,5 @@
+import { audienceDeleteSchema, audienceEventSchema, audiencePeriodSchema } from '@gobilan/contracts';
+import { AudienceService } from '../services/audience';
 import { WorkspaceService } from '../services/workspace';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
@@ -54,6 +56,12 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   const subs = new SubscriptionService(deps);
   const partners = new PartnerService(deps);
   const admin = new AdminService(deps);
+  const audience = new AudienceService(deps);
+  const audienceAllowed = (req: FastifyRequest) => Boolean(
+    deps.config.audience && req.clientIp && !deps.config.audience.excludedIps.includes(req.clientIp) &&
+    req.headers['sec-gpc'] !== '1' && req.headers.dnt !== '1' &&
+    req.headers['user-agent'] && !/bot|crawler|spider|headless|preview|facebookexternalhit|slurp/i.test(req.headers['user-agent']),
+  );
 
   // Corps JSON conservé en texte brut : la signature du webhook porte sur les octets exacts reçus.
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
@@ -148,6 +156,17 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
 
   // ================= Utilisateurs (PWA) =================
+  app.post('/v1/audience/events', { bodyLimit: 1024 }, async (req, reply) => {
+    csrf(req, 'user');
+    if (audienceAllowed(req)) await audience.record(audienceEventSchema.parse(req.body));
+    return reply.status(204).send();
+  });
+  app.delete('/v1/audience/events', { bodyLimit: 256 }, async (req, reply) => {
+    csrf(req, 'user');
+    if (!deps.config.audience) return reply.status(503).send();
+    await audience.forget(audienceDeleteSchema.parse(req.body).visitor);
+    return reply.status(204).send();
+  });
   app.post('/v1/auth/otp/request', authLimit, async (req) => {
     csrf(req, 'user');
     return auth.requestOtp(requestOtpSchema.parse(req.body), req.clientIp, req.clientIp ?? DIRECT_QUOTA_KEY);
@@ -163,7 +182,12 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   });
   app.post('/v1/auth/pin/create', authLimit, async (req, reply) => {
     csrf(req, 'user');
-    const s = await auth.createPin(createPinSchema.parse(req.body));
+    const { audience: context, ...input } = createPinSchema.parse(req.body);
+    const s = await auth.createPin(input);
+    if (s.created && context && audienceAllowed(req)) {
+      // Une mesure indisponible ne doit pas annuler l'inscription déjà validée.
+      await audience.record({ ...context, kind: 'registration' }).catch(() => console.error('[audience] inscription non mesurée'));
+    }
     setSession(reply, 'user', s.token, deps.config.userSessionDays * 86400);
     return { user: s.user };
   });
@@ -340,6 +364,20 @@ export function buildApp(deps: Deps, opts: AppOptions = { secureCookies: true, r
   app.post('/v1/admin/allowlist/confirm', authLimit, async (req) => {
     const actor = await adminSession(req); const input = adminAllowlistConfirmSchema.parse(req.body);
     await admin.confirmAllowlistChange(actor.admin, input.requestId, input.code); return { ok: true };
+  });
+  app.get('/v1/admin/audience', async req => {
+    await adminSession(req);
+    const { from, to } = audiencePeriodSchema.parse(req.query);
+    return { report: await audience.report(from, to) };
+  });
+  app.post('/v1/admin/audience/export', async (req, reply) => {
+    const actor = await adminSession(req);
+    const period = audiencePeriodSchema.parse(req.body);
+    const report = await audience.report(period.from, period.to);
+    if (!report) throw new AppError('not_found', 'Collecte d’audience indisponible.');
+    const csv = await admin.exportAudience(actor.admin, report, period);
+    return reply.type('text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="audience-gobilan.csv"').send(csv);
   });
   app.get('/v1/admin/stats', async (req) => (await adminSession(req), admin.stats()));
   app.get('/v1/admin/referrals', async req => { await adminSession(req); return { referrals: await admin.listReferrals() }; });

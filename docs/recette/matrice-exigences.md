@@ -28,6 +28,7 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 | V12-OTP / §7 | 5 demandes/24h, cadence 2 min, quotas globaux | Politique WhatsApp configurable, CDC par défaut | auth.test.ts, runtime-config.test.ts | Test local de la v1.2 ; recette hébergée ouverte | Arbitrage CDC / v1.2 |
 | V12-REF / §8 | Owner après premier paiement, code unique non réattribué, crédit sans commission | À implémenter dans domain/contracts/API/PWA/admin | REC-09/10/11/12/13 | Ouvert | Nature des jours/plafond/essai |
 | V12-METRICS / §12/13 | Analytics anonymes, funnel, CSV, admins seuls, audit accès | À implémenter | Tests isolation/agrégats/CSV à créer | Ouvert | Politique anonymat/APDP, exclusions équipe |
+| V12-AUDIENCE / §12 | Audience sans cookie, sources, entonnoir et CSV | Instrumentation PWA sur accord, agrégats admin, export audité | audience.test.ts (API/PWA) | Collecte désactivée | Arbitrage APDP/confidentialité, migration approuvée après sauvegarde, recette physique |
 
 ## REC-01 à REC-14
 

@@ -1,3 +1,4 @@
+import { audienceLabels, type AudienceReport } from '@gobilan/domain';
 import { agentPromoCode, COUNTRIES, computePayoutBalances, netOfFees, PAYOUT_THRESHOLD_FCFA, subscriptionStatus, type LedgerEntry, type PartnerRole } from '@gobilan/domain';
 import type { z } from 'zod';
 import type { adminAllowlistChangeSchema, changePartnerRoleSchema, payoutBlockSchema, excludeReferralSchema, deactivateOwnerReferralCodeSchema, reversePayoutSchema, validatePayoutSchema } from '@gobilan/contracts';
@@ -406,6 +407,20 @@ export class AdminService {
       confirmedRevenue: await q(`select coalesce(sum(amount),0) n from payments where status = 'confirmed'`),
       commissionsDue: await q('select coalesce(sum(amount),0) n from commission_ledger'),
     };
+  }
+
+  async exportAudience(actor: AdminSession, report: AudienceReport, period: { from: string; to: string }) {
+    const fields = [
+      ['Groupe', 'Valeur', ...Object.values(audienceLabels)],
+      ['Période UTC', period.from + ' à ' + period.to],
+      ['Début de couverture', report.collectionStartedOn],
+      ['Total', '', ...Object.values(report.total)],
+      ...report.days.map(({ day, counts }) => ['Jour', day, ...Object.values(counts)]),
+      ...report.sources.map(({ source, counts }) => ['Source', source, counts.visitors, counts.visits]),
+      ...report.platforms.map(({ platform, counts }) => ['Système', platform, ...Object.values(counts)]),
+    ];
+    await this.audit(actor.email, 'admin.audience.export', null, null, period);
+    return fields.map(row => row.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n') + '\r\n';
   }
 
   async auditLog(limit = 100) {

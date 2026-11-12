@@ -1,4 +1,5 @@
 export * from './types';
+export * from './audience';
 export * from './countries';
 export * from './money';
 export * from './dates';
