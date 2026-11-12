@@ -4,7 +4,7 @@ Matrice de travail, pas certificat de conformité. Le détail historique reste d
 
 | ID / source | Exigence | Implémentation | Test | Preuve / statut | Bloqueur |
 | --- | --- | --- | --- | --- | --- |
-| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Tests locaux et E2E CI trois moteurs réussis | Recette déployée |
+| P0-WEB / CDC §3.1 | Navigateur : installation/légal seuls, sans session API | App.tsx, useStore.ts | App.test.tsx, install-smoke.mjs | Navigation publique observée en Chrome sur la preview ; [preuve](preuves/2026-11-12-pwa-hebergee.md) | Installation physique |
 | P0-DEMO / mission §1 | ?demo=1 ne contourne pas le site public | useStore.ts, App.tsx | App.test.tsx, install-smoke.mjs | Flag build explicite, aucun repli API | Démo métier hébergée séparée |
 | P0-ANDROID / CDC §3.2 | beforeinstallprompt, manifest, icônes, SW, HTTPS | Install.tsx, public/, netlify.toml | screens.test.tsx, install-smoke.mjs | Événement synthétique distingué d'une installation réelle | Appareil physique |
 | P0-IOS / v1.2 §6 | Guide visuel trois étapes, fermer puis réouvrir volontairement | Install.tsx | screens.test.tsx, install-smoke.mjs | Unitaires et E2E trois moteurs réussis : fermeture persistée, focus et Échap | Safari physique |

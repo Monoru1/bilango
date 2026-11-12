@@ -156,3 +156,13 @@ secrets, recettes fournisseur et approbation de lancement restent nécessaires.
 - Code de démonstration remplacé le 12 novembre ; valeur lisible uniquement dans Render.
 - Prochaine tâche : parcours P0.4 dans la PWA installée (invitation et acceptation d'un employé,
   stock, modification d'un bilan, historique), puis jeu de données de démonstration P0.5.
+
+## 12 novembre — parcours PWA de recette
+
+Branche `fix/gobilan-pwa-recette` depuis `13d63a0`. Le mode hébergé de `e2e/pwa-smoke.mjs`
+cible exclusivement la preview #12. Il exige les comptes fictifs réservés et le code de
+recette avant de lancer un navigateur, et vérifie les données via l’API. Le mode local
+conserve le test du blocage après expiration sur PostgreSQL isolé. L’accueil, les
+instructions d’installation Chrome et les mentions légales ont été vérifiés sur la
+preview actuelle. Le parcours authentifié reste à exécuter selon
+`docs/recette/preuves/2026-11-12-pwa-hebergee.md`.
