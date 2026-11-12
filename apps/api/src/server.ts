@@ -88,7 +88,7 @@ async function main() {
     });
     process.stdout.write('[api] ordonnanceur démarré (rappels, expirations, rapprochement FedaPay horaire) — SCHEDULER=0 pour le désactiver\n');
   }
-  const app = buildApp(deps, { secureCookies: runtime.secureCookies, rateLimit: true });
+  const app = buildApp(deps, { secureCookies: runtime.secureCookies, rateLimit: true, proxyKey: runtime.proxyKey });
   const port = runtime.port;
   await app.listen({ port, host: runtime.host });
   process.stdout.write(`[api] http://127.0.0.1:${port} — fournisseurs ${process.env.PROVIDER_MODE==='configured'?'configurés (activations explicites requises)':'de développement simulés'}\n`);
